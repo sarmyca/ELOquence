@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-base: #09090b;
+  --bg-primary: #0f1012;
+  --bg-secondary: #16171a;
+  --bg-tertiary: #1e1f23;
+  --bg-elevated: #26272c;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: rgba(255, 255, 255, 0.06);
+
+  --text-primary: #f0f0f3;
+  --text-accent: #d7dadc;
+  --text-secondary: #9ba1a6;
+  --text-tertiary: #6b7280;
+  --text-ghost: #4b5563;
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --border-focus: rgba(255, 255, 255, 0.25);
+
+  --tile-correct: #538d4e;
+  --tile-present: #b59f3b;
+  --tile-absent: #3a3a3c;
+  --tile-empty: #1e1f23;
+  --tile-border: rgba(255, 255, 255, 0.15);
+
+  --tile-size: clamp(48px, calc((100dvh - 320px) / 7.5), 66px);
+  --tile-gap: clamp(4px, 0.75vw, 6px);
+  --key-height: clamp(42px, 7.5vw, 58px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+*:focus-visible {
+  outline: 2px solid #6aaf60;
+  outline-offset: 2px;
+}
+
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* React Flow overrides for dark theme */
+.react-flow__controls button {
+  background-color: #1e1f23 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #9ba1a6 !important;
+  fill: #9ba1a6 !important;
+}
+.react-flow__controls button:hover {
+  background-color: #26272c !important;
+}
+.react-flow__minimap {
+  background-color: #0f1012 !important;
+}
+.react-flow__edge-path {
+  stroke-linecap: round;
+}
+
+/* Color-blind mode */
+.colorblind {
+  --tile-correct: #f5793a;
+  --tile-present: #85c0f9;
+  --tile-absent: #3a3a3c;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Manual reduce-motion class (mirrors the media query for user toggle) */
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

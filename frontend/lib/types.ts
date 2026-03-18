@@ -1,0 +1,156 @@
+export type GameMode = 'daily' | 'competitive' | 'practice';
+export type GameStatus = 'in_progress' | 'won' | 'lost' | 'abandoned';
+export type Classification =
+  | 'brilliant'
+  | 'best'
+  | 'good'
+  | 'okay'
+  | 'inaccuracy'
+  | 'mistake'
+  | 'blunder'
+  | 'miss'
+  | 'forced';
+export type GamePhase = 'opening' | 'midgame' | 'endgame';
+export type TileState = 'empty' | 'tbd' | 'correct' | 'present' | 'absent';
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  elo_rating: number;
+  games_played: number;
+  is_placement: boolean;
+  current_streak: number;
+  longest_streak: number;
+  is_admin: boolean;
+  created_at: string;
+}
+
+export interface Move {
+  id: string;
+  game_id: string;
+  move_number: number;
+  guess_word: string;
+  pattern: number;
+  remaining_words: number | null;
+  entropy_before: number | null;
+  entropy_after: number | null;
+  info_gained: number | null;
+  optimal_info: number | null;
+  optimal_word: string | null;
+  expected_remaining: number | null;
+  efficiency_ratio: number | null;
+  bits_lost: number | null;
+  classification: Classification | null;
+  game_phase: GamePhase | null;
+  constraint_violation: string | null;
+  trap_detected: boolean;
+  is_book_move: boolean;
+}
+
+export interface Game {
+  id: string;
+  user_id: string;
+  mode: GameMode;
+  target_word: string | null;
+  word_difficulty: number | null;
+  status: GameStatus;
+  num_guesses: number;
+  time_seconds: number | null;
+  rated: boolean;
+  accuracy_score: number | null;
+  luck_factor: number | null;
+  elo_before: number | null;
+  elo_after: number | null;
+  elo_delta: number | null;
+  is_placement: boolean;
+  moves: Move[];
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface TopPick {
+  word: string;
+  entropy: number;
+  expected_remaining: number;
+}
+
+export interface PatternBucket {
+  pattern: number;
+  count: number;
+  probability: number;
+  is_actual?: boolean;
+}
+
+export interface MoveAnalysis extends Move {
+  remaining_after: number;
+  luck: number;
+  top_picks: TopPick[];
+  trap_info: {
+    suffix: string;
+    trapped_words: string[];
+    trap_size: number;
+  } | null;
+  pattern_distribution?: PatternBucket[];
+  optimal_pattern_distribution?: PatternBucket[];
+  letter_frequencies?: Record<string, Record<string, number>>;
+}
+
+export interface AnalysisResult {
+  accuracy_score: number;
+  luck_factor: number;
+  moves: MoveAnalysis[];
+  constraint_violations: number;
+  traps_encountered: number;
+  phase_accuracies: {
+    opening: number;
+    midgame: number;
+    endgame: number;
+  };
+}
+
+export interface EloHistoryEntry {
+  id?: string;
+  elo_before: number;
+  elo_after: number;
+  delta: number;
+  accuracy_score: number | null;
+  recorded_at: string;
+}
+
+export const CLASSIFICATION_CONFIG: Record<
+  Classification,
+  { icon: string; label: string; color: string }
+> = {
+  brilliant: { icon: '!!', label: 'Brilliant', color: '#1565c0' },
+  best: { icon: '★', label: 'Best', color: '#538d4e' },
+  good: { icon: '✓', label: 'Good', color: '#6aaa64' },
+  okay: { icon: '~', label: 'Okay', color: '#2e9688' },
+  inaccuracy: { icon: '?!', label: 'Inaccuracy', color: '#b59f3b' },
+  mistake: { icon: '?', label: 'Mistake', color: '#e67e22' },
+  blunder: { icon: '✗', label: 'Blunder', color: '#e74c3c' },
+  miss: { icon: '!!', label: 'Miss', color: '#9c27b0' },
+  forced: { icon: '—', label: 'Forced', color: '#565758' },
+};
+
+export const RATING_TIERS = [
+  { name: 'Novice', min: 0, max: 1199, color: '#818384' },
+  { name: 'Veteran', min: 1200, max: 1399, color: '#b59f3b' },
+  { name: 'Master', min: 1400, max: 1599, color: '#6aaa64' },
+  { name: 'Grandmaster', min: 1600, max: 9999, color: '#1565c0' },
+];
+
+export function getRatingTier(elo: number) {
+  return RATING_TIERS.find((t) => elo >= t.min && elo <= t.max) || RATING_TIERS[0];
+}
+
+export function patternToTiles(pattern: number): TileState[] {
+  const tiles: TileState[] = [];
+  let p = pattern;
+  for (let i = 0; i < 5; i++) {
+    const val = p % 3;
+    tiles.push(val === 2 ? 'correct' : val === 1 ? 'present' : 'absent');
+    p = Math.floor(p / 3);
+  }
+  return tiles;
+}
