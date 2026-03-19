@@ -49,6 +49,19 @@ coverage/
 htmlcov/
 .coverage
 
+# TypeScript build info
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Test results
+test-results/
+
+# Playwright MCP logs
+.playwright-mcp/
+
+# Screenshots (generated)
+screenshots/
+
 # Claude Code
 .claude/
 .mcp.json

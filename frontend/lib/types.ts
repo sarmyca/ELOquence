@@ -95,7 +95,6 @@ export interface MoveAnalysis extends Move {
     trap_size: number;
   } | null;
   pattern_distribution?: PatternBucket[];
-  optimal_pattern_distribution?: PatternBucket[];
   letter_frequencies?: Record<string, Record<string, number>>;
 }
 

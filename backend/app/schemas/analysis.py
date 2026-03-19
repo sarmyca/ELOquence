@@ -55,16 +55,7 @@ class MoveAnalysis(BaseModel):
     remaining_words_list: list[str] = []
     top_picks: list[TopPick]
     pattern_distribution: list[PatternBucket] = []
-    optimal_pattern_distribution: list[PatternBucket] = []
     letter_frequencies: dict[str, dict[str, float]] = {}
-
-
-class PatternDistribution(BaseModel):
-    """Distribution of pattern outcomes for a guess."""
-
-    pattern: int
-    count: int
-    probability: float
 
 
 class GamePhaseAccuracy(BaseModel):

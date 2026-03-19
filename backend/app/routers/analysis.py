@@ -163,15 +163,6 @@ async def analyze_game_endpoint(
                     )
                     for pb in m.get("pattern_distribution", [])
                 ],
-                optimal_pattern_distribution=[
-                    PatternBucket(
-                        pattern=pb["pattern"],
-                        count=pb["count"],
-                        probability=pb["probability"],
-                        is_actual=pb["is_actual"],
-                    )
-                    for pb in m.get("optimal_pattern_distribution", [])
-                ],
                 letter_frequencies=m.get("letter_frequencies", {}),
             )
             for m in analysis["moves"]

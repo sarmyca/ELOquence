@@ -245,7 +245,6 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
                     for tp in top_picks
                 ],
                 "pattern_distribution": pattern_dist,
-                "optimal_pattern_distribution": [],
                 "letter_frequencies": letter_freq,
             }
         )
