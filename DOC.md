@@ -107,6 +107,7 @@ frontend/
 │  ├─ game/[id]/page.tsx     # Active game board
 │  ├─ review/[id]/page.tsx   # Post-game analysis view
 │  ├─ leaderboard/page.tsx   # Global rankings
+│  ├─ learn/page.tsx           # Educational content (Wordle, entropy, ELO)
 │  ├─ challenges/[code]/page.tsx  # Challenge mode
 │  ├─ achievements/page.tsx   # Achievement display
 │  ├─ admin/                  # Admin panel (users, daily words, announcements)
@@ -121,8 +122,10 @@ frontend/
 │  ├─ Toast.tsx              # Notifications
 │  ├─ GuessDistribution.tsx  # Stats histogram
 │  ├─ EloSparkline.tsx       # ELO trend chart
-│  ├─ LetterHeatmap.tsx      # Letter frequency heatmap
+│  ├─ LetterHeatmap.tsx      # Letter frequency heatmap (filtered to relevant letters)
+│  ├─ PatternHistogram.tsx   # Interactive pattern distribution (click-to-reveal words)
 │  ├─ EntropyWaterfall.tsx   # Entropy visualization
+│  ├─ GuessWaveEffect.tsx    # WebGL radial ripple shader on guess submission
 │  ├─ MoveExplanation.tsx    # AI-powered move analysis
 │  ├─ CoachChat.tsx          # AI coaching interface
 │  ├─ CommunityStats.tsx     # Aggregate game stats
@@ -139,7 +142,7 @@ frontend/
   - Single in-flight request per app lifecycle
   - localStorage token persisted for session recovery
 - **Component Local State:** Games, moves managed locally then persisted via API
-- **localStorage:** Colorblind mode, reduced motion preferences
+- **localStorage:** Colorblind mode, reduced motion preferences, practice game state persistence
 
 **Authentication Flow:**
 
@@ -217,14 +220,27 @@ backend/app/
 │  ├─ ai.py                  # Claude API integration
 │  └─ (utilities)
 └─ analysis/                  # Information-theoretic analysis
-   ├─ engine.py              # Pattern matrix computation
-   ├─ classifier.py          # Move classification (brilliant/blunder)
-   ├─ constraints.py         # Hard/soft constraint violation detection
-   ├─ traps.py               # Trap position detection
+   ├─ __init__.py            # Top-level analyze_game() with pattern distribution + letter frequency
+   ├─ engine.py              # Pattern matrix, entropy, optimal guess ranking
+   ├─ classifier.py          # Move classification (brilliant→blunder scale)
+   ├─ constraints.py         # Hard/soft constraint violation detection with reasons
+   ├─ traps.py               # Endgame trap detection (suffix/prefix patterns)
    ├─ game_phase.py          # Opening/midgame/endgame classification
-   ├─ patterns.py            # Pattern matching logic
+   ├─ patterns.py            # Strategic pattern recognition (green chasing, etc.)
    ├─ graph.py               # Game tree construction
-   └─ words.py               # Word pool management
+   └─ words.py               # Word pool management (standard + competitive)
+```
+
+**Additional Directories:**
+```
+backend/
+├─ data/
+│  ├─ answers.txt               # Standard word pool (2,309 words)
+│  ├─ competitive_extra.txt     # Additional competitive words (~2,700)
+│  └─ valid_guesses.txt         # All accepted guesses (~12,000)
+└─ scripts/
+   ├─ seed_users.py             # Development seed data (users with varied ELO)
+   └─ select_competitive_words.py  # Word selection utility for competitive pool
 ```
 
 **Lifespan Management:**
@@ -414,9 +430,10 @@ flowchart TD
     CalcExpected --> CalcPerf
 
     subgraph CalcPerf["Performance Score (0-1)"]
-        Acc["Accuracy: 50%<br/>accuracy / 100"]
-        Out["Outcome: 35%<br/>guesses 1-6 mapped to 1.0-0.4<br/>loss = 0.0"]
+        Acc["Accuracy: 45%<br/>accuracy / 100"]
+        Out["Outcome: 25%<br/>guesses 1-6 mapped to 1.0-0.4<br/>loss = 0.0"]
         Phase["Phase: 15%<br/>opening 25% + mid 35% + end 40%"]
+        Time["Time: 15%<br/>sigmoid around 60s par"]
     end
 
     CalcPerf --> AntiLuck{Won with<br/>accuracy < 30%?}
@@ -442,23 +459,28 @@ flowchart TD
 expected = 1.0 / (1.0 + 10.0 ** ((word_elo - player_elo) / 400.0))
 ```
 
-**Performance Score:** Composite of three components (0-1):
+**Performance Score:** Composite of four components (0-1):
 ```
-performance = 0.50 * accuracy_component
-            + 0.35 * outcome_component
+performance = 0.45 * accuracy_component
+            + 0.25 * outcome_component
             + 0.15 * phase_component
+            + 0.15 * time_component
 ```
 
 - **Accuracy Component:** `accuracy / 100.0`
 - **Outcome Component:** Map guesses 1-6 to scores (1=1.0, 6=0.40), 0.0 if lost
 - **Phase Component:** Weighted average of opening/midgame/endgame accuracies (0.25/0.35/0.40)
+- **Time Component:** Sigmoid curve centred on 60s par time (30s → ~0.85, 60s → 0.50, 120s → ~0.18, 300s+ → ~0.02). Only applies to competitive games with recorded time; neutral (0.5) otherwise.
 - **Anti-Luck Cap:** If won with accuracy < 30%, performance capped at 0.50
 
 **ELO Delta:**
 ```python
 delta = k * (performance_score - expected)
-elo_after = max(100.0, elo_before + delta)
+elo_after = round(max(100.0, elo_before + delta))  # Rounded to integer
+game.elo_delta = round(elo_after - elo_before)
 ```
+
+**Immutable ELO:** Players cannot manipulate their rating. Deleting game history preserves the current ELO — only game counters (games_played, streaks) are reset. ELO history records are retained with nulled game references.
 
 **Streak Tracking:** Only for daily games
 - Incremented if last_played_date was yesterday
@@ -469,13 +491,16 @@ elo_after = max(100.0, elo_before + delta)
 
 | Feature | Daily | Competitive | Practice |
 |---------|-------|-------------|----------|
-| **Word Pool** | Standard | Selectable | Selectable |
+| **Word Pool** | Standard | Competitive (~5,500) | Selectable |
 | **Ranked** | Yes | Yes | No |
+| **Timer** | No | Yes (affects ELO) | No |
 | **Frequency** | 1 per day | Any time | Any time |
 | **Difficulty Fixed** | Yes | Random | Random |
 | **Streaks** | Yes | No | No |
 | **ELO Impact** | Yes | Yes | No |
 | **Placement K-Factor** | Yes (if in placement) | Yes (if in placement) | N/A |
+| **Setup Screen** | No | No | Yes (word filters) |
+| **State Persistence** | DB | DB | DB + localStorage |
 
 ### Game State Machine
 
@@ -516,11 +541,71 @@ Based on bits lost relative to the optimal move. Additional classifications: **f
 
 ### Analysis
 All game modes get full post-game analysis:
-- Information-theoretic metrics (entropy, bits lost, efficiency)
-- Move classification (brilliant/best/good/okay/inaccuracy/mistake/blunder)
-- Game phase classification (opening/midgame/endgame)
-- Constraint violations (hard/soft)
-- Trap detection
+- **Information-theoretic metrics** — Shannon entropy, bits lost, efficiency ratio, luck factor
+- **Move classification** — brilliant/best/good/okay/inaccuracy/mistake/blunder/miss/forced
+- **Game phase classification** — opening/midgame/endgame based on remaining words and move number
+- **Constraint violations** — hard (ignoring green) and soft (ignoring yellow/gray) detection with reasons
+- **Trap detection** — Identifies endgame suffix/prefix traps (e.g., _IGHT words)
+- **Strategic patterns** — Higher-level pattern recognition (green chasing, elimination play, etc.)
+- **Pattern distribution** — Full histogram of all possible outcomes per guess, with per-bucket word lists
+- **Letter frequency heatmap** — Positional letter frequency across remaining candidates (filtered to >0% only)
+- **Top 15 picks** — Best guesses ranked by entropy at each game state
+- **Keyboard navigation** — Arrow keys to cycle moves, number keys (1-6) to jump directly
+
+### Analysis Response Schema
+```json
+{
+  "accuracy_score": 75.5,
+  "luck_factor": 0.12,
+  "constraint_violations": 0,
+  "traps_encountered": 1,
+  "phase_accuracies": { "opening": 85.0, "midgame": 70.0, "endgame": 60.0 },
+  "patterns": [
+    {
+      "pattern_type": "green_chasing",
+      "description": "Focused on confirmed letters instead of eliminating unknowns",
+      "severity": "warning",
+      "move_number": 3
+    }
+  ],
+  "moves": [
+    {
+      "move_number": 1,
+      "guess_word": "SALET",
+      "pattern": 42,
+      "remaining_words": 2309,
+      "remaining_after": 71,
+      "entropy_before": 11.173,
+      "entropy_after": 6.149,
+      "info_gained": 5.024,
+      "optimal_info": 5.024,
+      "optimal_word": "SALET",
+      "expected_remaining": 61.5,
+      "optimal_expected_remaining": 61.5,
+      "efficiency_ratio": 1.0,
+      "bits_lost": 0.0,
+      "classification": "best",
+      "game_phase": "opening",
+      "constraint_violation": "none",
+      "trap_detected": false,
+      "is_book_move": true,
+      "luck": 0.15,
+      "remaining_words_list": ["CRANE", "TRACE", "..."],
+      "top_picks": [
+        { "word": "SALET", "entropy": 5.024, "expected_remaining": 61.5 }
+      ],
+      "pattern_distribution": [
+        { "pattern": 0, "count": 500, "probability": 0.2166, "is_actual": false, "words": ["ABBEY", "..."] },
+        { "pattern": 42, "count": 71, "probability": 0.0307, "is_actual": true, "words": ["CRANE", "..."] }
+      ],
+      "letter_frequencies": {
+        "0": { "A": 15.2, "B": 3.1, "C": 8.5 },
+        "1": { "A": 12.0, "E": 9.3 }
+      }
+    }
+  ]
+}
+```
 
 ## 8. Authentication & Authorization
 
@@ -672,9 +757,6 @@ All endpoints prefixed with `/api` base URL.
 - Query: `page=1, per_page=50`
 - Response: `{ "rankings": [{"rank": 1, "user": {...}}, ...], "total": 500, "page": 1, "per_page": 50 }`
 
-**GET /leaderboard/near-me** (Protected)
-- Response: 5 players above and below current user
-
 ### User Stats
 
 **GET /users/me/stats** (Protected)
@@ -687,7 +769,7 @@ All endpoints prefixed with `/api` base URL.
 ### Analysis
 
 **POST /analysis/games/{game_id}/analyze** (Protected)
-- Response: `{ "accuracy_score": 75.5, "luck_factor": 0.3, "phase_accuracies": {...}, "constraints": {...} }`
+- Response: Full AnalysisResponse (see Analysis Response Schema above) including per-move metrics, pattern distributions with word lists, strategic patterns, and phase accuracies.
 
 ### AI Features
 
@@ -770,4 +852,4 @@ All endpoints prefixed with `/api` base URL.
 
 ## Summary
 
-ELOquence is a well-architected competitive Wordle platform combining traditional game mechanics with sophisticated information-theoretic analysis. The frontend-backend separation is clean, authentication is stateless (JWT), and the database schema supports comprehensive game history tracking and ELO calculation. The modular backend services make it easy to extend with new analysis features, AI integrations, and competitive features. Deployment via Docker Compose ensures consistency across environments.
+ELOquence is a competitive Wordle platform combining traditional game mechanics with sophisticated information-theoretic analysis. The frontend-backend separation is clean, authentication is stateless (JWT), and the database schema supports comprehensive game history tracking and immutable ELO calculation. The analysis engine provides deep per-move breakdowns including pattern distributions with word lists, letter frequency heatmaps, strategic pattern detection, and trap identification. The modular backend services make it easy to extend with new analysis features, AI integrations, and competitive features. Deployment via Docker Compose ensures consistency across environments.
