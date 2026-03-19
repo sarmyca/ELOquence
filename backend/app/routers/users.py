@@ -5,12 +5,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.elo_history import EloHistory
 from app.models.game import Game
+from app.models.move import Move
 from app.models.user import User
 from app.services.auth import get_current_user
 
@@ -149,3 +150,113 @@ async def user_stats(
         "current_streak": current_user.current_streak,
         "longest_streak": current_user.longest_streak,
     }
+
+
+@router.delete("/me/games")
+async def delete_all_games(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Delete all past games for the current user.
+
+    ELO rating and ELO history are preserved — players cannot manipulate
+    their rating by deleting games.
+
+    Deletion order respects FK constraints:
+    1. Moves (FK → games)
+    2. Games
+
+    After deletion the streak counters and games_played are reset.
+
+    Args:
+        current_user: The currently authenticated user.
+        db: Async database session.
+
+    Returns:
+        Dict with a confirmation message and the number of games deleted.
+    """
+    game_ids_result = await db.execute(
+        select(Game.id).where(Game.user_id == current_user.id)
+    )
+    game_ids = game_ids_result.scalars().all()
+    games_deleted = len(game_ids)
+
+    if game_ids:
+        # 1. Delete moves that belong to the user's games.
+        await db.execute(
+            delete(Move).where(Move.game_id.in_(game_ids))
+        )
+
+        # 2. Null out game_id references in ELO history (keep the history).
+        await db.execute(
+            EloHistory.__table__.update()
+            .where(EloHistory.user_id == current_user.id)
+            .values(game_id=None)
+        )
+
+        # 3. Delete the games themselves.
+        await db.execute(
+            delete(Game).where(Game.user_id == current_user.id)
+        )
+
+    # Reset game-related counters but preserve ELO.
+    current_user.games_played = 0
+    current_user.current_streak = 0
+    current_user.longest_streak = 0
+    current_user.last_played_date = None
+
+    await db.commit()
+
+    return {"message": "All game data deleted", "games_deleted": games_deleted}
+
+
+@router.delete("/me")
+async def delete_account(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Permanently delete the authenticated user's account and all associated data.
+
+    Deletion order respects FK constraints:
+    1. Moves (via game_id subquery)
+    2. EloHistory (by user_id, before games are dropped)
+    3. Games (by user_id)
+    4. User record
+
+    Args:
+        current_user: The currently authenticated user.
+        db: Async database session.
+
+    Returns:
+        Dict with a confirmation message.
+    """
+    # Resolve the user's game IDs once so we can bulk-delete moves.
+    game_ids_result = await db.execute(
+        select(Game.id).where(Game.user_id == current_user.id)
+    )
+    game_ids = game_ids_result.scalars().all()
+
+    if game_ids:
+        # 1. Delete moves belonging to the user's games.
+        await db.execute(
+            delete(Move).where(Move.game_id.in_(game_ids))
+        )
+
+    # 2. Delete all ELO history rows for this user (must precede game deletion
+    #    because elo_history.game_id uses ondelete=SET NULL, not CASCADE).
+    await db.execute(
+        delete(EloHistory).where(EloHistory.user_id == current_user.id)
+    )
+
+    if game_ids:
+        # 3. Delete the games.
+        await db.execute(
+            delete(Game).where(Game.user_id == current_user.id)
+        )
+
+    # 4. Delete the user record itself.
+    await db.delete(current_user)
+
+    await db.commit()
+
+    return {"message": "Account deleted"}

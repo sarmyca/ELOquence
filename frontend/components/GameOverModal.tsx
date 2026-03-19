@@ -162,7 +162,7 @@ export default function GameOverModal({ game, open }: GameOverModalProps) {
                         }`}
                       >
                         {(eloDelta ?? 0) >= 0 ? '+' : ''}
-                        {eloDelta}
+                        {Math.round(eloDelta ?? 0)}
                       </motion.span>
                     </div>
                   )}
@@ -174,7 +174,7 @@ export default function GameOverModal({ game, open }: GameOverModalProps) {
                         Word ELO
                       </span>
                       <span className="text-lg font-mono font-bold text-text-primary">
-                        {game.word_difficulty.toLocaleString()}
+                        {Math.round(game.word_difficulty).toLocaleString()}
                       </span>
                     </div>
                   )}

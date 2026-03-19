@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
@@ -23,7 +23,6 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
-  Play,
 } from 'lucide-react';
 import AccuracyGauge from '@/components/AccuracyGauge';
 import ClassificationBadge from '@/components/ClassificationBadge';
@@ -33,8 +32,6 @@ import MoveQualityTimeline from '@/components/MoveQualityTimeline';
 import EntropyWaterfall from '@/components/EntropyWaterfall';
 import PatternHistogram from '@/components/PatternHistogram';
 import LetterHeatmap from '@/components/LetterHeatmap';
-import AutoPlayControls from '@/components/AutoPlayControls';
-import AiSummary from '@/components/AiSummary';
 import MoveExplanation from '@/components/MoveExplanation';
 import CoachChat from '@/components/CoachChat';
 import { gamesApi, analysisApi } from '@/lib/api';
@@ -146,6 +143,7 @@ interface MoveRowProps {
 }
 
 function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowProps) {
+  const [showRemaining, setShowRemaining] = useState(false);
   const effRatio = move.efficiency_ratio ?? 0;
   const infoGained = move.info_gained ?? 0;
   const config = move.classification ? CLASSIFICATION_CONFIG[move.classification] : null;
@@ -231,12 +229,18 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
             <div className="px-3 pb-3 pt-1 flex flex-col gap-2">
               {/* Stats row */}
               <div className="grid grid-cols-3 gap-2">
-                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-bg-tertiary">
-                  <span className="text-[10px] text-text-ghost uppercase tracking-wider">Remaining</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowRemaining(!showRemaining); }}
+                  className="flex flex-col gap-0.5 p-2 rounded-lg bg-bg-tertiary text-left hover:bg-white/[0.08] transition-colors"
+                >
+                  <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
+                    Remaining
+                    <ChevronDown size={9} className={clsx('transition-transform', showRemaining && 'rotate-180')} />
+                  </span>
                   <span className="text-sm font-mono font-bold tabular-nums text-text-primary">
                     {move.remaining_after ?? move.remaining_words ?? '—'}
                   </span>
-                </div>
+                </button>
                 <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-bg-tertiary">
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider">Entropy</span>
                   <span className="text-sm font-mono font-bold tabular-nums text-text-primary">
@@ -259,6 +263,35 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
                   </span>
                 </div>
               </div>
+
+              {/* Remaining words list */}
+              <AnimatePresence>
+                {showRemaining && move.remaining_words_list && move.remaining_words_list.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-2 rounded-lg bg-bg-tertiary">
+                      <span className="text-[10px] text-text-ghost uppercase tracking-wider mb-1.5 block">
+                        Remaining words ({move.remaining_words_list.length})
+                      </span>
+                      <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                        {move.remaining_words_list.map((word: string) => (
+                          <span
+                            key={word}
+                            className="text-[11px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/[0.06] text-text-secondary"
+                          >
+                            {word}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Optimal word */}
               {move.optimal_word && move.optimal_word !== move.guess_word && (
@@ -287,9 +320,18 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
 
               {/* Constraint violation */}
               {move.constraint_violation && move.constraint_violation !== 'none' && (
-                <div className="text-xs p-2 rounded-lg bg-[#e74c3c]/10 border border-[#e74c3c]/20">
-                  <span className="text-[#e74c3c] font-medium">Constraint violation: </span>
-                  <span className="text-text-secondary">{move.constraint_violation}</span>
+                <div className={clsx(
+                  'text-xs p-2 rounded-lg',
+                  move.constraint_violation === 'hard'
+                    ? 'bg-[#e74c3c]/10 border border-[#e74c3c]/20'
+                    : 'bg-white/[0.03] border border-white/[0.06]'
+                )}>
+                  <span className={clsx(
+                    'font-medium',
+                    move.constraint_violation === 'hard' ? 'text-[#e74c3c]' : 'text-text-secondary'
+                  )}>
+                    {move.constraint_violation_reason || (move.constraint_violation === 'hard' ? 'Constraint violation' : 'Non-hard mode guess')}
+                  </span>
                 </div>
               )}
             </div>
@@ -388,7 +430,6 @@ function PatternsPanel({ moves }: { moves: MoveAnalysis[] }) {
   const [selectedMove, setSelectedMove] = useState(0);
   const move = moves[selectedMove];
   const dist: PatternBucket[] = move?.pattern_distribution ?? [];
-  const optDist: PatternBucket[] | undefined = move?.optimal_pattern_distribution;
   const actualPattern = move?.pattern ?? 0;
 
   return (
@@ -412,7 +453,6 @@ function PatternsPanel({ moves }: { moves: MoveAnalysis[] }) {
       {dist.length > 0 ? (
         <PatternHistogram
           distribution={dist}
-          optimalDistribution={optDist}
           actualPattern={actualPattern}
         />
       ) : (
@@ -474,12 +514,6 @@ export default function ReviewPage() {
   const [activeMove, setActiveMove] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('analysis');
 
-  // Auto-play state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [autoMove, setAutoMove] = useState(0);
-  const [playSpeed, setPlaySpeed] = useState(1);
-  const autoPlayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const TABS = [
     { id: 'analysis', label: 'Analysis' },
     { id: 'top_picks', label: 'Top Picks' },
@@ -516,130 +550,64 @@ export default function ReviewPage() {
 
   useEffect(() => {
     if (game && game.status !== 'in_progress') {
-      if (game.accuracy_score !== null && game.moves.every((m) => m.classification !== null)) {
-        const syntheticAnalysis: AnalysisResult = {
-          accuracy_score: game.accuracy_score!,
-          luck_factor: game.luck_factor ?? 0,
-          moves: game.moves.map((m) => ({
-            ...m,
-            remaining_after: m.remaining_words ?? 0,
-            luck: 0,
-            top_picks: [],
-            trap_info: null,
-          })),
-          constraint_violations: 0,
-          traps_encountered: 0,
-          phase_accuracies: { opening: 0, midgame: 0, endgame: 0 },
-        };
-        setAnalysis(syntheticAnalysis);
-      } else {
-        runAnalysis();
-      }
+      runAnalysis();
     }
   }, [game, runAnalysis]);
 
-  // Classification reveal animation
+  // Show all classifications immediately, animate only the score counter
   useEffect(() => {
     if (!analysis) return;
-    setRevealedCount(0);
+    const total = analysis.moves.length;
+    setRevealedCount(total);
     setDisplayScore(0);
 
-    const total = analysis.moves.length;
-    const scorePerMove = analysis.accuracy_score / total;
+    // Animate score counter from 0 to final over 600ms
+    const steps = 20;
+    const stepMs = 30;
     const timers: ReturnType<typeof setTimeout>[] = [];
-
-    for (let i = 0; i < total; i++) {
+    for (let i = 1; i <= steps; i++) {
       const t = setTimeout(() => {
-        setRevealedCount(i + 1);
-        setDisplayScore(Math.round(scorePerMove * (i + 1)));
-      }, 500 + i * 800);
+        setDisplayScore(Math.round((i / steps) * analysis.accuracy_score));
+      }, i * stepMs);
       timers.push(t);
     }
-
-    const finalTimer = setTimeout(() => {
-      setDisplayScore(Math.round(analysis.accuracy_score));
-    }, 500 + total * 800 + 200);
-    timers.push(finalTimer);
 
     return () => timers.forEach(clearTimeout);
   }, [analysis]);
 
-  // Auto-play engine
-  const totalAutoMoves = analysis?.moves.length ?? 0;
-  const msPerMove = playSpeed === 0.5 ? 1600 : playSpeed === 2 ? 400 : 800;
-
+  // Keyboard navigation: arrows for moves, numbers for tabs
   useEffect(() => {
-    if (!isPlaying) {
-      if (autoPlayRef.current) clearTimeout(autoPlayRef.current);
-      return;
-    }
-    if (autoMove >= totalAutoMoves) {
-      setIsPlaying(false);
-      return;
-    }
-    autoPlayRef.current = setTimeout(() => {
-      setAutoMove((prev) => prev + 1);
-    }, msPerMove);
-    return () => {
-      if (autoPlayRef.current) clearTimeout(autoPlayRef.current);
-    };
-  }, [isPlaying, autoMove, totalAutoMoves, msPerMove]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when typing in an input
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
 
-  // When auto-play advances, sync revealed count and active move
-  useEffect(() => {
-    if (!isPlaying) return;
-    setRevealedCount(Math.min(autoMove, totalAutoMoves));
-    if (autoMove > 0 && autoMove <= totalAutoMoves) {
-      setActiveMove(autoMove - 1);
-    }
-    const scorePerMove = analysis ? analysis.accuracy_score / totalAutoMoves : 0;
-    setDisplayScore(Math.round(scorePerMove * Math.min(autoMove, totalAutoMoves)));
-  }, [autoMove, isPlaying, analysis, totalAutoMoves]);
-
-  function handleAutoPlay() {
-    if (autoMove >= totalAutoMoves) {
-      setAutoMove(0);
-    }
-    setIsPlaying(true);
-    setActiveTab('analysis');
-  }
-
-  function handleAutoPause() {
-    setIsPlaying(false);
-  }
-
-  function handleAutoReset() {
-    setIsPlaying(false);
-    setAutoMove(0);
-    setActiveMove(null);
-    // Re-run normal reveal
-    if (analysis) {
-      setRevealedCount(0);
-      setDisplayScore(0);
-      const total = analysis.moves.length;
-      const scorePerMove = analysis.accuracy_score / total;
-      for (let i = 0; i < total; i++) {
-        setTimeout(() => {
-          setRevealedCount(i + 1);
-          setDisplayScore(Math.round(scorePerMove * (i + 1)));
-        }, 500 + i * 800);
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!analysis) return;
+        const total = analysis.moves.length;
+        setActiveMove((prev) => {
+          if (prev === null) return 0;
+          return Math.min(total - 1, prev + 1);
+        });
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!analysis) return;
+        const total = analysis.moves.length;
+        setActiveMove((prev) => {
+          if (prev === null) return total - 1;
+          return Math.max(0, prev - 1);
+        });
+      } else if (e.key >= '1' && e.key <= '6') {
+        const tabIdx = parseInt(e.key) - 1;
+        if (tabIdx < TABS.length) {
+          setActiveTab(TABS[tabIdx].id);
+        }
       }
-      setTimeout(() => {
-        setDisplayScore(Math.round(analysis.accuracy_score));
-      }, 500 + total * 800 + 200);
-    }
-  }
+    };
 
-  function handleSetMove(n: number) {
-    setIsPlaying(false);
-    const clamped = Math.max(0, Math.min(totalAutoMoves, n));
-    setAutoMove(clamped);
-    setRevealedCount(clamped);
-    if (clamped > 0) setActiveMove(clamped - 1);
-    else setActiveMove(null);
-    const scorePerMove = analysis ? analysis.accuracy_score / totalAutoMoves : 0;
-    setDisplayScore(Math.round(scorePerMove * clamped));
-  }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [analysis, TABS]);
 
   // Compute guesses/patterns for mini board
   const guesses = game?.moves
@@ -655,7 +623,6 @@ export default function ReviewPage() {
 
   const eloDelta = game?.elo_delta;
   const wonGame = game?.status === 'won';
-  const autoHighlightRow = isPlaying && autoMove > 0 ? autoMove - 1 : undefined;
 
   if (loadingGame) {
     return (
@@ -666,9 +633,9 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 py-3 h-[calc(100dvh-56px)] flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-3 shrink-0">
         <button
           onClick={() => router.push('/dashboard')}
           className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-white/[0.06] transition-colors"
@@ -690,43 +657,28 @@ export default function ReviewPage() {
             </p>
           )}
         </div>
-        {/* Auto-play trigger button */}
-        {analysis && !isPlaying && (
-          <motion.button
-            onClick={handleAutoPlay}
-            whileTap={{ scale: 0.92 }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#538d4e]/10 border border-[#538d4e]/30 text-[#6aaa64] hover:bg-[#538d4e]/20 transition-colors text-xs font-medium"
-          >
-            <Play size={12} />
-            Auto-play
-          </motion.button>
-        )}
-        {isPlaying && (
-          <motion.button
-            onClick={handleAutoPause}
-            whileTap={{ scale: 0.92 }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#b59f3b]/10 border border-[#b59f3b]/30 text-[#b59f3b] hover:bg-[#b59f3b]/20 transition-colors text-xs font-medium"
-          >
-            Playing...
-          </motion.button>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
+      <div className={clsx(
+        'grid grid-cols-1 gap-4 min-h-0 flex-1',
+        game && analysis
+          ? 'lg:grid-cols-[auto_1fr_320px]'
+          : 'lg:grid-cols-[auto_1fr]'
+      )}>
         {/* LEFT COLUMN */}
-        <div className="flex flex-col gap-4 items-center lg:items-start">
+        <div className="flex flex-col gap-3 items-center lg:items-start overflow-y-auto pr-1" style={{ maxHeight: 'calc(100dvh - 120px)' }}>
           {/* Mini board */}
           <div className="p-4 rounded-2xl bg-bg-secondary border border-white/[0.08]">
             <MiniBoard
               guesses={guesses}
               patterns={boardPatterns}
               targetWord={game?.target_word ?? null}
-              highlightRow={autoHighlightRow}
+              highlightRow={activeMove ?? undefined}
             />
           </div>
 
           {/* Accuracy gauge */}
-          <div className="flex flex-col items-center p-5 rounded-2xl bg-bg-secondary border border-white/[0.08] w-full">
+          <div className="flex flex-col items-center p-3 rounded-2xl bg-bg-secondary border border-white/[0.08] w-full">
             {loadingAnalysis ? (
               <div className="flex flex-col items-center gap-3 py-4">
                 <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
@@ -762,7 +714,7 @@ export default function ReviewPage() {
                       (eloDelta ?? 0) >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]'
                     )}
                   >
-                    {(eloDelta ?? 0) >= 0 ? '+' : ''}{eloDelta}
+                    {(eloDelta ?? 0) >= 0 ? '+' : ''}{Math.round(eloDelta ?? 0)}
                   </span>
                 </div>
               )}
@@ -836,36 +788,18 @@ export default function ReviewPage() {
             </div>
           )}
 
-          {/* AI Summary */}
-          {analysis && game && (
-            <AiSummary gameId={game.id} analysis={analysis} />
-          )}
+
         </div>
 
-        {/* RIGHT COLUMN */}
-        <div className="flex flex-col gap-3">
+        {/* CENTER COLUMN */}
+        <div className="flex flex-col gap-2 min-h-0">
           <TabSystem
             tabs={TABS}
             activeTab={activeTab}
             onChange={setActiveTab}
           />
 
-          {/* Auto-play controls (shown when analysis is available) */}
-          {analysis && (
-            <AutoPlayControls
-              totalMoves={totalAutoMoves}
-              currentMove={autoMove}
-              isPlaying={isPlaying}
-              onPlay={handleAutoPlay}
-              onPause={handleAutoPause}
-              onReset={handleAutoReset}
-              onSetMove={handleSetMove}
-              speed={playSpeed}
-              onSpeedChange={setPlaySpeed}
-            />
-          )}
-
-          <div className="p-4 rounded-2xl bg-bg-secondary border border-white/[0.08] min-h-[300px]">
+          <div className="p-4 rounded-2xl bg-bg-secondary border border-white/[0.08] min-h-0 flex-1 overflow-y-auto">
             {/* Analysis tab */}
             {activeTab === 'analysis' && (
               <div className="flex flex-col gap-1">
@@ -900,7 +834,7 @@ export default function ReviewPage() {
                       key={move.id || i}
                       move={move}
                       index={i}
-                      revealed={i < revealedCount}
+                      revealed={true}
                       isActive={activeMove === i}
                       onClick={() => setActiveMove(activeMove === i ? null : i)}
                       gameId={game?.id || id}
@@ -927,6 +861,21 @@ export default function ReviewPage() {
                       </div>
                     ))
                 ) : null}
+              {/* Summary flags */}
+              {analysis && (analysis.constraint_violations > 0 || analysis.traps_encountered > 0) && (
+                <div className="flex gap-2 flex-wrap mt-3">
+                  {analysis.constraint_violations > 0 && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#e74c3c]/10 border border-[#e74c3c]/20 text-[#e74c3c]">
+                      {analysis.constraint_violations} constraint violation{analysis.constraint_violations !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {analysis.traps_encountered > 0 && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#9c27b0]/10 border border-[#9c27b0]/20 text-[#9c27b0]">
+                      {analysis.traps_encountered} trap{analysis.traps_encountered !== 1 ? 's' : ''} encountered
+                    </span>
+                  )}
+                </div>
+              )}
               </div>
             )}
 
@@ -1001,35 +950,19 @@ export default function ReviewPage() {
             )}
           </div>
 
-          {/* Summary flags */}
-          {analysis && (analysis.constraint_violations > 0 || analysis.traps_encountered > 0) && (
-            <div className="flex gap-2 flex-wrap">
-              {analysis.constraint_violations > 0 && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-[#e74c3c]/10 border border-[#e74c3c]/20 text-[#e74c3c]">
-                  {analysis.constraint_violations} constraint violation
-                  {analysis.constraint_violations !== 1 ? 's' : ''}
-                </span>
-              )}
-              {analysis.traps_encountered > 0 && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-[#9c27b0]/10 border border-[#9c27b0]/20 text-[#9c27b0]">
-                  {analysis.traps_encountered} trap
-                  {analysis.traps_encountered !== 1 ? 's' : ''} encountered
-                </span>
-              )}
-            </div>
-          )}
         </div>
+
+        {/* RIGHT COLUMN — Coach Chat */}
+        {game && analysis && (
+          <div className="hidden lg:flex flex-col min-h-0">
+            <CoachChat
+              gameId={game.id}
+              gameContext={`Game: ${game.target_word}, ${game.status} in ${game.num_guesses}/6, Accuracy: ${Math.round(game.accuracy_score ?? 0)}%`}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Coach Chat */}
-      {game && analysis && (
-        <div className="mt-4 max-w-lg">
-          <CoachChat
-            gameId={game.id}
-            gameContext={`Game: ${game.target_word}, ${game.status} in ${game.num_guesses}/6, Accuracy: ${Math.round(game.accuracy_score ?? 0)}%`}
-          />
-        </div>
-      )}
     </div>
   );
 }

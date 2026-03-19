@@ -19,14 +19,20 @@ from app.services.word_difficulty import word_to_elo
 
 
 async def _get_word_pool(mode: str, pool_name: str) -> list[str]:
-    """Return the answer word pool based on mode and pool name."""
-    from app.analysis.engine import ANSWERS
+    """Return the answer word pool based on mode and pool name.
+
+    Competitive mode uses the expanded pool (standard answers + extra
+    competitive words).  All other modes use the standard 2,309 answers.
+    """
+    from app.analysis.engine import ANSWERS, COMPETITIVE_ANSWERS
 
     if not ANSWERS:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Word lists not loaded.",
         )
+    if mode == "competitive" and COMPETITIVE_ANSWERS:
+        return COMPETITIVE_ANSWERS
     return ANSWERS
 
 
@@ -239,7 +245,7 @@ async def submit_guess(
         try:
             from app.analysis import analyze_game
 
-            analysis = analyze_game(all_moves_data, game.target_word)
+            analysis = analyze_game(all_moves_data, game.target_word, competitive=game.mode == "competitive")
             accuracy = analysis["accuracy_score"]
             phase_accuracies = analysis["phase_accuracies"]
             game.accuracy_score = accuracy

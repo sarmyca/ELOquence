@@ -1,5 +1,6 @@
 'use client';
-import { useRef, useCallback, useEffect } from 'react';
+import { useCallback, useRef } from 'react';
+import ELK from 'elkjs/lib/elk.bundled.js';
 
 interface ElkNode {
   id: string;
@@ -26,30 +27,36 @@ interface LayoutResult {
 }
 
 export function useElkLayout() {
-  const workerRef = useRef<Worker | null>(null);
-  const resolveRef = useRef<((result: LayoutResult) => void) | null>(null);
-
-  useEffect(() => {
-    workerRef.current = new Worker(
-      new URL('../elk-worker.ts', import.meta.url)
-    );
-    workerRef.current.onmessage = (event: MessageEvent) => {
-      if (event.data.type === 'layout' && resolveRef.current) {
-        resolveRef.current(event.data.result);
-        resolveRef.current = null;
-      }
-    };
-    return () => {
-      workerRef.current?.terminate();
-    };
-  }, []);
+  const elkRef = useRef(new ELK());
 
   const computeLayout = useCallback(
-    (nodes: ElkNode[], edges: ElkEdge[], options?: Record<string, string>): Promise<LayoutResult> => {
-      return new Promise((resolve) => {
-        resolveRef.current = resolve;
-        workerRef.current?.postMessage({ nodes, edges, options });
-      });
+    async (nodes: ElkNode[], edges: ElkEdge[], options?: Record<string, string>): Promise<LayoutResult> => {
+      const graph = {
+        id: 'root',
+        layoutOptions: {
+          'elk.algorithm': 'layered',
+          'elk.direction': 'RIGHT',
+          'elk.spacing.nodeNode': '60',
+          'elk.layered.spacing.nodeNodeBetweenLayers': '120',
+          'elk.spacing.edgeNode': '30',
+          'elk.layered.crossingMinimization.strategy': 'LAYER_SWEEP',
+          'elk.edgeRouting': 'ORTHOGONAL',
+          ...options,
+        },
+        children: nodes.map((node) => ({
+          id: node.id,
+          width: node.width || 140,
+          height: node.height || 80,
+        })),
+        edges: edges.map((edge) => ({
+          id: edge.id,
+          sources: [edge.source],
+          targets: [edge.target],
+        })),
+      };
+
+      const result = await elkRef.current.layout(graph);
+      return result as LayoutResult;
     },
     []
   );

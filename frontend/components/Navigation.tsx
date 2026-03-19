@@ -12,6 +12,7 @@ const BASE_NAV_LINKS = [
   { href: '/play', label: 'Play' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/leaderboard', label: 'Leaderboard' },
+  { href: '/learn', label: 'Learn' },
 ];
 
 export default function Navigation() {
@@ -95,7 +96,7 @@ export default function Navigation() {
                   className="text-sm font-mono font-semibold"
                   style={{ color: tier?.color }}
                 >
-                  {user.elo_rating}
+                  {Math.round(user.elo_rating)}
                 </span>
                 <span
                   className="text-xs px-1.5 py-0.5 rounded font-medium"
@@ -217,7 +218,7 @@ export default function Navigation() {
                       className="text-sm font-mono font-semibold ml-auto"
                       style={{ color: tier?.color }}
                     >
-                      {user.elo_rating}
+                      {Math.round(user.elo_rating)}
                     </span>
                   </div>
                   <Link

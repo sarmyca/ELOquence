@@ -36,9 +36,12 @@ def classify_move(
     if constraint_violation == "hard":
         return "blunder"
 
-    # Only 1-2 choices left → forced
+    # Only 1-2 choices left → forced (but only if the player actually
+    # guessed one of the remaining candidates; otherwise it's a blunder)
     if remaining_count_before <= 2:
-        return "forced"
+        if is_answer_candidate:
+            return "forced"
+        return "blunder"
 
     # In a 3-5 word endgame, not guessing a remaining answer is a miss
     if remaining_count_before <= 5 and not is_answer_candidate:

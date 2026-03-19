@@ -33,29 +33,33 @@ class ConstraintState:
                 if letter not in self.known_present:
                     self.known_absent.add(letter)
 
-    def check_violation(self, guess: str) -> str:
+    def check_violation(self, guess: str) -> dict:
         """Determine if *guess* violates any known constraint.
 
         Returns:
-            'hard'  — the guess uses an absent letter or places a yellow
-                      in its known-wrong position.
-            'soft'  — the guess omits a known-present letter.
-            'none'  — the guess respects all known constraints.
+            A dict with ``type`` ('hard', 'soft', or 'none') and ``reason``
+            (a human-readable explanation of what was violated).
         """
         for i, letter in enumerate(guess):
             # Using a definitively absent letter is a hard violation
             if letter in self.known_absent:
-                return "hard"
+                return {
+                    "type": "hard",
+                    "reason": f"Used letter {letter} which was already ruled out (gray)",
+                }
             # Placing a yellow letter back in its banned position
             if letter in self.known_not_positions and i in self.known_not_positions[letter]:
-                return "hard"
+                return {
+                    "type": "hard",
+                    "reason": f"Placed {letter} in position {i + 1}, already known to be wrong",
+                }
 
         # Check that every known-present letter still appears somewhere
+        missing: list[str] = []
         for letter in self.known_present:
             green_positions = {
                 pos for pos, ch in self.known_positions.items() if ch == letter
             }
-            # Find positions in this guess that satisfy the letter requirement
             satisfied = any(
                 guess[i] == letter and (
                     i in green_positions or i not in self.known_not_positions.get(letter, set())
@@ -63,6 +67,13 @@ class ConstraintState:
                 for i in range(5)
             )
             if not satisfied:
-                return "soft"
+                missing.append(letter)
 
-        return "none"
+        if missing:
+            letters = ", ".join(sorted(missing))
+            return {
+                "type": "soft",
+                "reason": f"Didn't include known letter{'s' if len(missing) > 1 else ''} {letters}",
+            }
+
+        return {"type": "none", "reason": ""}

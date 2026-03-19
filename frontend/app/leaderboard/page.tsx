@@ -43,7 +43,7 @@ function RankBadge({ rank }: { rank: number }) {
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [nearMe, setNearMe] = useState<LeaderboardEntry[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -54,8 +54,7 @@ export default function LeaderboardPage() {
     leaderboardApi
       .get({ page, per_page: PER_PAGE })
       .then((res) => {
-        const data = res.data;
-        const list = Array.isArray(data) ? data : data.entries || data.items || [];
+        const list = Array.isArray(res.data) ? res.data : [];
         setEntries(list);
         setHasMore(list.length === PER_PAGE);
       })
@@ -63,16 +62,6 @@ export default function LeaderboardPage() {
       .finally(() => setLoading(false));
   }, [page]);
 
-  useEffect(() => {
-    if (!user) return;
-    leaderboardApi
-      .nearMe()
-      .then((res) => {
-        const data = res.data;
-        setNearMe(Array.isArray(data) ? data : data.entries || []);
-      })
-      .catch(() => {});
-  }, [user]);
 
   const renderRow = (entry: LeaderboardEntry, highlight: boolean) => {
     const winRate =
@@ -111,7 +100,7 @@ export default function LeaderboardPage() {
               </span>
             )}
           </span>
-          <TierBadge elo={entry.elo_rating} />
+          <TierBadge elo={Math.round(entry.elo_rating)} />
         </div>
 
         {/* ELO */}
@@ -119,7 +108,7 @@ export default function LeaderboardPage() {
           className="text-sm font-mono font-bold w-14 text-right shrink-0"
           style={{ color: getRatingTier(entry.elo_rating).color }}
         >
-          {entry.elo_rating}
+          {Math.round(entry.elo_rating)}
         </span>
 
         {/* Games */}
@@ -152,33 +141,6 @@ export default function LeaderboardPage() {
           <p className="text-xs text-text-secondary">Top players ranked by ELO rating</p>
         </div>
       </motion.div>
-
-      {/* Players near me */}
-      {user && nearMe.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...springs.slide, delay: 0.1 }}
-          className="mb-6"
-        >
-          <h2 className="text-xs font-semibold text-text-ghost uppercase tracking-wider mb-2 px-1">
-            Players Near You
-          </h2>
-          <div className="rounded-2xl bg-bg-secondary border border-white/[0.08] overflow-hidden divide-y divide-white/[0.06]">
-            {/* Table header */}
-            <div className="flex items-center gap-3 px-4 py-2 text-[10px] text-text-ghost uppercase tracking-wider border-b border-white/[0.06]">
-              <span className="w-8 text-right">#</span>
-              <span className="flex-1">Player</span>
-              <span className="w-14 text-right">ELO</span>
-              <span className="w-12 text-right">Games</span>
-              <span className="w-10 text-right">W%</span>
-            </div>
-            {nearMe.map((entry) =>
-              renderRow(entry, entry.user_id === user.id)
-            )}
-          </div>
-        </motion.div>
-      )}
 
       {/* Global leaderboard */}
       <motion.div

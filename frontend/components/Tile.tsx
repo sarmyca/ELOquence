@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TileState } from '@/lib/types';
 import clsx from 'clsx';
@@ -66,52 +67,11 @@ export default function Tile({
       >
         {isFlipping && isRevealed ? (
           /* ---- Flip reveal animation ---- */
-          <motion.div
-            className="w-full h-full relative"
-            style={{ transformStyle: 'preserve-3d' }}
-            initial={{ rotateX: 0 }}
-            animate={{ rotateX: [0, -90, -90, 0] }}
-            transition={{
-              duration: 0.5,
-              delay: flipDelay,
-              times: [0, 0.4, 0.6, 1],
-              ease: 'easeInOut',
-            }}
-          >
-            {/* Front face — tbd style shown until mid-flip */}
-            <div
-              className={clsx(
-                'absolute inset-0 flex items-center justify-center rounded-sm',
-                STATE_STYLES.tbd
-              )}
-              style={{ backfaceVisibility: 'hidden' }}
-            >
-              <span className="text-2xl font-bold uppercase text-text-primary select-none">
-                {letter}
-              </span>
-            </div>
-
-            {/* Back face — revealed color */}
-            <div
-              className={clsx(
-                'absolute inset-0 flex items-center justify-center rounded-sm',
-                STATE_STYLES[state]
-              )}
-              style={{
-                backfaceVisibility: 'hidden',
-                transform: 'rotateX(180deg)',
-              }}
-            >
-              <span
-                className={clsx(
-                  'text-2xl font-bold uppercase select-none',
-                  STATE_TEXT[state]
-                )}
-              >
-                {letter}
-              </span>
-            </div>
-          </motion.div>
+          <FlipTile
+            letter={letter}
+            state={state}
+            flipDelay={flipDelay}
+          />
         ) : (
           /* ---- Static tile ---- */
           <div
@@ -132,5 +92,60 @@ export default function Tile({
         )}
       </motion.div>
     </div>
+  );
+}
+
+/**
+ * Two-phase flip: rotates to 90deg (edge-on), swaps the face color,
+ * then rotates back to 0. This avoids the flash of wrong color.
+ */
+function FlipTile({
+  letter,
+  state,
+  flipDelay,
+}: {
+  letter: string;
+  state: TileState;
+  flipDelay: number;
+}) {
+  const [showRevealed, setShowRevealed] = useState(false);
+
+  // Swap the face style at the midpoint of the flip
+  const halfDuration = 0.25;
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setShowRevealed(true),
+      (flipDelay + halfDuration) * 1000
+    );
+    return () => clearTimeout(timer);
+  }, [flipDelay]);
+
+  const faceStyle = showRevealed ? STATE_STYLES[state] : STATE_STYLES.tbd;
+  const textStyle = showRevealed ? STATE_TEXT[state] : STATE_TEXT.tbd;
+
+  return (
+    <motion.div
+      className={clsx(
+        'w-full h-full flex items-center justify-center rounded-sm',
+        faceStyle
+      )}
+      initial={{ rotateX: 0 }}
+      animate={{ rotateX: [0, 90, 0] }}
+      transition={{
+        duration: 0.5,
+        delay: flipDelay,
+        times: [0, 0.5, 1],
+        ease: 'easeInOut',
+      }}
+    >
+      <span
+        className={clsx(
+          'text-2xl font-bold uppercase select-none',
+          textStyle
+        )}
+      >
+        {letter}
+      </span>
+    </motion.div>
   );
 }

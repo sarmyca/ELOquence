@@ -49,7 +49,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="bg-bg-base min-h-[100dvh] text-text-primary antialiased">
+      <body className="min-h-[100dvh] text-text-primary antialiased">
         <script dangerouslySetInnerHTML={{ __html: `
           if(localStorage.getItem('eloquence_colorblind')==='true')document.documentElement.classList.add('colorblind');
           if(localStorage.getItem('eloquence_reduced_motion')==='true')document.documentElement.classList.add('reduce-motion');
@@ -57,7 +57,7 @@ export default function RootLayout({
         <AuthProvider>
           <Navigation />
           <AnnouncementBanner />
-          <main>{children}</main>
+          <main className="relative z-10">{children}</main>
         </AuthProvider>
       </body>
     </html>

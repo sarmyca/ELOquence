@@ -24,6 +24,7 @@ class PatternBucket(BaseModel):
     count: int
     probability: float
     is_actual: bool = False
+    words: list[str] = []
 
 
 class MoveAnalysis(BaseModel):
@@ -46,10 +47,12 @@ class MoveAnalysis(BaseModel):
     classification: str
     game_phase: str
     constraint_violation: str
+    constraint_violation_reason: str = ""
     trap_detected: bool
     trap_info: dict | None = None
     is_book_move: bool
     luck: float
+    remaining_words_list: list[str] = []
     top_picks: list[TopPick]
     pattern_distribution: list[PatternBucket] = []
     optimal_pattern_distribution: list[PatternBucket] = []

@@ -44,6 +44,7 @@ export interface Move {
   classification: Classification | null;
   game_phase: GamePhase | null;
   constraint_violation: string | null;
+  constraint_violation_reason: string;
   trap_detected: boolean;
   is_book_move: boolean;
 }
@@ -80,11 +81,13 @@ export interface PatternBucket {
   count: number;
   probability: number;
   is_actual?: boolean;
+  words?: string[];
 }
 
 export interface MoveAnalysis extends Move {
   remaining_after: number;
   luck: number;
+  remaining_words_list?: string[];
   top_picks: TopPick[];
   trap_info: {
     suffix: string;

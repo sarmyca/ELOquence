@@ -13,7 +13,7 @@ KNOWN_OPENERS: frozenset[str] = frozenset(
 )
 
 
-def analyze_game(game_moves: list[dict], target_word: str) -> dict:
+def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool = False) -> dict:
     """Run full information-theory analysis on a completed game.
 
     Args:
@@ -21,6 +21,9 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
                     and ``move_number``.
         target_word: The correct answer (used for context only; not needed
                      for the entropy calculations).
+        competitive: If True, analyse against the expanded competitive
+                     answer pool (~5,009 words) instead of the standard
+                     2,309 answers.
 
     Returns:
         Dict containing ``accuracy_score``, ``luck_factor``, ``moves``
@@ -31,6 +34,7 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
     from app.analysis.constraints import ConstraintState
     from app.analysis.engine import (
         ANSWERS,
+        COMPETITIVE_ANSWERS,
         PATTERN_MATRIX,
         compute_entropy,
         compute_expected_remaining,
@@ -44,7 +48,9 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
     if PATTERN_MATRIX is None:
         raise RuntimeError("Pattern matrix not loaded. Call precompute_pattern_matrix() first.")
 
-    possible = np.arange(len(ANSWERS), dtype=np.int32)
+    # Select the answer pool for this analysis
+    answer_pool = COMPETITIVE_ANSWERS if competitive else ANSWERS
+    possible = np.arange(len(answer_pool), dtype=np.int32)
     constraint_state = ConstraintState()
     results: list[dict] = []
 
@@ -65,8 +71,10 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
         entropy_before = float(np.log2(n_remaining)) if n_remaining > 1 else 0.0
 
         # Constraint check
-        violation = constraint_state.check_violation(guess)
-        if violation != "none":
+        violation_info = constraint_state.check_violation(guess)
+        violation_type = violation_info["type"]
+        violation_reason = violation_info["reason"]
+        if violation_type != "none":
             constraint_violation_count += 1
 
         # Game phase
@@ -110,23 +118,36 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
         # Is this guess among the remaining answer candidates?
         try:
             g_idx = get_word_index(guess)
-            is_candidate = (g_idx < len(ANSWERS)) and (g_idx in set(possible.tolist()))
+            is_candidate = (g_idx < len(answer_pool)) and (g_idx in set(possible.tolist()))
         except ValueError:
             is_candidate = False
 
-        # Trap detection
-        remaining_word_list = [ANSWERS[i] for i in possible]
-        trap = detect_trap(remaining_word_list)
-        if trap:
-            trap_count += 1
+        # Build remaining word list (used for trap detection + letter frequencies)
+        remaining_word_list = [answer_pool[i] for i in possible]
+
+        # Trap detection — only meaningful in small pools (endgame-like)
+        trap = None
+        if n_remaining <= 20:
+            trap = detect_trap(remaining_word_list)
+            if trap:
+                trap_count += 1
 
         # ------------------------------------------------------------------
-        # Pattern distribution — top-30 buckets for the player's guess
+        # Pattern distribution — ALL buckets for the player's guess
         # ------------------------------------------------------------------
         total_possible = len(possible)
         if guess_idx is not None and total_possible > 0:
             player_patterns = PATTERN_MATRIX[guess_idx, possible]
             unique_patterns, pattern_counts = np.unique(player_patterns, return_counts=True)
+
+            # Build per-bucket word lists
+            pattern_to_words: dict[int, list[str]] = {}
+            for idx_pos, pat_val in zip(possible, player_patterns):
+                pv = int(pat_val)
+                if pv not in pattern_to_words:
+                    pattern_to_words[pv] = []
+                pattern_to_words[pv].append(answer_pool[idx_pos])
+
             pattern_dist: list[dict] = sorted(
                 [
                     {
@@ -134,35 +155,14 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
                         "count": int(c),
                         "probability": round(int(c) / total_possible, 4),
                         "is_actual": int(p) == pattern,
+                        "words": sorted(pattern_to_words.get(int(p), [])),
                     }
                     for p, c in zip(unique_patterns, pattern_counts)
                 ],
                 key=lambda x: -x["count"],
-            )[:30]
+            )
         else:
             pattern_dist = []
-
-        # Pattern distribution for the optimal guess
-        optimal_dist: list[dict] = []
-        if optimal and total_possible > 0:
-            try:
-                optimal_idx = get_word_index(optimal_word)
-                opt_patterns = PATTERN_MATRIX[optimal_idx, possible]
-                opt_unique, opt_counts = np.unique(opt_patterns, return_counts=True)
-                optimal_dist = sorted(
-                    [
-                        {
-                            "pattern": int(p),
-                            "count": int(c),
-                            "probability": round(int(c) / total_possible, 4),
-                            "is_actual": False,
-                        }
-                        for p, c in zip(opt_unique, opt_counts)
-                    ],
-                    key=lambda x: -x["count"],
-                )[:30]
-            except ValueError:
-                optimal_dist = []
 
         # ------------------------------------------------------------------
         # Letter frequency matrix — 5 positions × 26 letters (% of remaining)
@@ -188,15 +188,20 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
             bits_lost=bits_lost,
             remaining_words=n_remaining,
             is_answer_candidate=is_candidate,
-            constraint_violation=violation if violation != "none" else None,
+            constraint_violation=violation_type if violation_type != "none" else None,
             remaining_count_before=n_remaining,
         )
 
         # Track accuracy for non-forced moves
+        # Constraint violations get a penalty even if entropy-efficiency is high
+        scored_efficiency = efficiency
+        if violation_type != "none" and classification != "forced":
+            scored_efficiency = min(efficiency, 0.3)
+
         if classification != "forced":
-            total_efficiency += efficiency
+            total_efficiency += scored_efficiency
             scored_moves += 1
-            phase_scores[phase].append(efficiency)
+            phase_scores[phase].append(scored_efficiency)
 
         # Decode pattern for constraint update
         pattern_tiles: list[int] = []
@@ -224,11 +229,13 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
                 "bits_lost": round(bits_lost, 3),
                 "classification": classification,
                 "game_phase": phase,
-                "constraint_violation": violation,
+                "constraint_violation": violation_type,
+                "constraint_violation_reason": violation_reason,
                 "trap_detected": trap is not None,
                 "trap_info": trap,
                 "is_book_move": is_book,
                 "luck": round(luck, 3),
+                "remaining_words_list": [answer_pool[i] for i in new_possible],
                 "top_picks": [
                     {
                         "word": tp["word"],
@@ -238,7 +245,7 @@ def analyze_game(game_moves: list[dict], target_word: str) -> dict:
                     for tp in top_picks
                 ],
                 "pattern_distribution": pattern_dist,
-                "optimal_pattern_distribution": optimal_dist,
+                "optimal_pattern_distribution": [],
                 "letter_frequencies": letter_freq,
             }
         )

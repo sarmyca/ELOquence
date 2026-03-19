@@ -8,12 +8,12 @@ interface Props {
   knownPresent?: string[];
 }
 
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const ALL_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const POSITIONS = [0, 1, 2, 3, 4];
 const POS_LABELS = ['1', '2', '3', '4', '5'];
 
 const CELL_W = 38;
-const CELL_H = 22;
+const CELL_H = 18;
 const CELL_GAP = 1;
 const ROW_LABEL_W = 22;
 const COL_LABEL_H = 20;
@@ -41,6 +41,11 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
     if (!posData) return 0;
     return posData[letter] ?? posData[letter.toLowerCase()] ?? 0;
   };
+
+  // Only show letters that have >0 frequency in at least one position
+  const LETTERS = ALL_LETTERS.filter((letter) =>
+    POSITIONS.some((pos) => getFreq(pos, letter) > 0)
+  );
 
   const totalW = ROW_LABEL_W + POSITIONS.length * (CELL_W + CELL_GAP) - CELL_GAP;
   const totalH = COL_LABEL_H + LETTERS.length * (CELL_H + CELL_GAP) - CELL_GAP;

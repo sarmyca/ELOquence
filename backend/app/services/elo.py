@@ -1,4 +1,5 @@
 """ELO calculation and update service."""
+import math
 import uuid
 from datetime import date
 
@@ -11,20 +12,44 @@ from app.models.user import User
 ELO_FLOOR = 100.0
 PLACEMENT_GAMES = 5
 
+# Time scoring: par time in seconds (60s = 1.0 score).
+# Faster → higher score (capped at 1.0), slower → lower (floor 0.0).
+TIME_PAR = 60.0
+
+
+def _time_score(seconds: float | None) -> float:
+    """Convert solve time into a 0-1 score.
+
+    Uses a sigmoid-like curve centred on TIME_PAR:
+      - 30s → ~0.85
+      - 60s → 0.50 (par)
+      - 120s → ~0.18
+      - 300s+ → ~0.02
+    """
+    if seconds is None or seconds <= 0:
+        return 0.5  # no data → neutral
+    ratio = seconds / TIME_PAR
+    # Logistic decay: 1 / (1 + ratio^2)
+    return 1.0 / (1.0 + ratio * ratio)
+
 
 def calculate_performance_score(
     accuracy: float,
     num_guesses: int,
     won: bool,
     phase_accuracies: dict[str, float],
+    time_seconds: float | None = None,
 ) -> float:
-    """Combine accuracy, outcome and phase-weighted accuracy into a 0-1 performance score.
+    """Combine accuracy, outcome, time and phase accuracy into a 0-1 performance score.
+
+    Weights: accuracy 40%, outcome 30%, time 20%, phase 10%.
 
     Args:
         accuracy: Overall accuracy percentage (0-100).
         num_guesses: Number of guesses taken.
         won: Whether the game was won.
         phase_accuracies: Per-phase accuracy percentages keyed by opening/midgame/endgame.
+        time_seconds: Total solve time in seconds (None if unavailable).
 
     Returns:
         A float in [0, 1] representing the player's performance.
@@ -40,11 +65,14 @@ def calculate_performance_score(
         + phase_accuracies.get("endgame", 0.0) * 0.40
     ) / 100.0
 
-    score = 0.50 * accuracy_component + 0.35 * outcome_component + 0.15 * phase_component
+    time_component = _time_score(time_seconds)
 
-    # Cap lucky wins with poor analysis
-    if won and accuracy < 30:
-        score = min(score, 0.50)
+    score = (
+        0.40 * accuracy_component
+        + 0.30 * outcome_component
+        + 0.20 * time_component
+        + 0.10 * phase_component
+    )
 
     return score
 
@@ -102,6 +130,7 @@ async def apply_elo_update(
         num_guesses=game.num_guesses,
         won=won,
         phase_accuracies=phase_accuracies,
+        time_seconds=game.time_seconds if game.mode == "competitive" else None,
     )
 
     delta = calculate_elo_delta(
@@ -112,12 +141,12 @@ async def apply_elo_update(
     )
 
     elo_before = user.elo_rating
-    elo_after = max(ELO_FLOOR, elo_before + delta)
+    elo_after = round(max(ELO_FLOOR, elo_before + delta))
 
     # Persist ELO change on the game record
     game.elo_before = elo_before
     game.elo_after = elo_after
-    game.elo_delta = elo_after - elo_before
+    game.elo_delta = round(elo_after - elo_before)
     game.is_placement = is_placement
     game.accuracy_score = accuracy
 

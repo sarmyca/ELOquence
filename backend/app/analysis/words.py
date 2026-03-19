@@ -16,3 +16,17 @@ def load_valid_guesses(data_dir: Path) -> list[str]:
     path = data_dir / "valid_guesses.txt"
     with open(path) as fh:
         return [w.strip().upper() for w in fh if w.strip()]
+
+
+def load_competitive_extra(data_dir: Path) -> list[str]:
+    """Read and return the competitive-extra answer words (uppercase).
+
+    These are additional answer-worthy words selected from valid_guesses
+    for the competitive game mode.  Returns an empty list if the file
+    does not exist.
+    """
+    path = data_dir / "competitive_extra.txt"
+    if not path.exists():
+        return []
+    with open(path) as fh:
+        return [w.strip().upper() for w in fh if w.strip()]

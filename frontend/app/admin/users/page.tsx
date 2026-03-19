@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
                         {u.email}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: tier.color }}>
-                        {u.elo_rating}
+                        {Math.round(u.elo_rating)}
                       </td>
                       <td className="px-4 py-3 text-right text-text-secondary hidden sm:table-cell">
                         {u.games_played}

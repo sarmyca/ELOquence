@@ -62,7 +62,9 @@ async def analyze_game_endpoint(
         for m in sorted(game.moves, key=lambda m: m.move_number)
     ]
 
-    analysis = await asyncio.to_thread(analyze_game, moves_data, game.target_word)
+    analysis = await asyncio.to_thread(
+        analyze_game, moves_data, game.target_word, competitive=game.mode == "competitive"
+    )
 
     # Persist per-move analysis back to the database
     move_map = {m.move_number: m for m in game.moves}
@@ -137,10 +139,12 @@ async def analyze_game_endpoint(
                 classification=m["classification"],
                 game_phase=m["game_phase"],
                 constraint_violation=m["constraint_violation"],
+                constraint_violation_reason=m.get("constraint_violation_reason", ""),
                 trap_detected=m["trap_detected"],
                 trap_info=m.get("trap_info"),
                 is_book_move=m["is_book_move"],
                 luck=m["luck"],
+                remaining_words_list=m.get("remaining_words_list", []),
                 top_picks=[
                     TopPick(
                         word=tp["word"],
@@ -155,6 +159,7 @@ async def analyze_game_endpoint(
                         count=pb["count"],
                         probability=pb["probability"],
                         is_actual=pb["is_actual"],
+                        words=pb.get("words", []),
                     )
                     for pb in m.get("pattern_distribution", [])
                 ],

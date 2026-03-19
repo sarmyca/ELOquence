@@ -157,7 +157,10 @@ function GraphInner({ gameId }: Props) {
         graphDataRef.current = res.data;
         return applyLayout(res.data);
       })
-      .catch(() => setError('Failed to build game graph.'))
+      .catch((err) => {
+        const msg = err?.response?.data?.detail || err?.message || 'Unknown error';
+        setError(`Failed to build game graph: ${msg}`);
+      })
       .finally(() => setLoading(false));
   }, [gameId]); // applyLayout intentionally excluded to avoid refetch loop
 

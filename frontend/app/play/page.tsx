@@ -91,7 +91,7 @@ export default function PlayPage() {
       id: 'competitive',
       icon: <Swords size={22} />,
       title: 'Competitive',
-      subtitle: user ? `${user.elo_rating} ELO` : 'Rated',
+      subtitle: user ? `${Math.round(user.elo_rating)} ELO` : 'Rated',
       desc: 'Random words from the full pool. ELO stakes.',
       accentColor: tier?.color || '#818384',
       borderColor: `${tier?.color || '#818384'}40`,
@@ -197,7 +197,7 @@ export default function PlayPage() {
           <>
             <div className="flex items-center justify-center gap-3 mb-2">
               <span className="text-3xl font-bold font-mono" style={{ color: tier?.color }}>
-                {user.elo_rating}
+                {Math.round(user.elo_rating)}
               </span>
               <span
                 className="text-sm px-2.5 py-1 rounded-full font-medium"

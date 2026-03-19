@@ -72,6 +72,8 @@ export const usersApi = {
   eloHistory: (days?: number) =>
     api.get('/users/me/elo-history', { params: days ? { days } : undefined }),
   stats: () => api.get('/users/me/stats'),
+  deleteAllGames: () => api.delete('/users/me/games'),
+  deleteAccount: () => api.delete('/users/me'),
 };
 
 // AI

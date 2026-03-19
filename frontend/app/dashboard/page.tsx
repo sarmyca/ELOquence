@@ -211,7 +211,7 @@ export default function DashboardPage() {
               className="text-5xl font-bold font-mono tabular-nums"
               style={{ color: tier.color }}
             >
-              {user.elo_rating}
+              {Math.round(user.elo_rating)}
             </span>
             <div className="flex flex-col gap-1">
               <span
@@ -259,7 +259,7 @@ export default function DashboardPage() {
           </span>
           {nextTier ? (
             <span className="text-[10px] font-mono tabular-nums text-text-ghost">
-              <span style={{ color: tier.color }}>{user.elo_rating}</span>
+              <span style={{ color: tier.color }}>{Math.round(user.elo_rating)}</span>
               {' / '}
               <span>{nextTier.min}</span>
               {' to '}
@@ -465,7 +465,7 @@ export default function DashboardPage() {
                               (eloDelta ?? 0) >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]'
                             )}
                           >
-                            {(eloDelta ?? 0) >= 0 ? '+' : ''}{eloDelta}
+                            {(eloDelta ?? 0) >= 0 ? '+' : ''}{Math.round(eloDelta ?? 0)}
                           </span>
                         )}
                       </div>

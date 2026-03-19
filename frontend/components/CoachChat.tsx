@@ -110,7 +110,7 @@ export default function CoachChat({ gameId, gameContext }: Props) {
   const limitReached = msgCount >= MAX_MESSAGES;
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full">
       <AnimatePresence mode="wait">
         {!isOpen ? (
           /* Toggle button */
@@ -140,7 +140,7 @@ export default function CoachChat({ gameId, gameContext }: Props) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.97 }}
             transition={springs.slide}
-            className="rounded-2xl bg-bg-secondary border border-white/[0.08] overflow-hidden flex flex-col"
+            className="rounded-2xl bg-bg-secondary border border-white/[0.08] overflow-hidden flex flex-col h-full"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
@@ -172,7 +172,7 @@ export default function CoachChat({ gameId, gameContext }: Props) {
             {/* Messages area */}
             <div
               ref={scrollRef}
-              className="flex flex-col gap-2 overflow-y-auto px-4 py-3 max-h-[300px]"
+              className="flex flex-col gap-2 overflow-y-auto px-4 py-3 flex-1 min-h-0"
             >
               {messages.length === 0 && !sending && (
                 <div className="flex flex-col gap-2">

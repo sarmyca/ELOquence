@@ -8,6 +8,7 @@ import Keyboard from '@/components/Keyboard';
 import GameOverModal from '@/components/GameOverModal';
 import Toast from '@/components/Toast';
 import AchievementToast, { ACHIEVEMENT_META } from '@/components/AchievementToast';
+import GuessWaveEffect from '@/components/GuessWaveEffect';
 import { gamesApi } from '@/lib/api';
 import { Game, GameStatus, TileState, patternToTiles } from '@/lib/types';
 
@@ -35,6 +36,8 @@ export default function GamePage() {
   const [unlockedAchievements, setUnlockedAchievements] = useState<
     Array<{ type: string; name: string; icon: string }>
   >([]);
+  const [wavePattern, setWavePattern] = useState<number | null>(null);
+  const [waveTrigger, setWaveTrigger] = useState(0);
 
   // Timer
   const [elapsed, setElapsed] = useState(0);
@@ -148,6 +151,10 @@ export default function GamePage() {
       // Start flip animation on this row
       setRevealRow(rowIndex);
 
+      // Trigger radial wave effect
+      setWavePattern(pattern);
+      setWaveTrigger((prev) => prev + 1);
+
       // After animation completes, clear flip flag and check win/lose
       setTimeout(() => {
         setRevealRow(-1);
@@ -189,7 +196,6 @@ export default function GamePage() {
       ) {
         setShakeRow(guesses.length);
         setTimeout(() => setShakeRow(-1), 500);
-        showToast('Not in word list');
       } else {
         showToast(msg);
       }
@@ -219,12 +225,13 @@ export default function GamePage() {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-[calc(100dvh-56px)] pt-3 pb-4 px-2 select-none">
+    <div className="relative z-10 flex flex-col items-center min-h-[calc(100dvh-56px)] pt-3 pb-4 px-2 select-none">
       <Toast message={toastMsg} visible={toastVisible} />
       <AchievementToast
         achievements={unlockedAchievements}
         onDismiss={() => setUnlockedAchievements([])}
       />
+      <GuessWaveEffect pattern={wavePattern} triggerKey={waveTrigger} />
 
       {/* Top bar */}
       <div className="w-full max-w-lg flex items-center justify-between px-2 mb-2">
@@ -248,10 +255,12 @@ export default function GamePage() {
           )}
         </div>
 
-        <div className="flex items-center gap-1 text-text-secondary text-sm font-mono">
-          <Timer size={14} />
-          <span>{formatTime(elapsed)}</span>
-        </div>
+        {game?.mode === 'competitive' && (
+          <div className="flex items-center gap-1 text-text-secondary text-sm font-mono">
+            <Timer size={14} />
+            <span>{formatTime(elapsed)}</span>
+          </div>
+        )}
       </div>
 
       {/* Game board — takes the majority of the screen */}

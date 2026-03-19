@@ -12,10 +12,11 @@ import numpy as np
 # ---------------------------------------------------------------------------
 # Global state — populated by load_word_lists() + precompute_pattern_matrix()
 # ---------------------------------------------------------------------------
-ANSWERS: list[str] = []
+ANSWERS: list[str] = []               # Standard answer pool (2,309 words)
+COMPETITIVE_ANSWERS: list[str] = []   # Expanded competitive pool (ANSWERS + extra ≈ 5,009)
 VALID_GUESSES: list[str] = []
-ALL_WORDS: list[str] = []  # ANSWERS ++ (VALID_GUESSES that are not already in ANSWERS)
-PATTERN_MATRIX: np.ndarray | None = None  # shape: (len(ALL_WORDS), len(ANSWERS))
+ALL_WORDS: list[str] = []             # COMPETITIVE_ANSWERS ++ remaining VALID_GUESSES
+PATTERN_MATRIX: np.ndarray | None = None  # shape: (len(ALL_WORDS), len(COMPETITIVE_ANSWERS))
 
 _DATA_DIR = Path(__file__).parent.parent.parent / "data"
 _CACHE_DIR = Path(__file__).parent.parent.parent / ".cache"
@@ -26,14 +27,26 @@ _CACHE_DIR = Path(__file__).parent.parent.parent / ".cache"
 # ---------------------------------------------------------------------------
 
 def load_word_lists() -> None:
-    """Load answer and valid-guess word lists from the data directory."""
-    global ANSWERS, VALID_GUESSES, ALL_WORDS
-    from app.analysis.words import load_answers, load_valid_guesses
+    """Load answer and valid-guess word lists from the data directory.
+
+    After loading, the global arrays satisfy:
+        COMPETITIVE_ANSWERS[:len(ANSWERS)] == ANSWERS   (subset invariant)
+        ALL_WORDS[:len(COMPETITIVE_ANSWERS)] == COMPETITIVE_ANSWERS
+    """
+    global ANSWERS, COMPETITIVE_ANSWERS, VALID_GUESSES, ALL_WORDS
+    from app.analysis.words import load_answers, load_competitive_extra, load_valid_guesses
 
     ANSWERS = load_answers(_DATA_DIR)
     VALID_GUESSES = load_valid_guesses(_DATA_DIR)
+    competitive_extra = load_competitive_extra(_DATA_DIR)
+
+    # Competitive pool = standard answers (first) + extra competitive words
     answer_set = set(ANSWERS)
-    ALL_WORDS = ANSWERS + [w for w in VALID_GUESSES if w not in answer_set]
+    COMPETITIVE_ANSWERS = ANSWERS + [w for w in competitive_extra if w not in answer_set]
+
+    # ALL_WORDS = competitive answers + remaining valid guesses
+    comp_set = set(COMPETITIVE_ANSWERS)
+    ALL_WORDS = COMPETITIVE_ANSWERS + [w for w in VALID_GUESSES if w not in comp_set]
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +105,11 @@ def pattern_to_tiles(pattern_int: int) -> list[int]:
 # ---------------------------------------------------------------------------
 
 def precompute_pattern_matrix() -> None:
-    """Build (or reload from cache) the full (n_words × n_answers) pattern matrix.
+    """Build (or reload from cache) the full pattern matrix.
+
+    Shape: ``(len(ALL_WORDS), len(COMPETITIVE_ANSWERS))``.  Because
+    ``ANSWERS`` occupies columns 0..len(ANSWERS)-1 of COMPETITIVE_ANSWERS,
+    standard-mode analysis can simply use that column range.
 
     The matrix is stored as a uint8 numpy array and cached to disk as a .npy
     file so subsequent startups avoid the O(n²) recomputation.
@@ -103,19 +120,20 @@ def precompute_pattern_matrix() -> None:
         load_word_lists()
 
     _CACHE_DIR.mkdir(exist_ok=True)
-    cache_path = _CACHE_DIR / "pattern_matrix.npy"
+    cache_path = _CACHE_DIR / "pattern_matrix_v2.npy"
 
+    expected_shape = (len(ALL_WORDS), len(COMPETITIVE_ANSWERS))
     if cache_path.exists():
         loaded = np.load(cache_path)
-        if loaded.shape == (len(ALL_WORDS), len(ANSWERS)):
+        if loaded.shape == expected_shape:
             PATTERN_MATRIX = loaded
             return
 
     n_guesses = len(ALL_WORDS)
-    n_answers = len(ANSWERS)
+    n_answers = len(COMPETITIVE_ANSWERS)
     matrix = np.zeros((n_guesses, n_answers), dtype=np.uint8)
     for i, guess in enumerate(ALL_WORDS):
-        for j, answer in enumerate(ANSWERS):
+        for j, answer in enumerate(COMPETITIVE_ANSWERS):
             matrix[i, j] = compute_pattern(guess, answer)
 
     PATTERN_MATRIX = matrix
