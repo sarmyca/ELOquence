@@ -150,10 +150,13 @@ export default function DashboardPage() {
   const completedGames = games.filter(
     (g) => g.status === 'won' || g.status === 'lost'
   );
-  const wonGames = games.filter((g) => g.status === 'won');
+  // A "win" = gained ELO (positive elo_delta), not just status === 'won'
+  const eloWins = games.filter(
+    (g) => g.elo_delta != null && g.elo_delta > 0
+  );
   const winRate =
     completedGames.length > 0
-      ? Math.round((wonGames.length / completedGames.length) * 100)
+      ? Math.round((eloWins.length / completedGames.length) * 100)
       : 0;
   const avgGuesses =
     wonGames.length > 0

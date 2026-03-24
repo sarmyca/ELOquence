@@ -36,18 +36,67 @@ async def _get_word_pool(mode: str, pool_name: str) -> list[str]:
     return ANSWERS
 
 
-async def _pick_competitive_word(
-    db: AsyncSession, user_elo: float, pool: list[str]
-) -> tuple[str, float]:
-    """Pick a word whose difficulty ELO is within ±200 of the player's ELO.
+async def _get_streak_shift(db: AsyncSession, user_id, user_elo: float) -> float:
+    """Compute a difficulty shift based on the player's recent ELO momentum.
 
-    Falls back to a random word if no calibrated entry exists in the DB.
+    Looks at the last 5 rated competitive games.  Each consecutive positive-
+    delta game shifts the target difficulty up by +40 ELO; each consecutive
+    negative-delta game shifts it down by -40 ELO.  The shift is capped at
+    ±200 so the total range stays within ±400 of the player's ELO at most.
+    """
+    result = await db.execute(
+        select(Game.elo_delta)
+        .where(
+            Game.user_id == user_id,
+            Game.mode == "competitive",
+            Game.rated == True,  # noqa: E712
+            Game.status.in_(["won", "lost"]),
+            Game.elo_delta.isnot(None),
+        )
+        .order_by(Game.completed_at.desc())
+        .limit(5)
+    )
+    deltas = [row[0] for row in result.all()]
+
+    # Count the current streak direction from most recent game
+    streak = 0
+    for d in deltas:
+        if d > 0:
+            if streak >= 0:
+                streak += 1
+            else:
+                break
+        elif d < 0:
+            if streak <= 0:
+                streak -= 1
+            else:
+                break
+        # d == 0 → neutral, breaks streak
+        else:
+            break
+
+    # +40 ELO shift per streak game, capped at ±200
+    return max(-200.0, min(200.0, streak * 40.0))
+
+
+async def _pick_competitive_word(
+    db: AsyncSession, user_id, user_elo: float, pool: list[str]
+) -> tuple[str, float]:
+    """Pick a word whose difficulty matches the player's ELO ± streak shift.
+
+    The base range is ±200 ELO around the player's rating, shifted by up to
+    ±200 based on winning/losing streak (positive streak → harder words,
+    negative streak → easier words).
+
+    Falls back to heuristic difficulty when no calibrated DB entry exists.
 
     Returns:
         (word, difficulty_elo) tuple.
     """
-    lo = user_elo - 200
-    hi = user_elo + 200
+    shift = await _get_streak_shift(db, user_id, user_elo)
+    center = user_elo + shift
+    lo = center - 200
+    hi = center + 200
 
     result = await db.execute(
         select(WordStats)
@@ -62,9 +111,15 @@ async def _pick_competitive_word(
     if row and row.word.upper() in {w.upper() for w in pool}:
         return row.word.upper(), row.calibrated_difficulty  # type: ignore[return-value]
 
-    # Fallback: pick random + compute on-the-fly difficulty
-    word = random.choice(pool).upper()
-    return word, word_to_elo(word)
+    # Fallback: pick from pool using heuristic difficulty
+    candidates = [(w, word_to_elo(w)) for w in pool if lo <= word_to_elo(w) <= hi]
+    if not candidates:
+        # Extreme ELO — pick from the closest 20 words by difficulty
+        all_scored = [(w, word_to_elo(w)) for w in pool]
+        all_scored.sort(key=lambda x: abs(x[1] - center))
+        candidates = all_scored[:20]
+    word, diff = random.choice(candidates)
+    return word.upper(), diff
 
 
 async def _get_or_create_daily_word(db: AsyncSession) -> tuple[str, float]:
@@ -132,7 +187,7 @@ async def create_game(
                 detail="You have already played today's daily word.",
             )
     elif mode == "competitive":
-        target_word, difficulty = await _pick_competitive_word(db, user.elo_rating, pool)
+        target_word, difficulty = await _pick_competitive_word(db, user.id, user.elo_rating, pool)
     else:
         # practice — random
         target_word = random.choice(pool).upper()

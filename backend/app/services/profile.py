@@ -63,7 +63,10 @@ async def recalculate_profile(db: AsyncSession, user_id: uuid.UUID) -> None:
     all_games = list(games_result.scalars().all())
 
     profile.total_games = len(all_games)
-    profile.total_wins = sum(1 for g in all_games if g.status == "won")
+    # A "win" = gained ELO (positive elo_delta), not just status == "won"
+    profile.total_wins = sum(
+        1 for g in all_games if g.elo_delta is not None and g.elo_delta > 0
+    )
 
     # ------------------------------------------------------------------
     # Average accuracy (overall)

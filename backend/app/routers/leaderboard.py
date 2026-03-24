@@ -14,13 +14,22 @@ router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 
 
 def _user_with_wins_query():
-    """Base query: users joined with their rated-win count."""
+    """Base query: users joined with their 'ELO win' count.
+
+    A win is defined as any rated game where the player gained ELO
+    (positive elo_delta), regardless of whether they actually solved
+    the word.
+    """
     wins_subq = (
         select(
             Game.user_id,
             func.count().label("wins"),
         )
-        .where(Game.status == "won", Game.rated == True)  # noqa: E712
+        .where(
+            Game.rated == True,  # noqa: E712
+            Game.elo_delta.isnot(None),
+            Game.elo_delta > 0,
+        )
         .group_by(Game.user_id)
         .subquery()
     )
@@ -102,14 +111,15 @@ async def near_me(
     )
     my_rank = (rank_result.scalar_one() or 0) + 1
 
-    # Current user's wins
+    # Current user's wins (positive ELO delta = win)
     wins_result = await db.execute(
         select(func.count())
         .select_from(Game)
         .where(
             Game.user_id == current_user.id,
-            Game.status == "won",
             Game.rated == True,  # noqa: E712
+            Game.elo_delta.isnot(None),
+            Game.elo_delta > 0,
         )
     )
     my_wins = wins_result.scalar_one() or 0

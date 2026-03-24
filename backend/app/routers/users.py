@@ -102,6 +102,7 @@ async def user_stats(
     avg_accuracy: float = avg_acc_result.scalar_one() or 0.0
 
     # Win rate broken down by game mode
+    # A "win" = gained ELO (positive elo_delta), not just status == "won"
     mode_stats: dict[str, dict] = {}
     for mode in ("daily", "competitive", "practice"):
         total_result = await db.execute(
@@ -117,7 +118,9 @@ async def user_stats(
             select(func.count()).select_from(Game).where(
                 Game.user_id == current_user.id,
                 Game.mode == mode,
-                Game.status == "won",
+                Game.rated == True,  # noqa: E712
+                Game.elo_delta.isnot(None),
+                Game.elo_delta > 0,
             )
         )
         won: int = won_result.scalar_one()

@@ -348,7 +348,7 @@ async def analytics(
     )
     avg_guesses: float = avg_guesses_result.scalar_one() or 0.0
 
-    # Win rate across rated games that are completed
+    # Win rate across rated games (win = positive ELO delta)
     completed_result = await db.execute(
         select(func.count()).select_from(Game).where(
             Game.status.in_(["won", "lost"])
@@ -357,7 +357,11 @@ async def analytics(
     completed: int = completed_result.scalar_one()
 
     won_result = await db.execute(
-        select(func.count()).select_from(Game).where(Game.status == "won")
+        select(func.count()).select_from(Game).where(
+            Game.rated == True,  # noqa: E712
+            Game.elo_delta.isnot(None),
+            Game.elo_delta > 0,
+        )
     )
     won: int = won_result.scalar_one()
     win_rate = round(won / completed * 100, 1) if completed > 0 else 0.0
