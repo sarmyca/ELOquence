@@ -8,7 +8,13 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { getRatingTier } from '@/lib/types';
 import clsx from 'clsx';
 
-const BASE_NAV_LINKS = [
+const GUEST_NAV_LINKS = [
+  { href: '/play', label: 'Play' },
+  { href: '/leaderboard', label: 'Leaderboard' },
+  { href: '/learn', label: 'Learn' },
+];
+
+const AUTH_NAV_LINKS = [
   { href: '/play', label: 'Play' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/leaderboard', label: 'Leaderboard' },
@@ -31,7 +37,7 @@ export default function Navigation() {
 
   // Build nav links — add Achievements for logged-in users, Admin for admins
   const navLinks = [
-    ...BASE_NAV_LINKS,
+    ...(user ? AUTH_NAV_LINKS : GUEST_NAV_LINKS),
     ...(user ? [{ href: '/achievements', label: 'Achievements' }] : []),
   ];
 
@@ -128,15 +134,9 @@ export default function Navigation() {
             <>
               <Link
                 href="/login"
-                className="text-sm text-text-secondary hover:text-text-primary transition-colors"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
                 className="text-sm px-3 py-1.5 rounded-md bg-[#538d4e] hover:bg-[#6aaa64] text-white font-medium transition-colors"
               >
-                Register
+                Sign In
               </Link>
             </>
           )}
@@ -247,16 +247,9 @@ export default function Navigation() {
                   <Link
                     href="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="px-3 py-2 rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-white/[0.04] transition-colors"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    href="/register"
-                    onClick={() => setMobileOpen(false)}
                     className="px-3 py-2 rounded-md text-sm bg-[#538d4e] text-white font-medium hover:bg-[#6aaa64] transition-colors text-center"
                   >
-                    Register
+                    Sign In
                   </Link>
                 </>
               )}

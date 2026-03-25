@@ -11,18 +11,24 @@ function getShaderColor(pattern: number): [number, number, number] {
   const tiles = patternToTiles(pattern);
   const green  = tiles.filter((t: TileState) => t === 'correct').length;
   const yellow = tiles.filter((t: TileState) => t === 'present').length;
-  const gray   = tiles.filter((t: TileState) => t === 'absent').length;
 
-  const total = green + yellow + gray || 1;
+  // Gray only contributes if ALL 5 tiles are gray (complete miss)
+  const allGray = green === 0 && yellow === 0;
+
+  if (allGray) {
+    // Muted gray wave
+    return [0.35, 0.35, 0.38];
+  }
+
+  // Blend only green and yellow, weighted by count
+  const total = green + yellow || 1;
   const gW = green / total;
   const yW = yellow / total;
-  const grW = gray / total;
 
-  // Weighted blend of the three tile colors
   return [
-    gW * 0.325 + yW * 0.710 + grW * 0.45,
-    gW * 0.553 + yW * 0.624 + grW * 0.45,
-    gW * 0.306 + yW * 0.231 + grW * 0.48,
+    gW * 0.325 + yW * 0.710,
+    gW * 0.553 + yW * 0.624,
+    gW * 0.306 + yW * 0.231,
   ];
 }
 
@@ -38,9 +44,13 @@ uniform vec3  u_tint;
 
 void main(){
   vec2 uv=(gl_FragCoord.xy*2.0-u_resolution)/min(u_resolution.x,u_resolution.y);
+
+  // Shift origin upward toward the board area (top third of screen)
+  uv.y -= 0.45;
+
   float t=u_time*0.35;
 
-  // Compute monochrome rings first, then apply tint
+  // Compute monochrome rings from the shifted origin
   float lum=0.0;
   for(int i=0;i<5;i++){
     float fi=float(i);

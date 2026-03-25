@@ -167,7 +167,7 @@ async def apply_elo_update(
                 user.current_streak = (user.current_streak + 1) if delta_days == 1 else 1
             else:
                 user.current_streak = 1
-            user.longest_streak = max(user.longest_streak, user.current_streak)
+            user.max_streak = max(user.max_streak, user.current_streak)
             user.last_played_date = today
 
     # Write EloHistory record

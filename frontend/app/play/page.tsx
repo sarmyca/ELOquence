@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sun, Swords, FlaskConical, Flame, Star, Lock, Share2, Check, X, ArrowRight } from 'lucide-react';
+import { Sun, Swords, FlaskConical, Flame, Star, Lock, Share2, Check, X, ArrowRight, LogIn } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { gamesApi, dailyApi, challengesApi } from '@/lib/api';
-import { getRatingTier } from '@/lib/types';
+import { getRatingTier, patternToTiles, TileState } from '@/lib/types';
 import { springs, stagger } from '@/lib/animations';
 import clsx from 'clsx';
 
@@ -48,6 +48,26 @@ interface ModeCard {
   tag?: string;
 }
 
+// Decorative mini wordle tile row used in the guest hero card
+function MiniTileRow({ pattern }: { pattern: ('correct' | 'present' | 'absent')[] }) {
+  const colorMap = {
+    correct: '#538d4e',
+    present: '#b59f3b',
+    absent: '#3a3a3c',
+  };
+  return (
+    <div className="flex gap-1">
+      {pattern.map((state, i) => (
+        <div
+          key={i}
+          className="w-7 h-7 rounded-md flex items-center justify-center"
+          style={{ backgroundColor: colorMap[state] }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function PlayPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -57,20 +77,54 @@ export default function PlayPage() {
   const [challengeCode, setChallengeCode] = useState<string | null>(null);
   const [challengeCopied, setChallengeCopied] = useState(false);
   const [dailyAlreadyPlayed, setDailyAlreadyPlayed] = useState(false);
+  const [dailyGameId, setDailyGameId] = useState<string | null>(null);
+  const [dailyPatterns, setDailyPatterns] = useState<TileState[][] | null>(null);
 
   const tier = user ? getRatingTier(user.elo_rating) : null;
 
-  // Check if authenticated user already completed today's daily
+  // Check if daily was already completed (as guest via localStorage, or as user via API)
   useEffect(() => {
-    if (!user) return;
-    dailyApi.play().then((res) => {
-      // If the returned game is not in_progress, the daily was already completed
-      if (res.data.status && res.data.status !== 'in_progress') {
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (user) {
+      // Authenticated user: check daily status via GET (read-only, doesn't create a game)
+      dailyApi.get().then((res) => {
+        if (res.data.already_played) {
+          setDailyAlreadyPlayed(true);
+          if (res.data.existing_game_id) {
+            setDailyGameId(res.data.existing_game_id);
+          }
+        }
+        // Load patterns from localStorage if they exist for this session
+        const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
+        if (savedPatterns && res.data.already_played) {
+          try {
+            const nums: number[] = JSON.parse(savedPatterns);
+            setDailyPatterns(nums.map((p) => patternToTiles(p)));
+          } catch { /* ignore */ }
+        }
+      }).catch(() => {
+        // Ignore
+      });
+    } else {
+      // Guest: use localStorage only
+      const guestPlayed = localStorage.getItem(`eloquence_daily_played_${today}`) === 'true';
+      const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
+      const savedGameId = localStorage.getItem(`eloquence_daily_game_id_${today}`);
+
+      if (savedPatterns) {
+        try {
+          const nums: number[] = JSON.parse(savedPatterns);
+          setDailyPatterns(nums.map((p) => patternToTiles(p)));
+        } catch { /* ignore */ }
+      }
+      if (savedGameId) {
+        setDailyGameId(savedGameId);
+      }
+      if (guestPlayed) {
         setDailyAlreadyPlayed(true);
       }
-    }).catch(() => {
-      // Ignore — treat as not yet played or unavailable
-    });
+    }
   }, [user]);
 
   const modes: ModeCard[] = [
@@ -119,6 +173,24 @@ export default function PlayPage() {
       return;
     }
 
+    // If daily already played or in-progress, navigate to the saved game
+    if (modeId === 'daily' && (dailyAlreadyPlayed || dailyGameId)) {
+      if (user) {
+        // For authenticated users, call play() which returns the existing game
+        setCreating(modeId);
+        try {
+          const res = await dailyApi.play();
+          const gid = res.data.id || res.data.game_id;
+          if (gid) router.push(`/game/${gid}`);
+        } catch { /* ignore */ }
+        setCreating(null);
+        return;
+      } else if (dailyGameId) {
+        router.push(`/game/${dailyGameId}`);
+        return;
+      }
+    }
+
     setCreating(modeId);
     try {
       let gameId: string;
@@ -126,7 +198,7 @@ export default function PlayPage() {
       if (modeId === 'daily') {
         const res = user
           ? await dailyApi.play()
-          : await dailyApi.get();
+          : await dailyApi.guest();
         gameId = res.data.id || res.data.game_id;
         // If daily returns existing game, go to review; else go to game
         if (res.data.status && res.data.status !== 'in_progress') {
@@ -185,156 +257,489 @@ export default function PlayPage() {
     );
   }
 
-  return (
-    <div className="flex flex-col items-center min-h-[calc(100dvh-56px)] px-4 py-10">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={springs.slide}
-        className="text-center mb-10"
-      >
-        {user ? (
-          <>
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <span className="text-3xl font-bold font-mono" style={{ color: tier?.color }}>
-                {Math.round(user.elo_rating)}
-              </span>
-              <span
-                className="text-sm px-2.5 py-1 rounded-full font-medium"
-                style={{ color: tier?.color, backgroundColor: `${tier?.color}1a` }}
-              >
-                {tier?.name}
-              </span>
+  // ── Shared challenge modal (used by both views) ──────────────────────────────
+  const challengeModal = (
+    <AnimatePresence>
+      {challengeCode && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            onClick={() => setChallengeCode(null)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.88, y: 24 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              transition={springs.modal}
+              className="w-full max-w-sm bg-bg-secondary rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden"
+            >
+              <div className="h-1.5 w-full bg-gradient-to-r from-[#538d4e] to-[#6aaa64]" />
+              <div className="p-6 flex flex-col gap-5">
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#538d4e]/10 border border-[#538d4e]/20 flex items-center justify-center">
+                      <Swords size={20} className="text-[#6aaa64]" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-text-primary">Challenge Created!</h2>
+                      <p className="text-xs text-text-secondary mt-0.5">Share the link with a friend</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setChallengeCode(null)}
+                    className="p-1.5 rounded-md text-text-ghost hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Share link */}
+                <div className="flex gap-2">
+                  <div className="flex-1 min-w-0 py-2 px-3 rounded-lg bg-bg-tertiary border border-white/[0.08] text-xs text-text-ghost font-mono truncate">
+                    {typeof window !== 'undefined'
+                      ? `${window.location.origin}/challenge/${challengeCode}`
+                      : `/challenge/${challengeCode}`}
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleCopyChallengeLink}
+                    className="shrink-0 px-3 py-2 rounded-lg bg-bg-elevated hover:bg-white/[0.1] border border-white/[0.08] text-text-primary text-xs font-medium transition-colors flex items-center gap-1.5"
+                  >
+                    {challengeCopied ? (
+                      <>
+                        <Check size={13} className="text-tile-correct" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Share2 size={13} />
+                        Copy
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => router.push(`/challenge/${challengeCode}`)}
+                    className="w-full py-2.5 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
+                  >
+                    <ArrowRight size={15} />
+                    Play it yourself first
+                  </motion.button>
+                  <button
+                    onClick={() => setChallengeCode(null)}
+                    className="text-xs text-text-ghost hover:text-text-secondary transition-colors text-center py-1"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+
+  // ── GUEST VIEW ───────────────────────────────────────────────────────────────
+  if (!user) {
+    const dailyMode = modes[0];
+    const lockedModes = modes.slice(1);
+    const isDailyLoading = creating === 'daily';
+
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4 py-10">
+        {/* Error */}
+        <AnimatePresence>
+          {error && (
+            <motion.p
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="mb-6 text-sm text-[#e74c3c] bg-[#e74c3c]/10 border border-[#e74c3c]/20 rounded-lg px-4 py-2"
+            >
+              {error}
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: {},
+            visible: { transition: stagger.medium },
+          }}
+          className="w-full max-w-md flex flex-col items-center gap-6"
+        >
+          {/* ── Hero daily card ── */}
+          <motion.button
+            variants={{
+              hidden: { opacity: 0, y: 28 },
+              visible: { opacity: 1, y: 0, transition: springs.slide },
+            }}
+            whileHover={{ scale: isDailyLoading || !!creating ? 1 : 1.02 }}
+            whileTap={{ scale: isDailyLoading || !!creating ? 1 : 0.97 }}
+            onClick={() => handleModeSelect('daily')}
+            disabled={!!creating}
+            className={clsx(
+              'relative w-full flex flex-col gap-5 p-7 rounded-2xl border text-left transition-all duration-150',
+              'bg-bg-secondary hover:bg-bg-tertiary cursor-pointer'
+            )}
+            style={{ borderColor: 'rgba(106,170,100,0.35)' }}
+          >
+            {/* Green accent bar along the top */}
+            <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-[#538d4e] to-[#6aaa64]" />
+
+            {/* Top row: icon + title */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ color: '#6aaa64', backgroundColor: 'rgba(106,170,100,0.12)' }}
+                >
+                  {isDailyLoading ? (
+                    <div
+                      className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
+                      style={{ borderColor: 'rgba(106,170,100,0.3)', borderTopColor: '#6aaa64' }}
+                    />
+                  ) : (
+                    <Sun size={26} />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-text-primary leading-tight">Daily Puzzle</h2>
+                  <p className="text-xs font-mono" style={{ color: '#6aaa64' }}>
+                    Today&apos;s Word
+                  </p>
+                </div>
+              </div>
+
+              {/* Free badge */}
+              {!dailyAlreadyPlayed && (
+                <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold tracking-wide uppercase"
+                  style={{ color: '#6aaa64', backgroundColor: 'rgba(106,170,100,0.12)', border: '1px solid rgba(106,170,100,0.25)' }}>
+                  Free
+                </span>
+              )}
             </div>
-            <p className="text-text-secondary text-sm">
-              {user.username} &middot; {user.games_played} games played
-            </p>
-            {user.current_streak > 0 && (
-              <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-full bg-[#e67e22]/10 border border-[#e67e22]/20 text-[#e67e22] text-xs font-medium">
-                <Flame size={12} />
-                {user.current_streak} day streak
+
+            {/* Tile rows — real results if played, decorative placeholder otherwise */}
+            {dailyPatterns && (
+              <div className="flex flex-col gap-1.5 py-1">
+                {dailyPatterns.map((row, i) => (
+                  <MiniTileRow key={i} pattern={row} />
+                ))}
               </div>
             )}
-          </>
-        ) : (
-          <>
-            <h1 className="text-2xl font-bold text-text-primary mb-1">Choose your mode</h1>
-            <p className="text-text-secondary text-sm">Play as guest or sign in for rated games.</p>
-          </>
-        )}
-      </motion.div>
 
-      {error && (
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mb-6 text-sm text-[#e74c3c] bg-[#e74c3c]/10 border border-[#e74c3c]/20 rounded-lg px-4 py-2"
-        >
-          {error}
-        </motion.p>
-      )}
+            {/* Description */}
+            <p className="text-sm text-text-secondary leading-relaxed">
+              One word per day, shared across the community. No account needed.
+            </p>
+
+            {/* CTA / already played state */}
+            {dailyAlreadyPlayed ? (
+              <div className="flex items-center justify-between">
+                <DailyCountdown />
+                <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: '#6aaa64' }}>
+                  View your game
+                  <ArrowRight size={13} />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#6aaa64' }}>
+                {dailyPatterns ? 'Continue' : 'Play now'}
+                <ArrowRight size={15} />
+              </div>
+            )}
+          </motion.button>
+
+          {/* ── Locked secondary cards ── */}
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 20 },
+              visible: { opacity: 1, y: 0, transition: springs.slide },
+            }}
+            className="w-full grid grid-cols-2 gap-3"
+          >
+            {lockedModes.map((mode) => (
+              <motion.button
+                key={mode.id}
+                whileHover={{ scale: 1.015 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => router.push('/login')}
+                className={clsx(
+                  'relative flex flex-col gap-3 p-4 rounded-xl border text-left transition-all duration-150',
+                  'bg-bg-secondary hover:bg-bg-tertiary cursor-pointer'
+                )}
+                style={{ borderColor: mode.borderColor }}
+              >
+                {/* Dimmed overlay to convey locked state */}
+                <div className="absolute inset-0 rounded-xl bg-bg-base/30 pointer-events-none" />
+
+                {/* Icon + lock */}
+                <div className="flex items-center justify-between">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center opacity-60"
+                    style={{ color: mode.accentColor, backgroundColor: `${mode.accentColor}18` }}
+                  >
+                    {mode.icon}
+                  </div>
+                  <Lock size={12} className="text-text-ghost opacity-70" />
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-text-primary opacity-60">{mode.title}</h3>
+                  <p className="text-[11px] font-mono opacity-50" style={{ color: mode.accentColor }}>
+                    {mode.subtitle}
+                  </p>
+                </div>
+
+                <p className="text-xs text-text-ghost leading-relaxed opacity-60">{mode.desc}</p>
+              </motion.button>
+            ))}
+          </motion.div>
+
+          {/* ── Sign-up nudge ── */}
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 12 },
+              visible: { opacity: 1, y: 0, transition: springs.slide },
+            }}
+            className="w-full flex flex-col items-center gap-3 pt-1"
+          >
+            <p className="text-xs text-text-ghost text-center">
+              Sign in to unlock all modes and track your ELO rating
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => router.push('/login')}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white text-sm font-medium transition-colors"
+            >
+              <LogIn size={14} />
+              Sign in
+            </motion.button>
+          </motion.div>
+        </motion.div>
+
+        {challengeModal}
+      </div>
+    );
+  }
+
+  // ── AUTHENTICATED VIEW ──────────────────────────────────────────────────────
+  const dailyMode = modes[0];
+  const otherModes = modes.slice(1);
+  const isDailyLoading = creating === 'daily';
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4 py-10">
+      {/* Error */}
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mb-6 text-sm text-[#e74c3c] bg-[#e74c3c]/10 border border-[#e74c3c]/20 rounded-lg px-4 py-2"
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-3xl"
         initial="hidden"
         animate="visible"
         variants={{
           hidden: {},
           visible: { transition: stagger.medium },
         }}
+        className="w-full max-w-md flex flex-col items-center gap-6"
       >
-        {modes.map((mode) => {
-          const isLocked = mode.requiresAuth && !user;
-          const isLoading = creating === mode.id;
+        {/* User stats bar */}
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 16 },
+            visible: { opacity: 1, y: 0, transition: springs.slide },
+          }}
+          className="flex items-center gap-3"
+        >
+          <span className="text-2xl font-bold font-mono" style={{ color: tier?.color }}>
+            {Math.round(user.elo_rating)}
+          </span>
+          <span
+            className="text-xs px-2 py-0.5 rounded-full font-medium"
+            style={{ color: tier?.color, backgroundColor: `${tier?.color}1a` }}
+          >
+            {tier?.name}
+          </span>
+          <span className="text-xs text-text-ghost">{user.username}</span>
+          {user.current_streak > 0 && (
+            <span className="inline-flex items-center gap-1 text-xs text-[#e67e22] font-medium">
+              <Flame size={11} />
+              {user.current_streak}
+            </span>
+          )}
+        </motion.div>
 
-          return (
-            <motion.button
-              key={mode.id}
-              variants={{
-                hidden: { opacity: 0, y: 24 },
-                visible: { opacity: 1, y: 0, transition: springs.slide },
-              }}
-              whileHover={{ scale: isLoading || creating ? 1 : 1.02 }}
-              whileTap={{ scale: isLoading || creating ? 1 : 0.97 }}
-              onClick={() => handleModeSelect(mode.id)}
-              disabled={!!creating}
-              className={clsx(
-                'relative flex flex-col gap-4 p-6 rounded-2xl border text-left transition-all duration-150 disabled:opacity-70',
-                'bg-bg-secondary hover:bg-bg-tertiary'
-              )}
-              style={{ borderColor: mode.borderColor }}
-            >
-              {/* Tag */}
-              {mode.tag && (
-                <span
-                  className="absolute top-4 right-4 text-[10px] px-2 py-0.5 rounded-full font-medium"
-                  style={{
-                    color: mode.accentColor,
-                    backgroundColor: `${mode.accentColor}22`,
-                  }}
-                >
-                  {mode.tag}
-                </span>
-              )}
+        {/* ── Hero daily card ── */}
+        <motion.button
+          variants={{
+            hidden: { opacity: 0, y: 28 },
+            visible: { opacity: 1, y: 0, transition: springs.slide },
+          }}
+          whileHover={{ scale: isDailyLoading || !!creating ? 1 : 1.02 }}
+          whileTap={{ scale: isDailyLoading || !!creating ? 1 : 0.97 }}
+          onClick={() => handleModeSelect('daily')}
+          disabled={!!creating}
+          className="relative w-full flex flex-col gap-5 p-7 rounded-2xl border text-left transition-all duration-150 bg-bg-secondary hover:bg-bg-tertiary cursor-pointer"
+          style={{ borderColor: 'rgba(106,170,100,0.35)' }}
+        >
+          <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-[#538d4e] to-[#6aaa64]" />
 
-              {/* Icon */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{
-                  color: mode.accentColor,
-                  backgroundColor: `${mode.accentColor}1a`,
-                }}
+                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                style={{ color: '#6aaa64', backgroundColor: 'rgba(106,170,100,0.12)' }}
               >
-                {isLoading ? (
+                {isDailyLoading ? (
                   <div
                     className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
-                    style={{ borderColor: `${mode.accentColor}40`, borderTopColor: mode.accentColor }}
+                    style={{ borderColor: 'rgba(106,170,100,0.3)', borderTopColor: '#6aaa64' }}
                   />
                 ) : (
-                  mode.icon
+                  <Sun size={26} />
                 )}
               </div>
-
               <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-text-primary">{mode.title}</h2>
-                  {isLocked && (
-                    <Lock size={12} className="text-text-ghost" />
-                  )}
-                </div>
-                <p className="text-xs font-mono" style={{ color: mode.accentColor }}>
-                  {mode.subtitle}
+                <h2 className="text-lg font-bold text-text-primary leading-tight">Daily Puzzle</h2>
+                <p className="text-xs font-mono" style={{ color: '#6aaa64' }}>
+                  Today&apos;s Word
                 </p>
               </div>
+            </div>
 
-              <p className="text-sm text-text-secondary leading-relaxed">{mode.desc}</p>
+            {dailyMode.tag && (
+              <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold tracking-wide"
+                style={{ color: '#e67e22', backgroundColor: 'rgba(230,126,34,0.12)', border: '1px solid rgba(230,126,34,0.25)' }}>
+                {dailyMode.tag}
+              </span>
+            )}
+          </div>
 
-              {/* Daily already played — show countdown */}
-              {mode.id === 'daily' && dailyAlreadyPlayed && (
-                <DailyCountdown />
-              )}
+          {/* Tile rows — real results if played */}
+          <div className="flex flex-col gap-1.5 py-1">
+            {dailyPatterns ? (
+              dailyPatterns.map((row, i) => (
+                <MiniTileRow key={i} pattern={row} />
+              ))
+            ) : (
+              <>
+                <MiniTileRow pattern={['absent', 'absent', 'present', 'absent', 'absent']} />
+                <MiniTileRow pattern={['absent', 'correct', 'present', 'absent', 'correct']} />
+                <MiniTileRow pattern={['correct', 'correct', 'correct', 'correct', 'correct']} />
+              </>
+            )}
+          </div>
 
-              {/* Locked overlay hint */}
-              {isLocked && (
-                <p className="text-xs text-text-ghost">Sign in to play rated games</p>
-              )}
-            </motion.button>
-          );
-        })}
-      </motion.div>
+          <p className="text-sm text-text-secondary leading-relaxed">
+            One word per day. Race against the community.
+          </p>
 
-      {/* Challenge a Friend */}
-      {user && (
+          {dailyAlreadyPlayed ? (
+            <div className="flex items-center justify-between">
+              <DailyCountdown />
+              <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: '#6aaa64' }}>
+                View your game
+                <ArrowRight size={13} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#6aaa64' }}>
+              Play now
+              <ArrowRight size={15} />
+            </div>
+          )}
+        </motion.button>
+
+        {/* ── Competitive & Practice cards ── */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-8 w-full max-w-3xl"
+          variants={{
+            hidden: { opacity: 0, y: 20 },
+            visible: { opacity: 1, y: 0, transition: springs.slide },
+          }}
+          className="w-full grid grid-cols-2 gap-3"
+        >
+          {otherModes.map((mode) => {
+            const isLoading = creating === mode.id;
+            return (
+              <motion.button
+                key={mode.id}
+                whileHover={{ scale: isLoading || !!creating ? 1 : 1.02 }}
+                whileTap={{ scale: isLoading || !!creating ? 1 : 0.97 }}
+                onClick={() => handleModeSelect(mode.id)}
+                disabled={!!creating}
+                className="relative flex flex-col gap-3 p-5 rounded-xl border text-left transition-all duration-150 bg-bg-secondary hover:bg-bg-tertiary cursor-pointer disabled:opacity-70"
+                style={{ borderColor: mode.borderColor }}
+              >
+                {mode.tag && (
+                  <span
+                    className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full font-medium"
+                    style={{ color: mode.accentColor, backgroundColor: `${mode.accentColor}22` }}
+                  >
+                    {mode.tag}
+                  </span>
+                )}
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center"
+                  style={{ color: mode.accentColor, backgroundColor: `${mode.accentColor}18` }}
+                >
+                  {isLoading ? (
+                    <div
+                      className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
+                      style={{ borderColor: `${mode.accentColor}40`, borderTopColor: mode.accentColor }}
+                    />
+                  ) : (
+                    mode.icon
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-text-primary">{mode.title}</h3>
+                  <p className="text-[11px] font-mono" style={{ color: mode.accentColor }}>{mode.subtitle}</p>
+                </div>
+                <p className="text-xs text-text-secondary leading-relaxed">{mode.desc}</p>
+              </motion.button>
+            );
+          })}
+        </motion.div>
+
+        {/* Challenge a Friend */}
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 12 },
+            visible: { opacity: 1, y: 0, transition: springs.slide },
+          }}
+          className="w-full"
         >
           <button
             onClick={handleCreateChallenge}
-            disabled={!user || creatingChallenge || !!creating}
-            className="w-full py-3 rounded-xl bg-bg-secondary border border-white/[0.08] hover:border-white/[0.14] text-text-secondary hover:text-text-primary disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+            disabled={creatingChallenge || !!creating}
+            className="w-full py-2.5 rounded-xl bg-bg-secondary border border-white/[0.08] hover:border-white/[0.14] text-text-secondary hover:text-text-primary disabled:opacity-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
           >
             {creatingChallenge ? (
               <>
@@ -343,130 +748,37 @@ export default function PlayPage() {
               </>
             ) : (
               <>
-                <Swords size={16} />
+                <Swords size={15} />
                 Challenge a Friend
               </>
             )}
           </button>
         </motion.div>
-      )}
+      </motion.div>
 
-      {/* Challenge created modal */}
-      <AnimatePresence>
-        {challengeCode && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-              onClick={() => setChallengeCode(null)}
-            />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.88, y: 24 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 16 }}
-                transition={springs.modal}
-                className="w-full max-w-sm bg-bg-secondary rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden"
-              >
-                <div className="h-1.5 w-full bg-gradient-to-r from-[#538d4e] to-[#6aaa64]" />
-                <div className="p-6 flex flex-col gap-5">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#538d4e]/10 border border-[#538d4e]/20 flex items-center justify-center">
-                        <Swords size={20} className="text-[#6aaa64]" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-text-primary">Challenge Created!</h2>
-                        <p className="text-xs text-text-secondary mt-0.5">Share the link with a friend</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setChallengeCode(null)}
-                      className="p-1.5 rounded-md text-text-ghost hover:text-text-primary hover:bg-white/[0.06] transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  {/* Share link */}
-                  <div className="flex gap-2">
-                    <div className="flex-1 min-w-0 py-2 px-3 rounded-lg bg-bg-tertiary border border-white/[0.08] text-xs text-text-ghost font-mono truncate">
-                      {typeof window !== 'undefined'
-                        ? `${window.location.origin}/challenge/${challengeCode}`
-                        : `/challenge/${challengeCode}`}
-                    </div>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleCopyChallengeLink}
-                      className="shrink-0 px-3 py-2 rounded-lg bg-bg-elevated hover:bg-white/[0.1] border border-white/[0.08] text-text-primary text-xs font-medium transition-colors flex items-center gap-1.5"
-                    >
-                      {challengeCopied ? (
-                        <>
-                          <Check size={13} className="text-tile-correct" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Share2 size={13} />
-                          Copy
-                        </>
-                      )}
-                    </motion.button>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-col gap-2">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => router.push(`/challenge/${challengeCode}`)}
-                      className="w-full py-2.5 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
-                    >
-                      <ArrowRight size={15} />
-                      Play it yourself first
-                    </motion.button>
-                    <button
-                      onClick={() => setChallengeCode(null)}
-                      className="text-xs text-text-ghost hover:text-text-secondary transition-colors text-center py-1"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          </>
-        )}
-      </AnimatePresence>
+      {challengeModal}
 
       {/* Rating tiers reference */}
-      {user && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-12 flex items-center gap-3 flex-wrap justify-center"
-        >
-          {[
-            { name: 'Novice', color: '#818384' },
-            { name: 'Veteran', color: '#b59f3b' },
-            { name: 'Master', color: '#6aaa64' },
-            { name: 'Grandmaster', color: '#1565c0' },
-          ].map((t) => (
-            <div key={t.name} className="flex items-center gap-1.5">
-              <Star size={10} style={{ color: t.color }} fill={t.color} />
-              <span className="text-xs" style={{ color: t.color }}>
-                {t.name}
-              </span>
-            </div>
-          ))}
-        </motion.div>
-      )}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.6 }}
+        className="mt-12 flex items-center gap-3 flex-wrap justify-center"
+      >
+        {[
+          { name: 'Novice', color: '#818384' },
+          { name: 'Veteran', color: '#b59f3b' },
+          { name: 'Master', color: '#6aaa64' },
+          { name: 'Grandmaster', color: '#1565c0' },
+        ].map((t) => (
+          <div key={t.name} className="flex items-center gap-1.5">
+            <Star size={10} style={{ color: t.color }} fill={t.color} />
+            <span className="text-xs" style={{ color: t.color }}>
+              {t.name}
+            </span>
+          </div>
+        ))}
+      </motion.div>
     </div>
   );
 }

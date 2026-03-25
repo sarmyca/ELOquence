@@ -10,23 +10,23 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          base: '#09090b',
-          primary: '#0f1012',
-          secondary: '#16171a',
-          tertiary: '#1e1f23',
-          elevated: '#26272c',
+          base: '#121215',
+          primary: '#18191d',
+          secondary: '#1f2024',
+          tertiary: '#282a2e',
+          elevated: '#313338',
         },
         text: {
-          primary: '#f0f0f3',
-          accent: '#d7dadc',
-          secondary: '#9ba1a6',
-          tertiary: '#6b7280',
-          ghost: '#4b5563',
+          primary: '#f2f3f5',
+          accent: '#dcdee1',
+          secondary: '#b0b5bc',
+          tertiary: '#8b919a',
+          ghost: '#6b7280',
         },
         tile: {
-          correct: '#538d4e',
-          present: '#b59f3b',
-          absent: '#3a3a3c',
+          correct: '#5a9e54',
+          present: '#c4a83d',
+          absent: '#44464a',
         },
         classification: {
           brilliant: '#1565c0',

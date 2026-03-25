@@ -55,7 +55,7 @@ class PlayerProfile(Base):
     )
 
     # Relationship back to User
-    user: Mapped["User"] = relationship("User", back_populates="profile")  # noqa: F821
+    user: Mapped["User"] = relationship("User")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<PlayerProfile user_id={self.user_id} games={self.total_games}>"

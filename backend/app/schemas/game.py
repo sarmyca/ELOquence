@@ -60,7 +60,7 @@ class GameResponse(BaseModel):
     """Full game representation returned by the API."""
 
     id: uuid.UUID
-    user_id: uuid.UUID
+    user_id: uuid.UUID | None = None
     mode: str
     # target_word only included when game is finished
     target_word: str | None = None

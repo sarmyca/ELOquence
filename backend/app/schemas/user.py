@@ -33,14 +33,21 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
     username: str
+    avatar_url: str | None = None
     elo_rating: float
     games_played: int
     is_placement: bool
     current_streak: int
-    longest_streak: int
+    max_streak: int
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class GoogleLogin(BaseModel):
+    """Payload for Google OAuth login."""
+
+    credential: str
 
 
 class Token(BaseModel):

@@ -1,6 +1,6 @@
 """Optimize database indexes for performance.
 
-- Add composite index on games(user_id, created_at DESC) for dashboard queries
+- Add composite index on games(user_id, started_at DESC) for dashboard queries
 - Add index on users(elo_rating DESC) for leaderboard queries
 - Drop redundant ix_users_email and ix_users_username (UNIQUE constraints already cover these)
 - Drop now-redundant ix_games_user_id (replaced by composite)
@@ -25,9 +25,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # Composite index for dashboard "recent games" query
     op.create_index(
-        "ix_games_user_id_created_at",
+        "ix_games_user_id_started_at",
         "games",
-        ["user_id", sa.text("created_at DESC")],
+        ["user_id", sa.text("started_at DESC")],
     )
     # Drop old single-column index now covered by composite
     op.drop_index("ix_games_user_id", table_name="games")
@@ -54,4 +54,4 @@ def downgrade() -> None:
 
     # Restore old single-column index, drop composite
     op.create_index("ix_games_user_id", "games", ["user_id"])
-    op.drop_index("ix_games_user_id_created_at", table_name="games")
+    op.drop_index("ix_games_user_id_started_at", table_name="games")

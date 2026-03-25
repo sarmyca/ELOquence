@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_HOURS: int = 168  # 7 days
     CORS_ORIGINS: str = "http://localhost:3000"
     ANTHROPIC_API_KEY: str = ""
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
 
     model_config = {"env_file": ".env", "case_sensitive": True}
 

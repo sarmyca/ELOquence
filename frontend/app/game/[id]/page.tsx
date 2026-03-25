@@ -9,7 +9,8 @@ import GameOverModal from '@/components/GameOverModal';
 import Toast from '@/components/Toast';
 import AchievementToast, { ACHIEVEMENT_META } from '@/components/AchievementToast';
 import GuessWaveEffect from '@/components/GuessWaveEffect';
-import { gamesApi } from '@/lib/api';
+import { gamesApi, dailyApi } from '@/lib/api';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { Game, GameStatus, TileState, patternToTiles } from '@/lib/types';
 
 // Flip animation: 5 tiles × 0.15s stagger + 0.5s each tile = ~1.25s total
@@ -18,6 +19,7 @@ const FLIP_ANIMATION_MS = 5 * 150 + 500 + 150;
 export default function GamePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
 
   const [game, setGame] = useState<Game | null>(null);
   const [currentGuess, setCurrentGuess] = useState('');
@@ -53,23 +55,27 @@ export default function GamePage() {
   // Load existing game state on mount
   useEffect(() => {
     if (!id) return;
-    gamesApi
-      .get(id)
-      .then((res) => {
-        const g: Game = res.data;
-        setGame(g);
-        if (g.moves && g.moves.length > 0) {
-          const sorted = [...g.moves].sort((a, b) => a.move_number - b.move_number);
-          setGuesses(sorted.map((m) => m.guess_word));
-          setPatterns(sorted.map((m) => m.pattern));
-          // All previous rows are already fully revealed (no flip needed)
-          setRevealRow(-1);
-        }
-        setGameStatus(g.status);
-        if (g.status !== 'in_progress') {
-          setModalOpen(true);
-        }
-      })
+
+    const loadGame = (g: Game) => {
+      setGame(g);
+      if (g.moves && g.moves.length > 0) {
+        const sorted = [...g.moves].sort((a, b) => a.move_number - b.move_number);
+        setGuesses(sorted.map((m) => m.guess_word));
+        setPatterns(sorted.map((m) => m.pattern));
+        setRevealRow(-1);
+      }
+      setGameStatus(g.status);
+      if (g.status !== 'in_progress') {
+        setModalOpen(true);
+      }
+    };
+
+    const fetchGame = user
+      ? gamesApi.get(id).catch(() => dailyApi.guestGame(id))  // fallback to guest game
+      : dailyApi.guestGame(id);
+
+    fetchGame
+      .then((res: { data: Game }) => loadGame(res.data))
       .catch(() => router.push('/play'))
       .finally(() => setLoadingGame(false));
   }, [id, router]);
@@ -90,10 +96,10 @@ export default function GamePage() {
 
   // Build keyboard letter states from all submitted guesses
   const letterStates: Record<string, TileState> = {};
-  guesses.forEach((guess, idx) => {
+  guesses.forEach((guess: string, idx: number) => {
     if (patterns[idx] === undefined) return;
     const tiles = patternToTiles(patterns[idx]);
-    guess.split('').forEach((letter, i) => {
+    guess.split('').forEach((letter: string, i: number) => {
       const current = letterStates[letter];
       const next = tiles[i];
       // Priority: correct > present > absent
@@ -107,7 +113,7 @@ export default function GamePage() {
     (key: string) => {
       if (gameStatus !== 'in_progress' || isSubmitting) return;
       if (currentGuess.length < 5) {
-        setCurrentGuess((prev) => prev + key.toUpperCase());
+        setCurrentGuess((prev: string) => prev + key.toUpperCase());
       }
     },
     [gameStatus, isSubmitting, currentGuess.length]
@@ -115,7 +121,7 @@ export default function GamePage() {
 
   const handleBackspace = useCallback(() => {
     if (gameStatus !== 'in_progress' || isSubmitting) return;
-    setCurrentGuess((prev) => prev.slice(0, -1));
+    setCurrentGuess((prev: string) => prev.slice(0, -1));
   }, [gameStatus, isSubmitting]);
 
   const handleEnter = useCallback(async () => {
@@ -131,7 +137,9 @@ export default function GamePage() {
     setIsSubmitting(true);
 
     try {
-      const res = await gamesApi.submitGuess(id, currentGuess);
+      const res = user
+        ? await gamesApi.submitGuess(id, currentGuess)
+        : await dailyApi.guestGuess(id, currentGuess);
       const updatedGame: Game = res.data;
 
       // Extract the pattern from the latest move in the response
@@ -144,16 +152,24 @@ export default function GamePage() {
       const rowIndex = guesses.length;
 
       // Add the guess + pattern immediately so the board renders the revealed colors
-      setGuesses((prev) => [...prev, currentGuess]);
-      setPatterns((prev) => [...prev, pattern]);
+      setGuesses((prev: string[]) => [...prev, currentGuess]);
+      setPatterns((prev: number[]) => [...prev, pattern]);
       setCurrentGuess('');
+
+      // Save daily progress after every guess
+      if (updatedGame.mode === 'daily') {
+        const today = new Date().toISOString().slice(0, 10);
+        const allPatterns = [...patterns, pattern];
+        localStorage.setItem(`eloquence_daily_patterns_${today}`, JSON.stringify(allPatterns));
+        localStorage.setItem(`eloquence_daily_game_id_${today}`, id);
+      }
 
       // Start flip animation on this row
       setRevealRow(rowIndex);
 
       // Trigger radial wave effect
       setWavePattern(pattern);
-      setWaveTrigger((prev) => prev + 1);
+      setWaveTrigger((prev: number) => prev + 1);
 
       // After animation completes, clear flip flag and check win/lose
       setTimeout(() => {
@@ -164,6 +180,12 @@ export default function GamePage() {
         setGameStatus(status);
 
         if (status !== 'in_progress') {
+          // Mark daily as completed
+          if (updatedGame.mode === 'daily') {
+            const today = new Date().toISOString().slice(0, 10);
+            localStorage.setItem(`eloquence_daily_played_${today}`, 'true');
+          }
+
           setTimeout(() => setModalOpen(true), 250);
 
           // Show achievement toasts for newly unlocked achievements
@@ -225,7 +247,7 @@ export default function GamePage() {
   }
 
   return (
-    <div className="relative z-10 flex flex-col items-center min-h-[calc(100dvh-56px)] pt-3 pb-4 px-2 select-none">
+    <div className="relative z-10 flex flex-col items-center h-[calc(100dvh-56px)] pt-1 pb-2 px-2 select-none justify-between">
       <Toast message={toastMsg} visible={toastVisible} />
       <AchievementToast
         achievements={unlockedAchievements}
@@ -234,7 +256,7 @@ export default function GamePage() {
       <GuessWaveEffect pattern={wavePattern} triggerKey={waveTrigger} />
 
       {/* Top bar */}
-      <div className="w-full max-w-lg flex items-center justify-between px-2 mb-2">
+      <div className="w-full max-w-lg flex items-center justify-between px-2 mb-1">
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => router.push('/play')}
@@ -248,7 +270,7 @@ export default function GamePage() {
           {game && (
             <span className="text-xs text-text-tertiary capitalize font-medium">
               {game.mode}
-              {game.is_placement && (
+              {game.is_placement && game.mode === 'competitive' && (
                 <span className="ml-1 text-[#b59f3b]">· Placement</span>
               )}
             </span>
@@ -263,8 +285,8 @@ export default function GamePage() {
         )}
       </div>
 
-      {/* Game board — takes the majority of the screen */}
-      <div className="flex-1 flex items-center justify-center w-full py-2">
+      {/* Game board */}
+      <div className="flex items-start justify-center w-full pt-8">
         <GameBoard
           guesses={guesses}
           patterns={patterns}
@@ -274,8 +296,43 @@ export default function GamePage() {
         />
       </div>
 
+      {/* Guess progress + hints bar */}
+      <div className="flex-1 flex items-center justify-center w-full max-w-lg px-4">
+        <div className="flex items-center gap-4">
+          {/* Guess counter dots */}
+          <div className="flex items-center gap-1.5">
+            {Array.from({ length: 6 }).map((_, i) => {
+              const isUsed = i < guesses.length;
+              const isCurrent = i === guesses.length && gameStatus === 'in_progress';
+              let dotColor = 'bg-white/[0.08]';
+              if (isUsed && patterns[i] !== undefined) {
+                const tiles = patternToTiles(patterns[i]);
+                const greens = tiles.filter(t => t === 'correct').length;
+                if (greens === 5) dotColor = 'bg-tile-correct';
+                else if (greens > 0) dotColor = 'bg-tile-correct/60';
+                else if (tiles.some(t => t === 'present')) dotColor = 'bg-tile-present/60';
+                else dotColor = 'bg-tile-absent';
+              }
+              return (
+                <div
+                  key={i}
+                  className={`rounded-full transition-all duration-300 ${dotColor} ${
+                    isCurrent ? 'w-2.5 h-2.5 ring-1 ring-white/20' : 'w-2 h-2'
+                  }`}
+                />
+              );
+            })}
+          </div>
+          {gameStatus === 'in_progress' && guesses.length > 0 && (
+            <span className="text-[11px] text-text-ghost font-mono tabular-nums">
+              {guesses.length}/6
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Virtual keyboard */}
-      <div className="w-full px-2 mt-2 flex justify-center">
+      <div className="w-full px-1 pb-6 flex justify-center">
         <Keyboard
           onKey={handleKey}
           onEnter={handleEnter}
@@ -285,7 +342,7 @@ export default function GamePage() {
       </div>
 
       {/* Game over modal */}
-      {game && <GameOverModal game={game} open={modalOpen} />}
+      {game && <GameOverModal game={game} open={modalOpen} isGuest={!user} onClose={() => setModalOpen(false)} />}
     </div>
   );
 }

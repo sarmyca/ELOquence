@@ -11,6 +11,8 @@ import Confetti from './Confetti';
 interface GameOverModalProps {
   game: Game;
   open: boolean;
+  isGuest?: boolean;
+  onClose?: () => void;
 }
 
 const TILE_EMOJI: Record<string, string> = {
@@ -35,7 +37,7 @@ function getCelebrationTier(numGuesses: number): CelebrationTier {
   return 'close_call';
 }
 
-export default function GameOverModal({ game, open }: GameOverModalProps) {
+export default function GameOverModal({ game, open, isGuest = false, onClose }: GameOverModalProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [challengeCopied, setChallengeCopied] = useState(false);
@@ -181,12 +183,14 @@ export default function GameOverModal({ game, open }: GameOverModalProps) {
                 </div>
 
                 {/* Community benchmark hint */}
-                <p className="text-[10px] text-text-ghost text-center">
-                  Challenge a friend to beat your score
-                </p>
+                {!isGuest && (
+                  <p className="text-[10px] text-text-ghost text-center">
+                    Challenge a friend to beat your score
+                  </p>
+                )}
 
                 {/* Placement badge */}
-                {game.is_placement && (
+                {!isGuest && game.is_placement && (
                   <div className="text-center px-3 py-2 rounded-lg bg-[#b59f3b]/10 border border-[#b59f3b]/20">
                     <span className="text-xs text-[#b59f3b] font-medium">
                       Placement match — results count toward your initial rating
@@ -196,65 +200,101 @@ export default function GameOverModal({ game, open }: GameOverModalProps) {
 
                 {/* Actions */}
                 <div className="flex flex-col gap-2">
-                  {/* Primary: Review Game */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => router.push(`/review/${game.id}`)}
-                    className="w-full py-3 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
-                  >
-                    <BarChart2 size={16} />
-                    Review Game
-                  </motion.button>
+                  {isGuest ? (
+                    <>
+                      {/* Dismiss modal to admire the board */}
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => onClose?.()}
+                        className="w-full py-3 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        Admire Puzzle
+                      </motion.button>
+                      <div className="flex gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handleShare}
+                          className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
+                        >
+                          {copied ? <Check size={15} className="text-tile-correct" /> : <Share2 size={15} />}
+                          {copied ? 'Copied!' : 'Share'}
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => router.push('/play')}
+                          className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
+                        >
+                          <RotateCcw size={15} />
+                          Play Again
+                        </motion.button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Primary: Review Game */}
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => router.push(`/review/${game.id}`)}
+                        className="w-full py-3 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                      >
+                        <BarChart2 size={16} />
+                        Review Game
+                      </motion.button>
 
-                  <div className="flex gap-2">
-                    {/* Share */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handleShare}
-                      className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
-                    >
-                      {copied ? <Check size={15} className="text-tile-correct" /> : <Share2 size={15} />}
-                      {copied ? 'Copied!' : 'Share'}
-                    </motion.button>
+                      <div className="flex gap-2">
+                        {/* Share */}
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={handleShare}
+                          className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
+                        >
+                          {copied ? <Check size={15} className="text-tile-correct" /> : <Share2 size={15} />}
+                          {copied ? 'Copied!' : 'Share'}
+                        </motion.button>
 
-                    {/* Challenge */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={async () => {
-                        try {
-                          const res = await challengesApi.create();
-                          const url = `${window.location.origin}/challenge/${res.data.code}`;
-                          await navigator.clipboard.writeText(url);
-                          setChallengeCopied(true);
-                          setTimeout(() => setChallengeCopied(false), 2000);
-                        } catch {
-                          // Fallback: do nothing
-                        }
-                      }}
-                      className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
-                    >
-                      {challengeCopied ? (
-                        <Check size={15} className="text-tile-correct" />
-                      ) : (
-                        <Swords size={15} />
-                      )}
-                      {challengeCopied ? 'Copied!' : 'Challenge'}
-                    </motion.button>
+                        {/* Challenge */}
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={async () => {
+                            try {
+                              const res = await challengesApi.create();
+                              const url = `${window.location.origin}/challenge/${res.data.code}`;
+                              await navigator.clipboard.writeText(url);
+                              setChallengeCopied(true);
+                              setTimeout(() => setChallengeCopied(false), 2000);
+                            } catch {
+                              // Fallback: do nothing
+                            }
+                          }}
+                          className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
+                        >
+                          {challengeCopied ? (
+                            <Check size={15} className="text-tile-correct" />
+                          ) : (
+                            <Swords size={15} />
+                          )}
+                          {challengeCopied ? 'Copied!' : 'Challenge'}
+                        </motion.button>
 
-                    {/* Play Again */}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => router.push('/play')}
-                      className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
-                    >
-                      <RotateCcw size={15} />
-                      Play Again
-                    </motion.button>
-                  </div>
+                        {/* Play Again */}
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => router.push('/play')}
+                          className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
+                        >
+                          <RotateCcw size={15} />
+                          Play Again
+                        </motion.button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>

@@ -20,7 +20,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
+    const url = error.config?.url || '';
+    const isGuestCall = url.includes('/daily/guest');
+    if (error.response?.status === 401 && typeof window !== 'undefined' && !isGuestCall) {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
@@ -34,6 +36,8 @@ export const authApi = {
     api.post('/auth/register', data),
   login: (data: { email: string; password: string }) =>
     api.post('/auth/login', data),
+  google: (credential: string) =>
+    api.post('/auth/google', { credential }),
   me: () => api.get('/auth/me'),
 };
 
@@ -58,6 +62,10 @@ export const analysisApi = {
 export const dailyApi = {
   get: () => api.get('/daily'),
   play: () => api.post('/daily/play'),
+  guest: () => api.post('/daily/guest'),
+  guestGame: (gameId: string) => api.get(`/daily/guest/${gameId}`),
+  guestGuess: (gameId: string, guess: string) =>
+    api.post(`/daily/guest/${gameId}/guess`, { guess }),
 };
 
 // Leaderboard

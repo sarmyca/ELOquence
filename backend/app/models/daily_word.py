@@ -1,9 +1,7 @@
 """DailyWord ORM model."""
-import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Date, DateTime, Float, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -14,8 +12,8 @@ class DailyWord(Base):
 
     __tablename__ = "daily_words"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
     )
     word: Mapped[str] = mapped_column(String(5), nullable=False)
     date: Mapped[date] = mapped_column(Date, unique=True, nullable=False, index=True)

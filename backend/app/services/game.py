@@ -140,7 +140,6 @@ async def _get_or_create_daily_word(db: AsyncSession) -> tuple[str, float]:
     word = random.choice(ANSWERS).upper()
     difficulty = word_to_elo(word)
     daily = DailyWord(
-        id=uuid.uuid4(),
         word=word.lower(),
         date=today,
         difficulty=difficulty,
@@ -239,11 +238,14 @@ async def submit_guess(
     from app.analysis.engine import ALL_WORDS, compute_pattern, is_valid_word
     from app.services.elo import apply_elo_update
 
-    # Load game with moves
+    # Load game with moves — allow guest games (user_id is None)
     result = await db.execute(
         select(Game)
         .options(selectinload(Game.moves))
-        .where(Game.id == game_id, Game.user_id == user.id)
+        .where(
+            Game.id == game_id,
+            (Game.user_id == user.id) | (Game.user_id.is_(None)),
+        )
     )
     game = result.scalar_one_or_none()
     if game is None:

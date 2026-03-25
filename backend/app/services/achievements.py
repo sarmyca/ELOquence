@@ -123,13 +123,13 @@ async def get_user_achievements(db: AsyncSession, user_id: uuid.UUID) -> list[di
     result = await db.execute(
         select(Achievement)
         .where(Achievement.user_id == user_id)
-        .order_by(Achievement.unlocked_at.desc())
+        .order_by(Achievement.earned_at.desc())
     )
     achievements = result.scalars().all()
     return [
         {
             "type": a.achievement_type,
-            "unlocked_at": a.unlocked_at.isoformat(),
+            "unlocked_at": a.earned_at.isoformat(),
         }
         for a in achievements
     ]

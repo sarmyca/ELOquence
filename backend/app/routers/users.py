@@ -151,7 +151,7 @@ async def user_stats(
         "best_accuracy": {"score": best[0], "word": best[1]} if best else None,
         "total_games": current_user.games_played,
         "current_streak": current_user.current_streak,
-        "longest_streak": current_user.longest_streak,
+        "longest_streak": current_user.max_streak,
     }
 
 
@@ -205,7 +205,7 @@ async def delete_all_games(
     # Reset game-related counters but preserve ELO.
     current_user.games_played = 0
     current_user.current_streak = 0
-    current_user.longest_streak = 0
+    current_user.max_streak = 0
     current_user.last_played_date = None
 
     await db.commit()

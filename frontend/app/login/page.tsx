@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { springs } from '@/lib/animations';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -41,9 +42,9 @@ export default function LoginPage() {
       >
         <div className="bg-bg-secondary border border-white/[0.1] rounded-2xl p-8">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold text-text-primary mb-1">Welcome back</h1>
+            <h1 className="text-2xl font-bold text-text-primary mb-1">Sign In</h1>
             <p className="text-sm text-text-secondary">
-              Sign in to continue competing.
+              Let&apos;s compete!
             </p>
           </div>
 
@@ -107,6 +108,16 @@ export default function LoginPage() {
               )}
             </motion.button>
           </form>
+
+          <div className="mt-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-white/[0.1]" />
+            <span className="text-xs text-text-ghost uppercase tracking-wider">or</span>
+            <div className="flex-1 h-px bg-white/[0.1]" />
+          </div>
+
+          <div className="mt-4">
+            <GoogleSignInButton onError={(msg) => setError(msg)} />
+          </div>
 
           <p className="mt-6 text-center text-sm text-text-secondary">
             No account?{' '}

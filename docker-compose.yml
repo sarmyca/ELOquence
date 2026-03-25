@@ -27,6 +27,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       CORS_ORIGINS: http://localhost:3000
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-43178926835-ijupvcom66h7iufnj75i0bdfd0i918bi.apps.googleusercontent.com}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-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}
     depends_on:
       db:
         condition: service_healthy
@@ -40,6 +42,7 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-43178926835-ijupvcom66h7iufnj75i0bdfd0i918bi.apps.googleusercontent.com}
       WATCHPACK_POLLING: "true"
     depends_on:
       - backend

@@ -150,6 +150,7 @@ export default function DashboardPage() {
   const completedGames = games.filter(
     (g) => g.status === 'won' || g.status === 'lost'
   );
+  const wonGames = games.filter((g) => g.status === 'won');
   // A "win" = gained ELO (positive elo_delta), not just status === 'won'
   const eloWins = games.filter(
     (g) => g.elo_delta != null && g.elo_delta > 0
@@ -448,7 +449,7 @@ export default function DashboardPage() {
                         </span>
                         <span className="text-[10px] text-text-ghost capitalize">
                           {game.mode}
-                          {game.is_placement && ' · Placement'}
+                          {game.is_placement && game.mode === 'competitive' && ' · Placement'}
                         </span>
                       </div>
 

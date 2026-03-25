@@ -14,6 +14,7 @@ import {
   TrendingUp,
   AlertTriangle,
   Star,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -273,8 +274,8 @@ const SECTIONS: Section[] = [
               <span className="text-[10px] text-text-ghost">A and E are in the word, wrong spots</span>
             </div>
             <div className="flex items-center gap-3">
-              <TileRow word="RANCH" pattern={['yellow', 'yellow', 'yellow', 'green', 'gray']} />
-              <span className="text-[10px] text-text-ghost">R, A, N found — C is locked in</span>
+              <TileRow word="ADORE" pattern={['yellow', 'gray', 'gray', 'yellow', 'green']} />
+              <span className="text-[10px] text-text-ghost">E locked in, A and R found but wrong spots</span>
             </div>
             <div className="flex items-center gap-3">
               <TileRow word="CRANE" pattern={['green', 'green', 'green', 'green', 'green']} />
@@ -821,14 +822,14 @@ const SECTIONS: Section[] = [
 export default function LearnPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [activeSection, setActiveSection] = useState(SECTIONS[0].id);
 
-  if (!loading && !user) {
-    router.push('/');
-    return null;
-  }
+  const GUEST_UNLOCKED_IDS = ['modes', 'tiles'];
+  const allSections = SECTIONS.filter((s) => s.id !== 'shortcuts');
+  const unlockedSections = user ? allSections : allSections.filter((s) => GUEST_UNLOCKED_IDS.includes(s.id));
 
-  const current = SECTIONS.find((s) => s.id === activeSection) ?? SECTIONS[0];
+  const [activeSection, setActiveSection] = useState(unlockedSections[0].id);
+
+  const current = unlockedSections.find((s) => s.id === activeSection) ?? unlockedSections[0];
 
   return (
     <div className="min-h-[calc(100dvh-56px)] bg-bg-primary">
@@ -858,28 +859,34 @@ export default function LearnPage() {
             transition={{ ...springs.slide, delay: 0.05 }}
             className="hidden md:flex flex-col gap-0.5 w-52 shrink-0 sticky top-20 self-start"
           >
-            {SECTIONS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setActiveSection(s.id)}
-                className={clsx(
-                  'flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors',
-                  activeSection === s.id
-                    ? 'bg-bg-tertiary text-text-primary font-medium'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50',
-                )}
-              >
-                <span
+            {allSections.map((s) => {
+              const isLocked = !user && !GUEST_UNLOCKED_IDS.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => !isLocked && setActiveSection(s.id)}
+                  disabled={isLocked}
                   className={clsx(
-                    'shrink-0',
-                    activeSection === s.id ? 'text-[#6aaa64]' : 'text-text-ghost',
+                    'flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors',
+                    isLocked
+                      ? 'opacity-40 cursor-default'
+                      : activeSection === s.id
+                        ? 'bg-bg-tertiary text-text-primary font-medium'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50',
                   )}
                 >
-                  {s.icon}
-                </span>
-                {s.title}
-              </button>
-            ))}
+                  <span
+                    className={clsx(
+                      'shrink-0',
+                      isLocked ? 'text-text-ghost' : activeSection === s.id ? 'text-[#6aaa64]' : 'text-text-ghost',
+                    )}
+                  >
+                    {isLocked ? <Lock size={14} /> : s.icon}
+                  </span>
+                  {s.title}
+                </button>
+              );
+            })}
           </motion.nav>
 
           {/* Mobile section picker */}
@@ -889,11 +896,14 @@ export default function LearnPage() {
               onChange={(e) => setActiveSection(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-bg-secondary border border-white/[0.08] text-sm text-text-primary"
             >
-              {SECTIONS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title}
-                </option>
-              ))}
+              {allSections.map((s) => {
+                const isLocked = !user && !GUEST_UNLOCKED_IDS.includes(s.id);
+                return (
+                  <option key={s.id} value={s.id} disabled={isLocked}>
+                    {isLocked ? `🔒 ${s.title}` : s.title}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
