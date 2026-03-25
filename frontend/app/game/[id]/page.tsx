@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Timer, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Timer, ArrowLeft, AlertTriangle } from 'lucide-react';
 import GameBoard from '@/components/GameBoard';
 import Keyboard from '@/components/Keyboard';
 import GameOverModal from '@/components/GameOverModal';
@@ -12,6 +12,7 @@ import GuessWaveEffect from '@/components/GuessWaveEffect';
 import { gamesApi, dailyApi } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Game, GameStatus, TileState, patternToTiles } from '@/lib/types';
+import { springs } from '@/lib/animations';
 
 // Flip animation: 5 tiles × 0.15s stagger + 0.5s each tile = ~1.25s total
 const FLIP_ANIMATION_MS = 5 * 150 + 500 + 150;
@@ -40,6 +41,8 @@ export default function GamePage() {
   >([]);
   const [wavePattern, setWavePattern] = useState<number | null>(null);
   const [waveTrigger, setWaveTrigger] = useState(0);
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
+  const [abandoning, setAbandoning] = useState(false);
 
   // Timer
   const [elapsed, setElapsed] = useState(0);
@@ -259,7 +262,13 @@ export default function GamePage() {
       <div className="w-full max-w-lg flex items-center justify-between px-2 mb-1">
         <motion.button
           whileTap={{ scale: 0.95 }}
-          onClick={() => router.push('/play')}
+          onClick={() => {
+            if (game?.rated && gameStatus === 'in_progress') {
+              setShowAbandonConfirm(true);
+            } else {
+              router.push('/play');
+            }
+          }}
           className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-white/[0.06] transition-colors"
           aria-label="Back to mode selection"
         >
@@ -341,8 +350,66 @@ export default function GamePage() {
         />
       </div>
 
+      {/* Abandon confirmation modal */}
+      <AnimatePresence>
+        {showAbandonConfirm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              onClick={() => !abandoning && setShowAbandonConfirm(false)}
+            />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.88, y: 24 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 16 }}
+                transition={springs.modal}
+                className="w-full max-w-xs bg-bg-secondary rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden"
+              >
+                <div className="h-1.5 w-full bg-[#e74c3c]" />
+                <div className="p-5 flex flex-col gap-4">
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <AlertTriangle size={28} className="text-[#e74c3c]" />
+                    <h3 className="text-base font-bold text-text-primary">Abandon game?</h3>
+                    <p className="text-xs text-text-secondary leading-relaxed">
+                      This will count as a <span className="text-[#e74c3c] font-semibold">loss</span> and you will lose ELO.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowAbandonConfirm(false)}
+                      disabled={abandoning}
+                      className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors border border-white/[0.08]"
+                    >
+                      Continue playing
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setAbandoning(true);
+                        try {
+                          await gamesApi.delete(id);
+                        } catch { /* ignore */ }
+                        router.push('/play');
+                      }}
+                      disabled={abandoning}
+                      className="flex-1 py-2.5 rounded-xl bg-[#e74c3c] hover:bg-[#c0392b] text-white font-medium text-sm transition-colors"
+                    >
+                      {abandoning ? 'Leaving...' : 'Abandon'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Game over modal */}
-      {game && <GameOverModal game={game} open={modalOpen} isGuest={!user} onClose={() => setModalOpen(false)} />}
+      {game && <GameOverModal game={game} open={modalOpen} isGuest={!user} onClose={() => setModalOpen(false)} gamesPlayed={user?.games_played} />}
     </div>
   );
 }

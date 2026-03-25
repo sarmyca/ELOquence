@@ -244,11 +244,6 @@ export default function HomePage() {
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4 overflow-hidden">
-      {/* Background grid */}
-      <div className="pointer-events-none absolute inset-0 home-bg-grid" />
-
-      {/* Radial glow behind title */}
-      <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full home-radial-glow" />
 
       {/* Hero */}
       <motion.div

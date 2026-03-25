@@ -214,7 +214,6 @@ async def explain_move(
         f"Bits lost: {move_data.get('bits_lost', 0):.2f}\n"
         f"Remaining words before: {move_data.get('remaining_words', '?')}\n"
         f"Remaining words after: {move_data.get('remaining_after', '?')}\n"
-        f"Game phase: {move_data.get('game_phase', '?')}\n"
         f"Info gained: {move_data.get('info_gained', 0):.2f} bits\n"
         f"Constraint violation: {move_data.get('constraint_violation', 'none')}\n"
         f"Trap detected: {move_data.get('trap_detected', False)}\n\n"
@@ -282,7 +281,6 @@ async def generate_game_summary(
             f" remaining: {m.get('remaining_words', '?')}->{m.get('remaining_after', '?')})"
         )
 
-    phase_acc = analysis.get("phase_accuracies", {})
     prompt = (
         "[GAME_DATA]\n"
         f"Target word: {game_data.get('target_word', '?')}\n"
@@ -294,10 +292,6 @@ async def generate_game_summary(
         "Moves:\n"
         + "\n".join(move_lines)
         + "\n\n"
-        "Phase accuracies:\n"
-        f"  Opening: {phase_acc.get('opening', 0):.0f}%\n"
-        f"  Midgame: {phase_acc.get('midgame', 0):.0f}%\n"
-        f"  Endgame: {phase_acc.get('endgame', 0):.0f}%\n\n"
         f"[PLAYER_LEVEL] {level} (ELO {player_elo:.0f})\n\n"
         "[INSTRUCTION] Write a 3-5 sentence post-game summary. Cover: overall"
         " strategy assessment, highlight the best move, explain the key mistake"

@@ -37,18 +37,16 @@ def calculate_performance_score(
     accuracy: float,
     num_guesses: int,
     won: bool,
-    phase_accuracies: dict[str, float],
     time_seconds: float | None = None,
 ) -> float:
-    """Combine accuracy, outcome, time and phase accuracy into a 0-1 performance score.
+    """Combine accuracy, outcome, and time into a 0-1 performance score.
 
-    Weights: accuracy 40%, outcome 30%, time 20%, phase 10%.
+    Weights: accuracy 45%, outcome 35%, time 20%.
 
     Args:
         accuracy: Overall accuracy percentage (0-100).
         num_guesses: Number of guesses taken.
         won: Whether the game was won.
-        phase_accuracies: Per-phase accuracy percentages keyed by opening/midgame/endgame.
         time_seconds: Total solve time in seconds (None if unavailable).
 
     Returns:
@@ -59,19 +57,12 @@ def calculate_performance_score(
     outcome_map = {1: 1.0, 2: 0.95, 3: 0.85, 4: 0.70, 5: 0.55, 6: 0.40}
     outcome_component = outcome_map.get(num_guesses, 0.0) if won else 0.0
 
-    phase_component = (
-        phase_accuracies.get("opening", 0.0) * 0.25
-        + phase_accuracies.get("midgame", 0.0) * 0.35
-        + phase_accuracies.get("endgame", 0.0) * 0.40
-    ) / 100.0
-
     time_component = _time_score(time_seconds)
 
     score = (
-        0.40 * accuracy_component
-        + 0.30 * outcome_component
+        0.45 * accuracy_component
+        + 0.35 * outcome_component
         + 0.20 * time_component
-        + 0.10 * phase_component
     )
 
     return score
@@ -104,7 +95,6 @@ async def apply_elo_update(
     user: User,
     game: Game,
     accuracy: float,
-    phase_accuracies: dict[str, float],
 ) -> None:
     """Calculate and persist ELO changes after a game completes.
 
@@ -116,7 +106,6 @@ async def apply_elo_update(
         user: The user who played.
         game: The completed Game record.
         accuracy: Overall accuracy score (0-100).
-        phase_accuracies: Per-phase accuracy breakdown.
     """
     if not game.rated:
         return
@@ -129,7 +118,6 @@ async def apply_elo_update(
         accuracy=accuracy,
         num_guesses=game.num_guesses,
         won=won,
-        phase_accuracies=phase_accuracies,
         time_seconds=game.time_seconds if game.mode == "competitive" else None,
     )
 

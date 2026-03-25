@@ -35,9 +35,6 @@ class PlayerProfile(Base):
 
     # Accuracy averages
     avg_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True)
-    avg_accuracy_opening: Mapped[float | None] = mapped_column(Float, nullable=True)
-    avg_accuracy_midgame: Mapped[float | None] = mapped_column(Float, nullable=True)
-    avg_accuracy_endgame: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Opener usage — e.g. {"CRANE": 5, "SLATE": 3}
     favorite_openers: Mapped[dict | None] = mapped_column(JSON, nullable=True)

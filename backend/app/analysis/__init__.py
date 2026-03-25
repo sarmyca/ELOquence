@@ -28,7 +28,7 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
     Returns:
         Dict containing ``accuracy_score``, ``luck_factor``, ``moves``
         (list of per-move analysis dicts), ``constraint_violations``,
-        ``traps_encountered``, and ``phase_accuracies``.
+        and ``traps_encountered``.
     """
     from app.analysis.classifier import classify_move
     from app.analysis.constraints import ConstraintState
@@ -42,7 +42,6 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
         get_remaining_answers,
         get_word_index,
     )
-    from app.analysis.game_phase import detect_game_phase
     from app.analysis.traps import detect_trap
 
     if PATTERN_MATRIX is None:
@@ -56,7 +55,6 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
 
     total_efficiency = 0.0
     scored_moves = 0
-    phase_scores: dict[str, list[float]] = {"opening": [], "midgame": [], "endgame": []}
     total_luck = 0.0
     constraint_violation_count = 0
     trap_count = 0
@@ -76,9 +74,6 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
         violation_reason = violation_info["reason"]
         if violation_type != "none":
             constraint_violation_count += 1
-
-        # Game phase
-        phase = detect_game_phase(n_remaining, move_num)
 
         # Optimal guess at this position
         top_picks = find_optimal_guess(possible, n_remaining, top_n=15)
@@ -201,7 +196,6 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
         if classification != "forced":
             total_efficiency += scored_efficiency
             scored_moves += 1
-            phase_scores[phase].append(scored_efficiency)
 
         # Decode pattern for constraint update
         pattern_tiles: list[int] = []
@@ -228,7 +222,7 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
                 "efficiency_ratio": round(efficiency, 3),
                 "bits_lost": round(bits_lost, 3),
                 "classification": classification,
-                "game_phase": phase,
+                "game_phase": None,
                 "constraint_violation": violation_type,
                 "constraint_violation_reason": violation_reason,
                 "trap_detected": trap is not None,
@@ -254,11 +248,6 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
     # Aggregate accuracy
     accuracy = (total_efficiency / scored_moves * 100.0) if scored_moves > 0 else 100.0
 
-    phase_accuracies = {
-        phase_name: (sum(scores) / len(scores) * 100.0) if scores else 0.0
-        for phase_name, scores in phase_scores.items()
-    }
-
     avg_luck = total_luck / len(game_moves) if game_moves else 0.0
 
     return {
@@ -267,7 +256,6 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
         "moves": results,
         "constraint_violations": constraint_violation_count,
         "traps_encountered": trap_count,
-        "phase_accuracies": phase_accuracies,
     }
 
 

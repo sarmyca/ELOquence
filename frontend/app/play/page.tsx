@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Swords, FlaskConical, Flame, Star, Lock, Share2, Check, X, ArrowRight, LogIn } from 'lucide-react';
@@ -9,16 +9,25 @@ import { getRatingTier, patternToTiles, TileState } from '@/lib/types';
 import { springs, stagger } from '@/lib/animations';
 import clsx from 'clsx';
 
-function DailyCountdown() {
+/** Returns ms until local midnight (server TZ matches client TZ). */
+function msUntilMidnight(): number {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return tomorrow.getTime() - now.getTime();
+}
+
+function DailyCountdown({ onMidnight }: { onMidnight?: () => void }) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
     function update() {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      const diff = tomorrow.getTime() - now.getTime();
+      const diff = msUntilMidnight();
+      if (diff <= 0) {
+        onMidnight?.();
+        return;
+      }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
@@ -27,7 +36,7 @@ function DailyCountdown() {
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [onMidnight]);
 
   return (
     <span className="text-xs font-mono text-text-ghost tabular-nums">
@@ -79,8 +88,26 @@ export default function PlayPage() {
   const [dailyAlreadyPlayed, setDailyAlreadyPlayed] = useState(false);
   const [dailyGameId, setDailyGameId] = useState<string | null>(null);
   const [dailyPatterns, setDailyPatterns] = useState<TileState[][] | null>(null);
+  const [dailyRated, setDailyRated] = useState(false);
+  const [dailyRefreshKey, setDailyRefreshKey] = useState(0);
 
   const tier = user ? getRatingTier(user.elo_rating) : null;
+
+  // Reset daily state at midnight so a new puzzle appears automatically
+  const handleMidnight = useCallback(() => {
+    setDailyAlreadyPlayed(false);
+    setDailyGameId(null);
+    setDailyPatterns(null);
+    setDailyRated(false);
+    // Bump key to re-run the daily status check effect
+    setDailyRefreshKey((k) => k + 1);
+  }, []);
+
+  // Schedule a midnight (UTC) refresh even when the countdown isn't visible
+  useEffect(() => {
+    const timer = setTimeout(handleMidnight, msUntilMidnight());
+    return () => clearTimeout(timer);
+  }, [handleMidnight, dailyRefreshKey]);
 
   // Check if daily was already completed (as guest via localStorage, or as user via API)
   useEffect(() => {
@@ -94,6 +121,10 @@ export default function PlayPage() {
           if (res.data.existing_game_id) {
             setDailyGameId(res.data.existing_game_id);
           }
+        } else {
+          setDailyAlreadyPlayed(false);
+          setDailyGameId(null);
+          setDailyPatterns(null);
         }
         // Load patterns from localStorage if they exist for this session
         const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
@@ -125,7 +156,7 @@ export default function PlayPage() {
         setDailyAlreadyPlayed(true);
       }
     }
-  }, [user]);
+  }, [user, dailyRefreshKey]);
 
   const modes: ModeCard[] = [
     {
@@ -150,7 +181,7 @@ export default function PlayPage() {
       accentColor: tier?.color || '#818384',
       borderColor: `${tier?.color || '#818384'}40`,
       requiresAuth: true,
-      tag: user?.is_placement ? 'Placement' : undefined,
+      tag: user?.is_placement ? `Placement ${user.games_played + 1}/5` : undefined,
     },
     {
       id: 'practice',
@@ -197,7 +228,7 @@ export default function PlayPage() {
 
       if (modeId === 'daily') {
         const res = user
-          ? await dailyApi.play()
+          ? await dailyApi.play(dailyRated && !user.is_placement)
           : await dailyApi.guest();
         gameId = res.data.id || res.data.game_id;
         // If daily returns existing game, go to review; else go to game
@@ -452,7 +483,7 @@ export default function PlayPage() {
             {/* CTA / already played state */}
             {dailyAlreadyPlayed ? (
               <div className="flex items-center justify-between">
-                <DailyCountdown />
+                <DailyCountdown onMidnight={handleMidnight} />
                 <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: '#6aaa64' }}>
                   View your game
                   <ArrowRight size={13} />
@@ -642,28 +673,51 @@ export default function PlayPage() {
             )}
           </div>
 
-          {/* Tile rows — real results if played */}
-          <div className="flex flex-col gap-1.5 py-1">
-            {dailyPatterns ? (
-              dailyPatterns.map((row, i) => (
+          {/* Tile rows — only shown when the user has actually played */}
+          {dailyPatterns && (
+            <div className="flex flex-col gap-1.5 py-1">
+              {dailyPatterns.map((row, i) => (
                 <MiniTileRow key={i} pattern={row} />
-              ))
-            ) : (
-              <>
-                <MiniTileRow pattern={['absent', 'absent', 'present', 'absent', 'absent']} />
-                <MiniTileRow pattern={['absent', 'correct', 'present', 'absent', 'correct']} />
-                <MiniTileRow pattern={['correct', 'correct', 'correct', 'correct', 'correct']} />
-              </>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
 
           <p className="text-sm text-text-secondary leading-relaxed">
             One word per day. Race against the community.
           </p>
 
+          {/* Rated toggle — only after placements are done */}
+          {!dailyAlreadyPlayed && user && !user.is_placement && (
+            <div
+              className="flex items-center gap-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                role="switch"
+                aria-checked={dailyRated}
+                onClick={(e) => { e.stopPropagation(); setDailyRated(!dailyRated); }}
+                className={clsx(
+                  'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors',
+                  dailyRated ? 'bg-[#538d4e]' : 'bg-white/[0.12]'
+                )}
+              >
+                <span
+                  className={clsx(
+                    'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform',
+                    dailyRated ? 'translate-x-4' : 'translate-x-0'
+                  )}
+                />
+              </button>
+              <span className="text-xs text-text-secondary">
+                {dailyRated ? 'Rated — ELO at stake' : 'Unrated'}
+              </span>
+            </div>
+          )}
+
           {dailyAlreadyPlayed ? (
             <div className="flex items-center justify-between">
-              <DailyCountdown />
+              <DailyCountdown onMidnight={handleMidnight} />
               <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: '#6aaa64' }}>
                 View your game
                 <ArrowRight size={13} />

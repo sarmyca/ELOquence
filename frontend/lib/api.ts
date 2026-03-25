@@ -61,7 +61,7 @@ export const analysisApi = {
 // Daily
 export const dailyApi = {
   get: () => api.get('/daily'),
-  play: () => api.post('/daily/play'),
+  play: (rated?: boolean) => api.post('/daily/play', null, { params: rated ? { rated: true } : undefined }),
   guest: () => api.post('/daily/guest'),
   guestGame: (gameId: string) => api.get(`/daily/guest/${gameId}`),
   guestGuess: (gameId: string, guess: string) =>

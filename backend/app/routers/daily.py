@@ -3,7 +3,7 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -153,6 +153,7 @@ async def guest_guess(
 async def start_daily_game(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    rated: Annotated[bool, Query()] = False,
 ) -> GameResponse:
     """Create (or return an existing) daily game for the authenticated user."""
     from app.routers.games import _build_game_response
@@ -174,5 +175,7 @@ async def start_daily_game(
     if existing:
         return _build_game_response(existing)
 
-    game = await create_game(db, current_user, mode="daily")
+    # Only allow rated daily after placement is complete
+    daily_rated = rated and not current_user.is_placement
+    game = await create_game(db, current_user, mode="daily", daily_rated=daily_rated)
     return _build_game_response(game)

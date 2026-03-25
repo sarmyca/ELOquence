@@ -10,7 +10,6 @@ export type Classification =
   | 'blunder'
   | 'miss'
   | 'forced';
-export type GamePhase = 'opening' | 'midgame' | 'endgame';
 export type TileState = 'empty' | 'tbd' | 'correct' | 'present' | 'absent';
 
 export interface User {
@@ -42,7 +41,6 @@ export interface Move {
   efficiency_ratio: number | null;
   bits_lost: number | null;
   classification: Classification | null;
-  game_phase: GamePhase | null;
   constraint_violation: string | null;
   constraint_violation_reason: string;
   trap_detected: boolean;
@@ -104,11 +102,6 @@ export interface AnalysisResult {
   moves: MoveAnalysis[];
   constraint_violations: number;
   traps_encountered: number;
-  phase_accuracies: {
-    opening: number;
-    midgame: number;
-    endgame: number;
-  };
 }
 
 export interface EloHistoryEntry {

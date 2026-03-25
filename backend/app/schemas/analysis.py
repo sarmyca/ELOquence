@@ -45,7 +45,6 @@ class MoveAnalysis(BaseModel):
     efficiency_ratio: float
     bits_lost: float
     classification: str
-    game_phase: str
     constraint_violation: str
     constraint_violation_reason: str = ""
     trap_detected: bool
@@ -56,14 +55,6 @@ class MoveAnalysis(BaseModel):
     top_picks: list[TopPick]
     pattern_distribution: list[PatternBucket] = []
     letter_frequencies: dict[str, dict[str, float]] = {}
-
-
-class GamePhaseAccuracy(BaseModel):
-    """Accuracy breakdown per game phase."""
-
-    opening: float
-    midgame: float
-    endgame: float
 
 
 class StrategicPattern(BaseModel):
@@ -92,6 +83,5 @@ class AnalysisResponse(BaseModel):
     luck_factor: float
     constraint_violations: int
     traps_encountered: int
-    phase_accuracies: GamePhaseAccuracy
     moves: list[MoveAnalysis]
     patterns: list[StrategicPattern] = []

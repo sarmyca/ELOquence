@@ -146,86 +146,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- ELO Rating System ---- */
-  {
-    id: 'elo',
-    icon: <TrendingUp size={18} />,
-    title: 'ELO Rating System',
-    content: (
-      <div className="space-y-4">
-        <p className="text-sm text-text-secondary leading-relaxed">
-          Your ELO rating measures your skill. It goes up when you win and down when you lose,
-          with the magnitude depending on the word&apos;s difficulty relative to your rating.
-        </p>
-
-        {/* Visual: ELO change example */}
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06]">
-          <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-2">Example: Win vs hard word</p>
-          <div className="flex items-center gap-3">
-            <div className="text-center">
-              <p className="text-lg font-bold text-text-primary font-mono">1057</p>
-              <p className="text-[10px] text-text-ghost">Before</p>
-            </div>
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-xs font-bold text-[#538d4e]">+43</span>
-              <div className="w-12 h-px bg-white/[0.12]" />
-              <span className="text-[9px] text-text-ghost">Word: 1420</span>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-bold text-[#538d4e] font-mono">1100</p>
-              <p className="text-[10px] text-text-ghost">After</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-            Rating Tiers
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { name: 'Novice', range: '0 – 1199', color: '#9ca3af' },
-              { name: 'Veteran', range: '1200 – 1399', color: '#3b82f6' },
-              { name: 'Master', range: '1400 – 1599', color: '#a855f7' },
-              { name: 'Grandmaster', range: '1600+', color: '#f59e0b' },
-            ].map((t) => (
-              <div
-                key={t.name}
-                className="flex items-center gap-2 p-2 rounded-lg bg-bg-tertiary border border-white/[0.06]"
-              >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: t.color }}
-                />
-                <div>
-                  <span className="text-xs font-semibold text-text-primary">{t.name}</span>
-                  <span className="text-[10px] text-text-ghost ml-1.5">{t.range}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
-          <p className="text-xs font-semibold text-text-primary">Placement Matches</p>
-          <p className="text-xs text-text-secondary leading-relaxed">
-            Your first 5 rated games use a boosted K-factor (128 vs 32), so your rating adjusts
-            quickly to your true skill level. After placement, changes are more gradual.
-          </p>
-        </div>
-
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
-          <p className="text-xs font-semibold text-text-primary">Word Difficulty</p>
-          <p className="text-xs text-text-secondary leading-relaxed">
-            Each word has its own difficulty rating based on how hard it is to solve. Beating a
-            hard word earns more ELO; losing to an easy one costs more. Word difficulty is
-            calculated from letter frequencies, vowel count, and duplicate letters.
-          </p>
-        </div>
-      </div>
-    ),
-  },
-
   /* ---- How Tiles Work ---- */
   {
     id: 'tiles',
@@ -289,6 +209,86 @@ const SECTIONS: Section[] = [
             <span className="font-semibold text-text-primary">Tip:</span> Pay attention to
             yellows — they tell you which letters to reuse in a different spot. Ignoring them
             is flagged as a constraint violation in analysis.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+
+  /* ---- ELO Rating System ---- */
+  {
+    id: 'elo',
+    icon: <TrendingUp size={18} />,
+    title: 'ELO Rating System',
+    content: (
+      <div className="space-y-4">
+        <p className="text-sm text-text-secondary leading-relaxed">
+          Your ELO rating measures your skill. It goes up when you win and down when you lose,
+          with the magnitude depending on the word&apos;s difficulty relative to your rating.
+        </p>
+
+        {/* Visual: ELO change example */}
+        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06]">
+          <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-2">Example: Win vs hard word</p>
+          <div className="flex items-center gap-3">
+            <div className="text-center">
+              <p className="text-lg font-bold text-text-primary font-mono">1057</p>
+              <p className="text-[10px] text-text-ghost">Before</p>
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-xs font-bold text-[#538d4e]">+43</span>
+              <div className="w-12 h-px bg-white/[0.12]" />
+              <span className="text-[9px] text-text-ghost">Word: 1420</span>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-[#538d4e] font-mono">1100</p>
+              <p className="text-[10px] text-text-ghost">After</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">
+            Rating Tiers
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { name: 'Novice', range: '0 – 1199', color: '#818384' },
+              { name: 'Veteran', range: '1200 – 1399', color: '#b59f3b' },
+              { name: 'Master', range: '1400 – 1599', color: '#6aaa64' },
+              { name: 'Grandmaster', range: '1600+', color: '#1565c0' },
+            ].map((t) => (
+              <div
+                key={t.name}
+                className="flex items-center gap-2 p-2 rounded-lg bg-bg-tertiary border border-white/[0.06]"
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: t.color }}
+                />
+                <div>
+                  <span className="text-xs font-semibold text-text-primary">{t.name}</span>
+                  <span className="text-[10px] text-text-ghost ml-1.5">{t.range}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
+          <p className="text-xs font-semibold text-text-primary">Placement Matches</p>
+          <p className="text-xs text-text-secondary leading-relaxed">
+            Your first 5 rated games use a boosted K-factor (128 vs 32), so your rating adjusts
+            quickly to your true skill level. After placement, changes are more gradual.
+          </p>
+        </div>
+
+        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
+          <p className="text-xs font-semibold text-text-primary">Word Difficulty</p>
+          <p className="text-xs text-text-secondary leading-relaxed">
+            Each word has its own difficulty rating based on how hard it is to solve. Beating a
+            hard word earns more ELO; losing to an easy one costs more. Word difficulty is
+            calculated from letter frequencies, vowel count, and duplicate letters.
           </p>
         </div>
       </div>

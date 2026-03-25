@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { CheckCircle, XCircle, Share2, RotateCcw, BarChart2, Check, Swords } from 'lucide-react';
+import { CheckCircle, XCircle, Share2, RotateCcw, BarChart2, Check, Swords, X } from 'lucide-react';
 import { Game, patternToTiles } from '@/lib/types';
 import { springs } from '@/lib/animations';
 import { challengesApi } from '@/lib/api';
@@ -13,6 +13,7 @@ interface GameOverModalProps {
   open: boolean;
   isGuest?: boolean;
   onClose?: () => void;
+  gamesPlayed?: number;
 }
 
 const TILE_EMOJI: Record<string, string> = {
@@ -37,7 +38,7 @@ function getCelebrationTier(numGuesses: number): CelebrationTier {
   return 'close_call';
 }
 
-export default function GameOverModal({ game, open, isGuest = false, onClose }: GameOverModalProps) {
+export default function GameOverModal({ game, open, isGuest = false, onClose, gamesPlayed }: GameOverModalProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [challengeCopied, setChallengeCopied] = useState(false);
@@ -108,7 +109,14 @@ export default function GameOverModal({ game, open, isGuest = false, onClose }: 
                 className={`h-1.5 w-full ${won ? 'bg-tile-correct' : 'bg-[#e74c3c]'}`}
               />
 
-              <div className="p-6 flex flex-col gap-5">
+              <div className="relative p-6 flex flex-col gap-5">
+                {/* Close button */}
+                <button
+                  onClick={() => onClose?.()}
+                  className="absolute top-3 right-3 p-1.5 rounded-md text-text-ghost hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+                >
+                  <X size={16} />
+                </button>
                 {/* Result */}
                 <div className="flex flex-col items-center gap-2 text-center">
                   {won ? (
@@ -193,7 +201,7 @@ export default function GameOverModal({ game, open, isGuest = false, onClose }: 
                 {!isGuest && game.is_placement && (
                   <div className="text-center px-3 py-2 rounded-lg bg-[#b59f3b]/10 border border-[#b59f3b]/20">
                     <span className="text-xs text-[#b59f3b] font-medium">
-                      Placement match — results count toward your initial rating
+                      Placement match{gamesPlayed != null ? ` ${gamesPlayed}/5` : ''} — results count toward your initial rating
                     </span>
                   </div>
                 )}

@@ -1,9 +1,7 @@
 """Achievement ORM model."""
 import uuid
 from datetime import datetime
-from typing import Any
-
-from sqlalchemy import DateTime, ForeignKey, String, func, JSON
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,10 +32,9 @@ class Achievement(Base):
         index=True,
     )
     achievement_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    earned_at: Mapped[datetime] = mapped_column(
+    unlocked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    extra_metadata: Mapped[Any | None] = mapped_column("metadata", JSON, nullable=True)
 
     def __repr__(self) -> str:
         return f"<Achievement user={self.user_id} type={self.achievement_type}>"

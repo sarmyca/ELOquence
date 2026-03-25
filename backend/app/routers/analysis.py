@@ -15,7 +15,6 @@ from app.models.user import User
 from app.analysis.patterns import detect_strategic_patterns
 from app.schemas.analysis import (
     AnalysisResponse,
-    GamePhaseAccuracy,
     MoveAnalysis,
     PatternBucket,
     StrategicPattern,
@@ -83,7 +82,6 @@ async def analyze_game_endpoint(
         db_move.efficiency_ratio = move_result["efficiency_ratio"]
         db_move.bits_lost = move_result["bits_lost"]
         db_move.classification = move_result["classification"]
-        db_move.game_phase = move_result["game_phase"]
         db_move.constraint_violation = move_result["constraint_violation"]
         db_move.trap_detected = move_result["trap_detected"]
         db_move.is_book_move = move_result["is_book_move"]
@@ -96,7 +94,6 @@ async def analyze_game_endpoint(
 
     await db.flush()
 
-    phase_acc = analysis["phase_accuracies"]
     raw_patterns = detect_strategic_patterns(analysis["moves"], current_user.elo_rating)
 
     return AnalysisResponse(
@@ -105,11 +102,6 @@ async def analyze_game_endpoint(
         luck_factor=analysis["luck_factor"],
         constraint_violations=analysis["constraint_violations"],
         traps_encountered=analysis["traps_encountered"],
-        phase_accuracies=GamePhaseAccuracy(
-            opening=phase_acc.get("opening", 0.0),
-            midgame=phase_acc.get("midgame", 0.0),
-            endgame=phase_acc.get("endgame", 0.0),
-        ),
         patterns=[
             StrategicPattern(
                 pattern_type=p["pattern_type"],
@@ -137,7 +129,6 @@ async def analyze_game_endpoint(
                 efficiency_ratio=m["efficiency_ratio"],
                 bits_lost=m["bits_lost"],
                 classification=m["classification"],
-                game_phase=m["game_phase"],
                 constraint_violation=m["constraint_violation"],
                 constraint_violation_reason=m.get("constraint_violation_reason", ""),
                 trap_detected=m["trap_detected"],

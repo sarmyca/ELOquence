@@ -44,8 +44,39 @@ import {
   patternToTiles,
   TopPick,
   PatternBucket,
+  getRatingTier,
 } from '@/lib/types';
 import clsx from 'clsx';
+
+// ---- ELO distribution calculator ----
+// Mirrors backend: calculate_performance_score + calculate_elo_delta
+const OUTCOME_MAP: Record<number, number> = { 1: 1.0, 2: 0.95, 3: 0.85, 4: 0.70, 5: 0.55, 6: 0.40 };
+// Typical accuracy by guess count (empirically reasonable estimates)
+const ACC_MAP: Record<number, number> = { 1: 100, 2: 90, 3: 75, 4: 60, 5: 45, 6: 35 };
+
+function computeEloDist(
+  playerElo: number,
+  wordElo: number,
+  isPlacement: boolean,
+): { label: string; delta: number }[] {
+  const expected = 1 / (1 + Math.pow(10, (wordElo - playerElo) / 400));
+  const k = isPlacement ? 128 : 32;
+  const timeScore = 0.5;
+
+  const rows: { label: string; delta: number }[] = [];
+  for (let g = 1; g <= 6; g++) {
+    const outcome = OUTCOME_MAP[g];
+    const acc = ACC_MAP[g] / 100;
+    const perf = 0.45 * acc + 0.35 * outcome + 0.20 * timeScore;
+    const raw = k * (perf - expected);
+    rows.push({ label: `${g}/6`, delta: Math.round(Math.max(100 - playerElo, playerElo + raw) - playerElo) });
+  }
+  // X/6 loss: 0 accuracy, 0 outcome
+  const lossPerf = 0.45 * 0 + 0.35 * 0 + 0.20 * timeScore;
+  const lossRaw = k * (lossPerf - expected);
+  rows.push({ label: 'X/6', delta: Math.round(Math.max(100 - playerElo, playerElo + lossRaw) - playerElo) });
+  return rows;
+}
 
 // ---- Skeleton ----
 function Skeleton({ className }: { className?: string }) {
@@ -513,6 +544,7 @@ export default function ReviewPage() {
   const [displayScore, setDisplayScore] = useState(0);
   const [activeMove, setActiveMove] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState('analysis');
+  const [showEloDist, setShowEloDist] = useState(false);
 
   const TABS = [
     { id: 'analysis', label: 'Analysis' },
@@ -652,6 +684,9 @@ export default function ReviewPage() {
                 <>
                   {' '}·{' '}
                   <span className="font-mono uppercase">{game.target_word}</span>
+                  {game.word_difficulty != null && (
+                    <span> · <span style={{ color: getRatingTier(game.word_difficulty).color }}>{Math.round(game.word_difficulty)}</span></span>
+                  )}
                 </>
               )}
             </p>
@@ -704,18 +739,64 @@ export default function ReviewPage() {
               </div>
 
               {eloDelta !== null && game.rated && (
-                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-bg-secondary border border-white/[0.08]">
-                  <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
-                    <TrendingUp size={9} /> Rating
-                  </span>
-                  <span
-                    className={clsx(
-                      'text-lg font-mono font-bold tabular-nums',
-                      (eloDelta ?? 0) >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]'
-                    )}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowEloDist(!showEloDist)}
+                    className="w-full flex flex-col gap-0.5 p-3 rounded-xl bg-bg-secondary border border-white/[0.08] hover:bg-white/[0.04] transition-colors text-left"
                   >
-                    {(eloDelta ?? 0) >= 0 ? '+' : ''}{Math.round(eloDelta ?? 0)}
-                  </span>
+                    <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
+                      <TrendingUp size={9} /> Rating
+                      <ChevronDown size={9} className={clsx('transition-transform', showEloDist && 'rotate-180')} />
+                    </span>
+                    <span
+                      className={clsx(
+                        'text-lg font-mono font-bold tabular-nums',
+                        (eloDelta ?? 0) >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]'
+                      )}
+                    >
+                      {(eloDelta ?? 0) >= 0 ? '+' : ''}{Math.round(eloDelta ?? 0)}
+                    </span>
+                  </button>
+
+                  <AnimatePresence>
+                    {showEloDist && game.elo_before != null && game.word_difficulty != null && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute left-0 right-0 top-full mt-1 z-20 p-2.5 rounded-xl bg-bg-secondary border border-white/[0.1] shadow-xl"
+                      >
+                        <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-1.5">ELO by outcome</p>
+                        <div className="flex flex-col gap-0.5">
+                          {computeEloDist(game.elo_before, game.word_difficulty, game.is_placement).map((row) => {
+                            const isActual =
+                              (wonGame && row.label === `${game.num_guesses}/6`) ||
+                              (!wonGame && row.label === 'X/6');
+                            return (
+                              <div
+                                key={row.label}
+                                className={clsx(
+                                  'flex items-center justify-between px-2 py-1 rounded-md text-xs font-mono tabular-nums',
+                                  isActual ? 'bg-white/[0.08]' : ''
+                                )}
+                              >
+                                <span className={clsx('text-text-secondary', isActual && 'text-text-primary font-semibold')}>
+                                  {row.label}
+                                </span>
+                                <span className={clsx(
+                                  row.delta >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]',
+                                  isActual && 'font-semibold'
+                                )}>
+                                  {row.delta >= 0 ? '+' : ''}{row.delta}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
 
@@ -762,31 +843,6 @@ export default function ReviewPage() {
             />
           )}
 
-          {/* Phase accuracies */}
-          {analysis && (
-            <div className="w-full p-3 rounded-xl bg-bg-secondary border border-white/[0.08]">
-              <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-2">Phase Accuracy</p>
-              {(['opening', 'midgame', 'endgame'] as const).map((phase) => {
-                const val = analysis.phase_accuracies[phase] ?? 0;
-                return (
-                  <div key={phase} className="flex items-center gap-2 mb-1.5">
-                    <span className="text-xs text-text-secondary capitalize w-16">{phase}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-bg-tertiary overflow-hidden">
-                      <motion.div
-                        className="h-full rounded-full bg-[#538d4e]"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${val}%` }}
-                        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-                      />
-                    </div>
-                    <span className="text-xs font-mono tabular-nums text-text-secondary w-8 text-right">
-                      {Math.round(val)}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
 
 
         </div>

@@ -1,12 +1,16 @@
 """Game service — create games, process guesses, fetch game history."""
 from __future__ import annotations
 
+import logging
 import random
 import uuid
 from datetime import date, datetime, timezone
 
+import httpx
+
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -122,8 +126,28 @@ async def _pick_competitive_word(
     return word.upper(), diff
 
 
+_NYT_WORDLE_URL = "https://www.nytimes.com/svc/wordle/v2/{date}.json"
+_log = logging.getLogger(__name__)
+
+
+async def _fetch_nyt_wordle(today: date) -> str | None:
+    """Fetch today's official Wordle answer from the NYT API."""
+    url = _NYT_WORDLE_URL.format(date=today.isoformat())
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            return resp.json()["solution"].upper()
+    except Exception as exc:
+        _log.warning("Failed to fetch NYT Wordle word: %s", exc)
+        return None
+
+
 async def _get_or_create_daily_word(db: AsyncSession) -> tuple[str, float]:
     """Return today's daily word, creating it if not yet assigned.
+
+    Fetches the official NYT Wordle answer first; falls back to random
+    if the API is unavailable.
 
     Returns:
         (word, difficulty_elo) tuple.
@@ -136,8 +160,12 @@ async def _get_or_create_daily_word(db: AsyncSession) -> tuple[str, float]:
     if row:
         return row.word.upper(), row.difficulty or word_to_elo(row.word)
 
-    # Auto-assign a word for today
-    word = random.choice(ANSWERS).upper()
+    # Try to get the real NYT Wordle word; fall back to random
+    word = await _fetch_nyt_wordle(today)
+    if not word:
+        _log.info("NYT API unavailable, falling back to random word")
+        word = random.choice(ANSWERS).upper()
+
     difficulty = word_to_elo(word)
     daily = DailyWord(
         word=word.lower(),
@@ -145,7 +173,15 @@ async def _get_or_create_daily_word(db: AsyncSession) -> tuple[str, float]:
         difficulty=difficulty,
     )
     db.add(daily)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        # Another request already inserted today's word — use it
+        await db.rollback()
+        result = await db.execute(select(DailyWord).where(DailyWord.date == today))
+        row = result.scalar_one_or_none()
+        if row:
+            return row.word.upper(), row.difficulty or word_to_elo(row.word)
     return word, difficulty
 
 
@@ -154,6 +190,7 @@ async def create_game(
     user: User,
     mode: str,
     word_pool: str = "standard",
+    daily_rated: bool = False,
 ) -> Game:
     """Instantiate a new game and persist it.
 
@@ -162,6 +199,7 @@ async def create_game(
         user: Authenticated player.
         mode: One of daily / competitive / practice.
         word_pool: 'standard' or 'competitive' (used for practice).
+        daily_rated: If True and mode is daily, make the game rated.
 
     Returns:
         Newly created Game ORM object.
@@ -192,7 +230,7 @@ async def create_game(
         target_word = random.choice(pool).upper()
         difficulty = word_to_elo(target_word)
 
-    rated = mode in ("competitive",)
+    rated = mode in ("competitive",) or (mode == "daily" and daily_rated)
 
     game = Game(
         id=uuid.uuid4(),
@@ -304,7 +342,6 @@ async def submit_guess(
 
             analysis = analyze_game(all_moves_data, game.target_word, competitive=game.mode == "competitive")
             accuracy = analysis["accuracy_score"]
-            phase_accuracies = analysis["phase_accuracies"]
             game.accuracy_score = accuracy
             game.luck_factor = analysis["luck_factor"]
             game.constraint_violations = analysis["constraint_violations"]
@@ -327,21 +364,18 @@ async def submit_guess(
                     db_move.efficiency_ratio = r["efficiency_ratio"]
                     db_move.bits_lost = r["bits_lost"]
                     db_move.classification = r["classification"]
-                    db_move.game_phase = r["game_phase"]
                     db_move.constraint_violation = r["constraint_violation"]
                     db_move.trap_detected = r["trap_detected"]
                     db_move.is_book_move = r["is_book_move"]
         except Exception:
             # Analysis failure must not block game completion
             accuracy = 50.0
-            phase_accuracies = {"opening": 50.0, "midgame": 50.0, "endgame": 50.0}
 
         await apply_elo_update(
             db=db,
             user=user,
             game=game,
             accuracy=accuracy,
-            phase_accuracies=phase_accuracies,
         )
 
         # Recalculate player profile — must not block game completion
@@ -435,7 +469,10 @@ async def abandon_game(
     game_id: uuid.UUID,
     user: User,
 ) -> Game:
-    """Mark a game as abandoned without affecting ELO.
+    """Mark a game as abandoned.
+
+    For rated games (competitive), this counts as a loss and applies an ELO
+    penalty equivalent to an X/6 loss.  Unrated games are simply closed.
 
     Args:
         db: Active async session.
@@ -445,6 +482,8 @@ async def abandon_game(
     Returns:
         Updated Game record.
     """
+    from app.services.elo import apply_elo_update
+
     result = await db.execute(
         select(Game)
         .options(selectinload(Game.moves))
@@ -460,6 +499,15 @@ async def abandon_game(
         )
     game.status = "abandoned"
     game.completed_at = datetime.now(timezone.utc)
-    game.rated = False  # no ELO impact
+
+    # Rated games: count as a loss with 0 accuracy (X/6 equivalent)
+    if game.rated:
+        await apply_elo_update(
+            db, user, game,
+            accuracy=0.0,
+        )
+    else:
+        game.rated = False
+
     await db.flush()
     return game

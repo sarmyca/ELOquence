@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ELOquence — The Chess.com of Wordle',
+  title: 'ELOquence',
   description:
     'Competitive Wordle with information-theory analysis, ELO ratings, and deep move breakdowns.',
   openGraph: {
@@ -49,7 +49,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="min-h-[100dvh] text-text-primary antialiased">
+      <body className="min-h-[100dvh] text-text-primary antialiased app-bg-grid">
         <script dangerouslySetInnerHTML={{ __html: `
           if(localStorage.getItem('eloquence_colorblind')==='true')document.documentElement.classList.add('colorblind');
           if(localStorage.getItem('eloquence_reduced_motion')==='true')document.documentElement.classList.add('reduce-motion');

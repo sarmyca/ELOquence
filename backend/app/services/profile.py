@@ -22,7 +22,6 @@ async def recalculate_profile(db: AsyncSession, user_id: uuid.UUID) -> None:
     Stats computed:
     - ``total_games`` / ``total_wins`` from all finished games.
     - ``avg_accuracy`` across all games that have an accuracy score.
-    - ``avg_accuracy_opening/midgame/endgame`` from per-move game-phase data.
     - ``favorite_openers`` — top-5 most-used first words (last 100 games).
     - ``constraint_violation_rate`` — violations / total guesses.
     - ``accuracy_trend_30d`` — linear regression slope over the last 30
@@ -73,39 +72,6 @@ async def recalculate_profile(db: AsyncSession, user_id: uuid.UUID) -> None:
     # ------------------------------------------------------------------
     accuracies = [g.accuracy_score for g in all_games if g.accuracy_score is not None]
     profile.avg_accuracy = sum(accuracies) / len(accuracies) if accuracies else None
-
-    # ------------------------------------------------------------------
-    # Per-phase accuracy averages
-    # ------------------------------------------------------------------
-    opening_accs: list[float] = []
-    midgame_accs: list[float] = []
-    endgame_accs: list[float] = []
-
-    for game in all_games[:50]:  # Limit to last 50 for performance
-        moves_result = await db.execute(
-            select(Move).where(Move.game_id == game.id)
-        )
-        game_moves = list(moves_result.scalars().all())
-        for m in game_moves:
-            if m.efficiency_ratio is None or m.classification == "forced":
-                continue
-            eff = m.efficiency_ratio * 100
-            if m.game_phase == "opening":
-                opening_accs.append(eff)
-            elif m.game_phase == "midgame":
-                midgame_accs.append(eff)
-            elif m.game_phase == "endgame":
-                endgame_accs.append(eff)
-
-    profile.avg_accuracy_opening = (
-        sum(opening_accs) / len(opening_accs) if opening_accs else None
-    )
-    profile.avg_accuracy_midgame = (
-        sum(midgame_accs) / len(midgame_accs) if midgame_accs else None
-    )
-    profile.avg_accuracy_endgame = (
-        sum(endgame_accs) / len(endgame_accs) if endgame_accs else None
-    )
 
     # ------------------------------------------------------------------
     # Favorite openers — top-5 first words from last 100 games
