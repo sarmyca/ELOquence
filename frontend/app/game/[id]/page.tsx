@@ -14,6 +14,12 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Game, GameStatus, TileState, patternToTiles } from '@/lib/types';
 import { springs } from '@/lib/animations';
 
+/** Local date string (YYYY-MM-DD) matching the server's TZ. */
+function localDateStr(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
+
 // Flip animation: 5 tiles × 0.15s stagger + 0.5s each tile = ~1.25s total
 const FLIP_ANIMATION_MS = 5 * 150 + 500 + 150;
 
@@ -161,7 +167,7 @@ export default function GamePage() {
 
       // Save daily progress after every guess
       if (updatedGame.mode === 'daily') {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localDateStr();
         const allPatterns = [...patterns, pattern];
         localStorage.setItem(`eloquence_daily_patterns_${today}`, JSON.stringify(allPatterns));
         localStorage.setItem(`eloquence_daily_game_id_${today}`, id);
@@ -185,7 +191,7 @@ export default function GamePage() {
         if (status !== 'in_progress') {
           // Mark daily as completed
           if (updatedGame.mode === 'daily') {
-            const today = new Date().toISOString().slice(0, 10);
+            const today = localDateStr();
             localStorage.setItem(`eloquence_daily_played_${today}`, 'true');
           }
 

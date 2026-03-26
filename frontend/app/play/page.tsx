@@ -78,7 +78,7 @@ function MiniTileRow({ pattern }: { pattern: ('correct' | 'present' | 'absent')[
 }
 
 export default function PlayPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const router = useRouter();
   const [creating, setCreating] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -103,36 +103,73 @@ export default function PlayPage() {
     setDailyRefreshKey((k) => k + 1);
   }, []);
 
-  // Schedule a midnight (UTC) refresh even when the countdown isn't visible
+  // Schedule a midnight refresh even when the countdown isn't visible
   useEffect(() => {
     const timer = setTimeout(handleMidnight, msUntilMidnight());
     return () => clearTimeout(timer);
   }, [handleMidnight, dailyRefreshKey]);
 
+  // Refresh user data on mount so stats (games_played, ELO, etc.) are current
+  useEffect(() => {
+    refreshUser();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fetch user + daily status when the tab/page becomes visible again
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refreshUser();
+        setDailyRefreshKey((k) => k + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refreshUser]);
+
   // Check if daily was already completed (as guest via localStorage, or as user via API)
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    // Use local date string to match server TZ (Europe/Zagreb)
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     if (user) {
       // Authenticated user: check daily status via GET (read-only, doesn't create a game)
-      dailyApi.get().then((res) => {
+      dailyApi.get().then(async (res) => {
         if (res.data.already_played) {
           setDailyAlreadyPlayed(true);
-          if (res.data.existing_game_id) {
-            setDailyGameId(res.data.existing_game_id);
+          const gameId = res.data.existing_game_id;
+          if (gameId) {
+            setDailyGameId(gameId);
+          }
+
+          // Try localStorage first, then fall back to fetching the game
+          const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
+          if (savedPatterns) {
+            try {
+              const nums: number[] = JSON.parse(savedPatterns);
+              setDailyPatterns(nums.map((p) => patternToTiles(p)));
+              return;
+            } catch { /* ignore, fall through to API */ }
+          }
+
+          // No localStorage patterns — fetch from API
+          if (gameId) {
+            try {
+              const gameRes = await gamesApi.get(gameId);
+              const moves = gameRes.data.moves || [];
+              if (moves.length > 0) {
+                const sorted = [...moves].sort((a: { move_number: number }, b: { move_number: number }) => a.move_number - b.move_number);
+                const pats = sorted.map((m: { pattern: number }) => patternToTiles(m.pattern));
+                setDailyPatterns(pats);
+                // Cache for next visit
+                localStorage.setItem(`eloquence_daily_patterns_${today}`, JSON.stringify(sorted.map((m: { pattern: number }) => m.pattern)));
+              }
+            } catch { /* ignore */ }
           }
         } else {
           setDailyAlreadyPlayed(false);
           setDailyGameId(null);
           setDailyPatterns(null);
-        }
-        // Load patterns from localStorage if they exist for this session
-        const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
-        if (savedPatterns && res.data.already_played) {
-          try {
-            const nums: number[] = JSON.parse(savedPatterns);
-            setDailyPatterns(nums.map((p) => patternToTiles(p)));
-          } catch { /* ignore */ }
         }
       }).catch(() => {
         // Ignore

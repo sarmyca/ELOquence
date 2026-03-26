@@ -3,6 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:16-alpine
+    command: postgres -c timezone=Europe/Zagreb
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-eloquence}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eloquence_dev}
