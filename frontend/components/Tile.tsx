@@ -15,19 +15,11 @@ interface TileProps {
 }
 
 const STATE_STYLES: Record<TileState, string> = {
-  empty: 'border border-white/[0.15] bg-[#1e1f23]',
-  tbd: 'border border-white/[0.3] bg-[#1e1f23]',
-  correct: 'bg-tile-correct border border-tile-correct',
-  present: 'bg-tile-present border border-tile-present',
-  absent: 'bg-tile-absent border border-tile-absent',
-};
-
-const STATE_TEXT: Record<TileState, string> = {
-  empty: 'text-text-primary',
-  tbd: 'text-text-primary',
-  correct: 'text-white',
-  present: 'text-white',
-  absent: 'text-white',
+  empty:   'bg-[#16161a] border-2 border-white/[0.10]',
+  tbd:     'bg-[#16161a] border-2 border-white/[0.25]',
+  correct: 'bg-[#538d4e] border-2 border-[#538d4e]',
+  present: 'bg-[#b59f3b] border-2 border-[#b59f3b]',
+  absent:  'bg-[#3a3a3c] border-2 border-[#3a3a3c]',
 };
 
 export default function Tile({
@@ -40,11 +32,18 @@ export default function Tile({
   const isRevealed = state === 'correct' || state === 'present' || state === 'absent';
   const isTbd = state === 'tbd' && letter !== '';
 
-  // When a letter is typed (tbd state with letter), pop animation runs once
   const popKey = `${letter}-${state}`;
 
   const ariaLabel = letter
-    ? `${letter}, ${state === 'correct' ? 'correct' : state === 'present' ? 'present' : state === 'absent' ? 'absent' : 'empty'}, position ${position + 1}`
+    ? `${letter}, ${
+        state === 'correct'
+          ? 'correct'
+          : state === 'present'
+          ? 'present'
+          : state === 'absent'
+          ? 'absent'
+          : 'empty'
+      }, position ${position + 1}`
     : `empty, position ${position + 1}`;
 
   return (
@@ -57,34 +56,26 @@ export default function Tile({
         perspective: '300px',
       }}
     >
-      {/* Pop scale animation when a letter is typed */}
+      {/* Pop scale when a letter is typed */}
       <motion.div
         key={popKey}
-        initial={isTbd ? { scale: 1.1 } : { scale: 1 }}
+        initial={isTbd ? { scale: 1.08 } : { scale: 1 }}
         animate={{ scale: 1 }}
-        transition={{ type: 'spring', damping: 18, stiffness: 600, mass: 0.4 }}
+        transition={{ type: 'spring', damping: 20, stiffness: 700, mass: 0.35 }}
         className="w-full h-full"
       >
         {isFlipping && isRevealed ? (
-          /* ---- Flip reveal animation ---- */
-          <FlipTile
-            letter={letter}
-            state={state}
-            flipDelay={flipDelay}
-          />
+          <FlipTile letter={letter} state={state} flipDelay={flipDelay} />
         ) : (
-          /* ---- Static tile ---- */
           <div
             className={clsx(
-              'w-full h-full flex items-center justify-center rounded-sm',
+              'w-full h-full flex items-center justify-center rounded-[4px]',
               STATE_STYLES[state]
             )}
           >
             <span
-              className={clsx(
-                'text-2xl font-bold uppercase select-none',
-                STATE_TEXT[state]
-              )}
+              className="font-bold uppercase select-none text-white"
+              style={{ fontSize: 'clamp(1.1rem, 3.5vw, 1.5rem)' }}
             >
               {letter}
             </span>
@@ -96,8 +87,8 @@ export default function Tile({
 }
 
 /**
- * Two-phase flip: rotates to 90deg (edge-on), swaps the face color,
- * then rotates back to 0. This avoids the flash of wrong color.
+ * Two-phase flip: rotates to 90deg (edge-on), swaps face color at midpoint,
+ * then rotates back to 0. Avoids flash of wrong color.
  */
 function FlipTile({
   letter,
@@ -110,7 +101,6 @@ function FlipTile({
 }) {
   const [showRevealed, setShowRevealed] = useState(false);
 
-  // Swap the face style at the midpoint of the flip
   const halfDuration = 0.25;
   useEffect(() => {
     const timer = setTimeout(
@@ -121,12 +111,11 @@ function FlipTile({
   }, [flipDelay]);
 
   const faceStyle = showRevealed ? STATE_STYLES[state] : STATE_STYLES.tbd;
-  const textStyle = showRevealed ? STATE_TEXT[state] : STATE_TEXT.tbd;
 
   return (
     <motion.div
       className={clsx(
-        'w-full h-full flex items-center justify-center rounded-sm',
+        'w-full h-full flex items-center justify-center rounded-[4px]',
         faceStyle
       )}
       initial={{ rotateX: 0 }}
@@ -139,10 +128,8 @@ function FlipTile({
       }}
     >
       <span
-        className={clsx(
-          'text-2xl font-bold uppercase select-none',
-          textStyle
-        )}
+        className="font-bold uppercase select-none text-white"
+        style={{ fontSize: 'clamp(1.1rem, 3.5vw, 1.5rem)' }}
       >
         {letter}
       </span>

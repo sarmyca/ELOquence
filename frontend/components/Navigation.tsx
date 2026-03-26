@@ -21,6 +21,11 @@ const AUTH_NAV_LINKS = [
   { href: '/learn', label: 'Learn' },
 ];
 
+function isLinkActive(pathname: string, href: string): boolean {
+  if (href === '/play') return pathname === href;
+  return pathname === href || pathname.startsWith(href + '/');
+}
+
 export default function Navigation() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
@@ -35,209 +40,259 @@ export default function Navigation() {
     setMobileOpen(false);
   };
 
-  // Build nav links — add Achievements for logged-in users, Admin for admins
   const navLinks = [
     ...(user ? AUTH_NAV_LINKS : GUEST_NAV_LINKS),
     ...(user ? [{ href: '/achievements', label: 'Achievements' }] : []),
   ];
 
   return (
-    <header className="sticky top-0 z-50 h-14 bg-bg-primary border-b border-white/[0.08]">
+    <header
+      className="sticky top-0 z-50 bg-bg-base border-b border-white/[0.06]"
+      style={{ height: '52px' }}
+    >
       <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between">
+
         {/* Logo */}
         <Link
           href="/"
-          className="font-semibold text-base tracking-tight text-text-primary hover:text-white transition-colors"
+          className="flex items-center tracking-tight transition-opacity duration-150 hover:opacity-80"
+          aria-label="ELOquence home"
         >
-          ELO<span className="text-[#6aaa64]">quence</span>
+          <span className="text-base font-bold" style={{ color: '#538d4e' }}>ELO</span>
+          <span className="text-base font-semibold" style={{ color: '#ededf0' }}>quence</span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={clsx(
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                pathname === link.href || (link.href !== '/play' && pathname.startsWith(link.href))
-                  ? 'bg-white/[0.08] text-text-primary'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
+        {/* Desktop nav links */}
+        <nav className="hidden md:flex items-center gap-0.5" aria-label="Main navigation">
+          {navLinks.map((link) => {
+            const active = isLinkActive(pathname, link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={clsx(
+                  'relative px-3 py-1.5 text-sm transition-colors duration-150 flex flex-col items-center gap-0',
+                  active
+                    ? 'text-[#ededf0]'
+                    : 'text-[#9898a0] hover:text-[#ededf0]'
+                )}
+              >
+                {link.label}
+                {active && (
+                  <span
+                    className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-[2px] h-[2px] rounded-full bg-[#538d4e]"
+                    style={{ marginBottom: '-1px' }}
+                    aria-hidden="true"
+                  />
+                )}
+              </Link>
+            );
+          })}
           {user?.is_admin && (
             <Link
               href="/admin"
               className={clsx(
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5',
+                'relative px-3 py-1.5 text-sm transition-colors duration-150 flex items-center gap-1.5',
                 pathname.startsWith('/admin')
-                  ? 'bg-[#c9a227]/10 text-[#c9a227]'
-                  : 'text-text-secondary hover:text-[#c9a227] hover:bg-[#c9a227]/[0.06]'
+                  ? 'text-[#c9a227]'
+                  : 'text-[#9898a0] hover:text-[#c9a227]'
               )}
             >
-              <ShieldCheck size={13} />
+              <ShieldCheck size={13} aria-hidden="true" />
               Admin
+              {pathname.startsWith('/admin') && (
+                <span
+                  className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-[2px] h-[2px] rounded-full bg-[#c9a227]"
+                  aria-hidden="true"
+                />
+              )}
             </Link>
           )}
         </nav>
 
-        {/* Right side */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* Desktop right side */}
+        <div className="hidden md:flex items-center gap-2">
           {user ? (
             <>
-              {/* ELO badge */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-bg-tertiary border border-white/[0.08]">
-                <BarChart2 size={14} className="text-text-secondary" />
+              {/* ELO rating with tier dot */}
+              <div className="flex items-center gap-1.5">
                 <span
-                  className="text-sm font-mono font-semibold"
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: tier?.color }}
+                  aria-hidden="true"
+                />
+                <span
+                  className="font-mono text-sm"
                   style={{ color: tier?.color }}
+                  aria-label={`ELO rating ${Math.round(user.elo_rating)}, ${tier?.name}`}
                 >
                   {Math.round(user.elo_rating)}
                 </span>
-                <span
-                  className="text-xs px-1.5 py-0.5 rounded font-medium"
-                  style={{
-                    color: tier?.color,
-                    backgroundColor: `${tier?.color}1a`,
-                  }}
-                >
-                  {tier?.name}
-                </span>
               </div>
-              <span className="text-sm text-text-secondary">{user.username}</span>
+
+              {/* Thin divider */}
+              <div className="w-px h-3.5 bg-white/[0.09] mx-0.5" aria-hidden="true" />
+
+              {/* Username */}
+              <span className="text-sm text-[#9898a0]">{user.username}</span>
+
+              {/* Settings */}
               <Link
                 href="/settings"
-                className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+                className="p-1.5 rounded-md text-[#5c5c66] hover:text-[#ededf0] hover:bg-white/[0.06] transition-colors duration-150"
                 aria-label="Settings"
               >
-                <Settings size={16} />
+                <Settings size={15} aria-hidden="true" />
               </Link>
+
+              {/* Logout */}
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-white/[0.06] transition-colors"
-                aria-label="Logout"
+                className="p-1.5 rounded-md text-[#5c5c66] hover:text-red-400 hover:bg-white/[0.06] transition-colors duration-150"
+                aria-label="Log out"
               >
-                <LogOut size={16} />
+                <LogOut size={15} aria-hidden="true" />
               </button>
             </>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className="text-sm px-3 py-1.5 rounded-md bg-[#538d4e] hover:bg-[#6aaa64] text-white font-medium transition-colors"
-              >
-                Sign In
-              </Link>
-            </>
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 text-sm transition-colors duration-150"
+              style={{ color: '#6aaa64' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#7ec878')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#6aaa64')}
+            >
+              Sign In
+              <span aria-hidden="true" style={{ fontSize: '0.85em' }}>&rarr;</span>
+            </Link>
           )}
         </div>
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+          className="md:hidden p-1.5 rounded-md text-[#9898a0] hover:text-[#ededf0] hover:bg-white/[0.06] transition-colors duration-150"
           onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Toggle menu"
+          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-nav-panel"
         >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          {mobileOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile dropdown panel */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
+            id="mobile-nav-panel"
+            role="navigation"
+            aria-label="Mobile navigation"
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.15 }}
-            className="md:hidden absolute top-14 left-0 right-0 bg-bg-primary border-b border-white/[0.08] shadow-xl"
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="md:hidden absolute left-0 right-0 bg-bg-base border-b border-white/[0.06]"
+            style={{ top: '52px' }}
           >
-            <div className="px-4 py-3 flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={clsx(
-                    'px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                    pathname === link.href || (link.href !== '/play' && pathname.startsWith(link.href))
-                      ? 'bg-white/[0.08] text-text-primary'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
+            <div className="px-3 py-2.5 flex flex-col">
+
+              {/* Nav links */}
+              {navLinks.map((link) => {
+                const active = isLinkActive(pathname, link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={clsx(
+                      'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors duration-150',
+                      active
+                        ? 'text-[#ededf0]'
+                        : 'text-[#9898a0] hover:text-[#ededf0] hover:bg-white/[0.04]'
+                    )}
+                  >
+                    {active && (
+                      <span
+                        className="w-[2px] h-[2px] rounded-full bg-[#538d4e] flex-shrink-0"
+                        aria-hidden="true"
+                      />
+                    )}
+                    {link.label}
+                  </Link>
+                );
+              })}
+
               {user?.is_admin && (
                 <Link
                   href="/admin"
                   onClick={() => setMobileOpen(false)}
                   className={clsx(
-                    'px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5',
+                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors duration-150',
                     pathname.startsWith('/admin')
-                      ? 'bg-[#c9a227]/10 text-[#c9a227]'
-                      : 'text-text-secondary hover:text-[#c9a227] hover:bg-[#c9a227]/[0.06]'
+                      ? 'text-[#c9a227]'
+                      : 'text-[#9898a0] hover:text-[#c9a227] hover:bg-white/[0.04]'
                   )}
                 >
-                  <ShieldCheck size={13} />
+                  <ShieldCheck size={13} aria-hidden="true" />
                   Admin
                 </Link>
               )}
-              <div className="my-1 border-t border-white/[0.06]" />
+
+              {/* Divider */}
+              <div className="my-1.5 border-t border-white/[0.06]" aria-hidden="true" />
+
+              {/* Auth section */}
               {user ? (
                 <>
+                  {/* User info row */}
                   <div className="px-3 py-2 flex items-center gap-2">
-                    <span className="text-sm text-text-secondary">{user.username}</span>
                     <span
-                      className="text-xs px-1.5 py-0.5 rounded font-medium"
-                      style={{
-                        color: tier?.color,
-                        backgroundColor: `${tier?.color}1a`,
-                      }}
-                    >
-                      {tier?.name}
-                    </span>
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: tier?.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="text-sm text-[#9898a0]">{user.username}</span>
                     <span
-                      className="text-sm font-mono font-semibold ml-auto"
+                      className="ml-auto font-mono text-sm"
                       style={{ color: tier?.color }}
+                      aria-label={`ELO ${Math.round(user.elo_rating)}`}
                     >
                       {Math.round(user.elo_rating)}
                     </span>
                   </div>
+
                   <Link
                     href="/settings"
                     onClick={() => setMobileOpen(false)}
                     className={clsx(
-                      'px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2',
+                      'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors duration-150',
                       pathname === '/settings'
-                        ? 'bg-white/[0.08] text-text-primary'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
+                        ? 'text-[#ededf0]'
+                        : 'text-[#9898a0] hover:text-[#ededf0] hover:bg-white/[0.04]'
                     )}
                   >
-                    <Settings size={14} />
+                    <Settings size={14} aria-hidden="true" />
                     Settings
                   </Link>
+
                   <button
                     onClick={handleLogout}
-                    className="px-3 py-2 rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-white/[0.04] transition-colors text-left flex items-center gap-2"
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-[#9898a0] hover:text-red-400 hover:bg-white/[0.04] transition-colors duration-150 text-left w-full"
                   >
-                    <LogOut size={14} />
-                    Logout
+                    <LogOut size={14} aria-hidden="true" />
+                    Log out
                   </button>
                 </>
               ) : (
-                <>
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileOpen(false)}
-                    className="px-3 py-2 rounded-md text-sm bg-[#538d4e] text-white font-medium hover:bg-[#6aaa64] transition-colors text-center"
-                  >
-                    Sign In
-                  </Link>
-                </>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm transition-colors duration-150"
+                  style={{ color: '#6aaa64' }}
+                >
+                  Sign In
+                  <span aria-hidden="true" style={{ fontSize: '0.85em' }}>&rarr;</span>
+                </Link>
               )}
             </div>
           </motion.div>

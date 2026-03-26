@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Gamepad2,
   BarChart2,
@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Star,
   Lock,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -22,17 +23,18 @@ import { springs } from '@/lib/animations';
 import clsx from 'clsx';
 
 /* ------------------------------------------------------------------ */
-/*  Section data                                                       */
+/*  Shared primitives                                                   */
 /* ------------------------------------------------------------------ */
 
-interface Section {
-  id: string;
-  icon: React.ReactNode;
-  title: string;
-  content: React.ReactNode;
-}
-
-function Tile({ letter, color, size = 'md' }: { letter: string; color: 'green' | 'yellow' | 'gray' | 'empty'; size?: 'sm' | 'md' }) {
+function Tile({
+  letter,
+  color,
+  size = 'md',
+}: {
+  letter: string;
+  color: 'green' | 'yellow' | 'gray' | 'empty';
+  size?: 'sm' | 'md';
+}) {
   const bg =
     color === 'green'
       ? 'bg-[#538d4e]'
@@ -43,13 +45,25 @@ function Tile({ letter, color, size = 'md' }: { letter: string; color: 'green' |
           : 'bg-[#3a3a3c]';
   const s = size === 'sm' ? 'w-7 h-7 text-xs' : 'w-8 h-8 text-sm';
   return (
-    <span className={clsx('inline-flex items-center justify-center rounded font-bold text-white', s, bg)}>
+    <span
+      className={clsx(
+        'inline-flex items-center justify-center rounded font-bold text-white',
+        s,
+        bg,
+      )}
+    >
       {letter}
     </span>
   );
 }
 
-function TileRow({ word, pattern }: { word: string; pattern: ('green' | 'yellow' | 'gray')[] }) {
+function TileRow({
+  word,
+  pattern,
+}: {
+  word: string;
+  pattern: ('green' | 'yellow' | 'gray')[];
+}) {
   return (
     <div className="flex gap-1">
       {word.split('').map((ch, i) => (
@@ -74,9 +88,14 @@ function EfficiencyBar({ pct, color }: { pct: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-2 rounded-full bg-bg-tertiary overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
       </div>
-      <span className="text-[10px] font-mono text-text-ghost w-8 text-right">{pct}%</span>
+      <span className="text-[10px] font-mono text-text-ghost w-8 text-right">
+        {pct}%
+      </span>
     </div>
   );
 }
@@ -94,14 +113,35 @@ function MiniSparkline() {
   });
   return (
     <svg width={w} height={h} className="block">
-      <polyline points={coords.join(' ')} fill="none" stroke="#538d4e" strokeWidth={1.5} strokeLinejoin="round" />
-      <circle cx={w} cy={parseFloat(coords[coords.length - 1].split(',')[1])} r={2.5} fill="#538d4e" />
+      <polyline
+        points={coords.join(' ')}
+        fill="none"
+        stroke="#538d4e"
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+      />
+      <circle
+        cx={w}
+        cy={parseFloat(coords[coords.length - 1].split(',')[1])}
+        r={2.5}
+        fill="#538d4e"
+      />
     </svg>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Section data                                                        */
+/* ------------------------------------------------------------------ */
+
+interface Section {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  content: React.ReactNode;
+}
+
 const SECTIONS: Section[] = [
-  /* ---- Game Modes ---- */
   {
     id: 'modes',
     icon: <Gamepad2 size={18} />,
@@ -111,7 +151,6 @@ const SECTIONS: Section[] = [
         <p className="text-sm text-text-secondary leading-relaxed">
           ELOquence offers three ways to play, each with a different purpose.
         </p>
-
         <div className="grid gap-3">
           {[
             {
@@ -132,7 +171,7 @@ const SECTIONS: Section[] = [
           ].map((m) => (
             <div
               key={m.name}
-              className="flex gap-3 p-3 rounded-xl bg-bg-tertiary border border-white/[0.06]"
+              className="flex gap-3 p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06]"
             >
               <span className="text-xl mt-0.5">{m.emoji}</span>
               <div>
@@ -146,7 +185,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- How Tiles Work ---- */
   {
     id: 'tiles',
     icon: <Target size={18} />,
@@ -162,18 +200,14 @@ const SECTIONS: Section[] = [
             <Tile letter="A" color="green" />
             <div>
               <p className="text-sm font-semibold text-text-primary">Green</p>
-              <p className="text-xs text-text-secondary">
-                Correct letter in the correct position.
-              </p>
+              <p className="text-xs text-text-secondary">Correct letter in the correct position.</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Tile letter="B" color="yellow" />
             <div>
               <p className="text-sm font-semibold text-text-primary">Yellow</p>
-              <p className="text-xs text-text-secondary">
-                Correct letter, but in the wrong position.
-              </p>
+              <p className="text-xs text-text-secondary">Correct letter, but in the wrong position.</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -185,8 +219,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        {/* Visual example: mini game */}
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-2">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2">
           <p className="text-xs font-semibold text-text-primary">Example — answer is CRANE</p>
           <div className="flex flex-col gap-1.5 items-start">
             <div className="flex items-center gap-3">
@@ -204,7 +237,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06]">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06]">
           <p className="text-xs text-text-secondary leading-relaxed">
             <span className="font-semibold text-text-primary">Tip:</span> Pay attention to
             yellows — they tell you which letters to reuse in a different spot. Ignoring them
@@ -215,7 +248,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- ELO Rating System ---- */
   {
     id: 'elo',
     icon: <TrendingUp size={18} />,
@@ -227,8 +259,7 @@ const SECTIONS: Section[] = [
           with the magnitude depending on the word&apos;s difficulty relative to your rating.
         </p>
 
-        {/* Visual: ELO change example */}
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06]">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06]">
           <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-2">Example: Win vs hard word</p>
           <div className="flex items-center gap-3">
             <div className="text-center">
@@ -248,9 +279,7 @@ const SECTIONS: Section[] = [
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-            Rating Tiers
-          </p>
+          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">Rating Tiers</p>
           <div className="grid grid-cols-2 gap-2">
             {[
               { name: 'Novice', range: '0 – 1199', color: '#818384' },
@@ -260,7 +289,7 @@ const SECTIONS: Section[] = [
             ].map((t) => (
               <div
                 key={t.name}
-                className="flex items-center gap-2 p-2 rounded-lg bg-bg-tertiary border border-white/[0.06]"
+                className="flex items-center gap-2 p-2 rounded-lg bg-[#0f0f12] border border-white/[0.06]"
               >
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
@@ -275,7 +304,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Placement Matches</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Your first 5 rated games use a boosted K-factor (128 vs 32), so your rating adjusts
@@ -283,7 +312,7 @@ const SECTIONS: Section[] = [
           </p>
         </div>
 
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Word Difficulty</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Each word has its own difficulty rating based on how hard it is to solve. Beating a
@@ -295,7 +324,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- Game Analysis ---- */
   {
     id: 'analysis',
     icon: <Brain size={18} />,
@@ -308,8 +336,7 @@ const SECTIONS: Section[] = [
           possibilities.
         </p>
 
-        {/* Visual: mock move analysis card */}
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-3">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-3">
           <p className="text-[10px] text-text-ghost uppercase tracking-wider">Example Move Analysis</p>
           <div className="flex items-center gap-3">
             <TileRow word="SALET" pattern={['gray', 'yellow', 'gray', 'yellow', 'gray']} />
@@ -343,75 +370,76 @@ const SECTIONS: Section[] = [
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-            Move Classifications
-          </p>
+          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">Move Classifications</p>
           <div className="flex flex-wrap gap-1.5">
             {[
-              { label: 'Brilliant', color: '#00b4d8' },
+              { label: 'Brilliant', color: '#1565c0' },
               { label: 'Best', color: '#538d4e' },
               { label: 'Good', color: '#6aaa64' },
-              { label: 'Okay', color: '#8fbc8f' },
+              { label: 'Okay', color: '#2e9688' },
               { label: 'Inaccuracy', color: '#b59f3b' },
               { label: 'Mistake', color: '#e67e22' },
               { label: 'Blunder', color: '#e74c3c' },
-              { label: 'Miss', color: '#c0392b' },
-              { label: 'Forced', color: '#9ca3af' },
+              { label: 'Miss', color: '#9c27b0' },
+              { label: 'Forced', color: '#565758' },
             ].map((c) => (
               <ClassBadge key={c.label} label={c.label} color={c.color} />
             ))}
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-2.5">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2.5">
           <p className="text-xs font-semibold text-text-primary">How Classification Works</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Each guess is compared to the optimal guess (highest expected information gain).
             The ratio of your info gained vs the best possible determines the classification.
           </p>
-          {/* Visual: classification scale */}
           <div className="space-y-1">
             {[
-              { label: 'Brilliant', pct: '> 100%', color: '#00b4d8', w: 100 },
+              { label: 'Brilliant', pct: '> 100%', color: '#1565c0', w: 100 },
               { label: 'Best', pct: '95 – 100%', color: '#538d4e', w: 97 },
               { label: 'Good', pct: '85 – 95%', color: '#6aaa64', w: 90 },
-              { label: 'Okay', pct: '70 – 85%', color: '#8fbc8f', w: 78 },
+              { label: 'Okay', pct: '70 – 85%', color: '#2e9688', w: 78 },
               { label: 'Inaccuracy', pct: '50 – 70%', color: '#b59f3b', w: 60 },
               { label: 'Mistake', pct: '30 – 50%', color: '#e67e22', w: 40 },
               { label: 'Blunder', pct: '< 30%', color: '#e74c3c', w: 20 },
             ].map((c) => (
               <div key={c.label} className="flex items-center gap-2">
-                <span className="text-[10px] w-16 text-right font-medium shrink-0" style={{ color: c.color }}>{c.label}</span>
+                <span
+                  className="text-[10px] w-16 text-right font-medium shrink-0"
+                  style={{ color: c.color }}
+                >
+                  {c.label}
+                </span>
                 <div className="flex-1 h-2 rounded-full bg-bg-elevated overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${c.w}%`, backgroundColor: c.color, opacity: 0.7 }} />
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${c.w}%`, backgroundColor: c.color, opacity: 0.7 }}
+                  />
                 </div>
                 <span className="text-[9px] text-text-ghost w-14 font-mono">{c.pct}</span>
               </div>
             ))}
           </div>
           <p className="text-[10px] text-text-ghost leading-relaxed">
-            &quot;Brilliant&quot; = better than the algorithm&apos;s top pick. &quot;Forced&quot; = only one valid guess remained (shown as gray).
+            &quot;Brilliant&quot; = better than the algorithm&apos;s top pick. &quot;Forced&quot; = only one valid guess remained.
           </p>
         </div>
 
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Key Metrics</p>
           <ul className="text-xs text-text-secondary space-y-1 leading-relaxed">
             <li>
-              <span className="font-medium text-text-primary">Entropy</span> — How much
-              uncertainty remains in the word pool (measured in bits).
+              <span className="font-medium text-text-primary">Entropy</span> — How much uncertainty remains in the word pool (measured in bits).
             </li>
             <li>
-              <span className="font-medium text-text-primary">Info Gained</span> — How many
-              bits of information your guess revealed.
+              <span className="font-medium text-text-primary">Info Gained</span> — How many bits of information your guess revealed.
             </li>
             <li>
-              <span className="font-medium text-text-primary">Efficiency</span> — Your info
-              gained ÷ the maximum possible info gain (as a percentage).
+              <span className="font-medium text-text-primary">Efficiency</span> — Your info gained divided by the maximum possible info gain (as a percentage).
             </li>
             <li>
-              <span className="font-medium text-text-primary">Remaining Words</span> — How
-              many possible answers are left after your guess.
+              <span className="font-medium text-text-primary">Remaining Words</span> — How many possible answers are left after your guess.
             </li>
           </ul>
         </div>
@@ -419,7 +447,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- Review Page ---- */
   {
     id: 'review',
     icon: <BarChart2 size={18} />,
@@ -431,8 +458,7 @@ const SECTIONS: Section[] = [
           exactly what happened at each step.
         </p>
 
-        {/* Visual: mini entropy timeline */}
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-2">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2">
           <p className="text-[10px] text-text-ghost uppercase tracking-wider">Example: Entropy Timeline</p>
           <div className="flex items-end gap-1.5" style={{ height: 64 }}>
             {[
@@ -441,7 +467,11 @@ const SECTIONS: Section[] = [
               { label: '3', h: 22, bits: '2.5' },
               { label: '4', h: 0, bits: '0.0' },
             ].map((m) => (
-              <div key={m.label} className="flex flex-col items-center flex-1" style={{ height: '100%' }}>
+              <div
+                key={m.label}
+                className="flex flex-col items-center flex-1"
+                style={{ height: '100%' }}
+              >
                 <div className="w-full flex flex-col justify-end flex-1 min-h-0">
                   <div
                     className="w-full rounded-t bg-[#538d4e]/60"
@@ -453,13 +483,13 @@ const SECTIONS: Section[] = [
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-text-secondary">Each bar shows remaining entropy — shorter = closer to solving.</p>
+          <p className="text-[10px] text-text-secondary">
+            Each bar shows remaining entropy — shorter = closer to solving.
+          </p>
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-            Tabs
-          </p>
+          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">Tabs</p>
           <div className="grid gap-2">
             {[
               {
@@ -470,7 +500,7 @@ const SECTIONS: Section[] = [
               {
                 key: '2',
                 name: 'Top Picks',
-                desc: "The best guesses you could have made at that point, ranked by expected information gain. Shows what the algorithm's top choice was.",
+                desc: "The best guesses you could have made at that point, ranked by expected information gain.",
               },
               {
                 key: '3',
@@ -495,7 +525,7 @@ const SECTIONS: Section[] = [
             ].map((tab) => (
               <div
                 key={tab.key}
-                className="flex gap-2.5 p-2.5 rounded-lg bg-bg-tertiary border border-white/[0.06]"
+                className="flex gap-2.5 p-2.5 rounded-lg bg-[#0f0f12] border border-white/[0.06]"
               >
                 <span className="text-[10px] font-mono text-text-ghost bg-bg-elevated w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5">
                   {tab.key}
@@ -512,7 +542,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- Constraint Violations ---- */
   {
     id: 'constraints',
     icon: <AlertTriangle size={18} />,
@@ -525,13 +554,12 @@ const SECTIONS: Section[] = [
         </p>
 
         <div className="space-y-3">
-          <div className="p-3 rounded-xl bg-[#e74c3c]/10 border border-[#e74c3c]/20 space-y-2.5">
+          <div className="p-3 rounded-[12px] bg-[#e74c3c]/10 border border-[#e74c3c]/20 space-y-2.5">
             <p className="text-xs font-semibold text-[#e74c3c]">Hard Violation</p>
             <p className="text-xs text-text-secondary leading-relaxed">
               Using a letter that was already ruled out (gray), or placing a letter in a
               position already proven wrong (yellow in that spot before).
             </p>
-            {/* Visual: hard violation example */}
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <TileRow word="SALET" pattern={['gray', 'gray', 'gray', 'yellow', 'gray']} />
@@ -544,13 +572,12 @@ const SECTIONS: Section[] = [
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-2.5">
+          <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2.5">
             <p className="text-xs font-semibold text-text-secondary">Soft Violation</p>
             <p className="text-xs text-text-secondary leading-relaxed">
               Omitting a letter you know is in the word. Sometimes a valid strategy for
               maximizing information gain — shown as a neutral note, not a warning.
             </p>
-            {/* Visual: soft violation example */}
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <TileRow word="SALET" pattern={['gray', 'green', 'gray', 'yellow', 'gray']} />
@@ -567,7 +594,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- Traps ---- */
   {
     id: 'traps',
     icon: <Zap size={18} />,
@@ -580,8 +606,7 @@ const SECTIONS: Section[] = [
           differs between them.
         </p>
 
-        {/* Visual: trap word grid */}
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-2.5">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2.5">
           <p className="text-[10px] text-text-ghost uppercase tracking-wider">Example: _IGHT trap</p>
           <div className="flex flex-wrap gap-1.5">
             {['LIGHT', 'MIGHT', 'NIGHT', 'RIGHT', 'SIGHT', 'TIGHT'].map((w) => (
@@ -599,7 +624,7 @@ const SECTIONS: Section[] = [
           </p>
         </div>
 
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Why Traps Matter</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             When trapped, random guessing gives you only a 1-in-N chance of finding the answer.
@@ -608,11 +633,10 @@ const SECTIONS: Section[] = [
           </p>
         </div>
 
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Detection</p>
           <p className="text-xs text-text-secondary leading-relaxed">
-            Traps are only detected when 20 or fewer words remain — on earlier moves, the word
-            pool is too large for meaningful trap patterns. The review page highlights traps
+            Traps are only detected when 20 or fewer words remain. The review page highlights traps
             so you can learn to recognize and navigate them.
           </p>
         </div>
@@ -620,7 +644,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- Coach Chat ---- */
   {
     id: 'coach',
     icon: <MessageSquare size={18} />,
@@ -632,8 +655,7 @@ const SECTIONS: Section[] = [
           ask questions about your game in natural language.
         </p>
 
-        {/* Visual: mock chat conversation */}
-        <div className="rounded-xl bg-bg-tertiary border border-white/[0.06] overflow-hidden">
+        <div className="rounded-[12px] bg-[#0f0f12] border border-white/[0.06] overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06]">
             <MessageSquare size={11} className="text-[#6aaa64]" />
             <span className="text-[10px] font-semibold text-text-primary">Coach Chat</span>
@@ -653,9 +675,7 @@ const SECTIONS: Section[] = [
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-            Suggested Questions
-          </p>
+          <p className="text-xs font-semibold text-text-primary uppercase tracking-wider">Suggested Questions</p>
           <div className="flex flex-wrap gap-1.5">
             {[
               'Why was move 2 suboptimal?',
@@ -664,7 +684,7 @@ const SECTIONS: Section[] = [
             ].map((q) => (
               <span
                 key={q}
-                className="text-xs px-2.5 py-1.5 rounded-lg bg-bg-tertiary border border-white/[0.06] text-text-secondary"
+                className="text-xs px-2.5 py-1.5 rounded-lg bg-[#0f0f12] border border-white/[0.06] text-text-secondary"
               >
                 {q}
               </span>
@@ -672,7 +692,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Limits</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Each game session has a 10-message limit. The coach has full context of your game
@@ -683,7 +703,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- Keyboard Shortcuts ---- */
   {
     id: 'shortcuts',
     icon: <Keyboard size={18} />,
@@ -693,7 +712,6 @@ const SECTIONS: Section[] = [
         <p className="text-sm text-text-secondary leading-relaxed">
           The review page supports full keyboard navigation for quick analysis.
         </p>
-
         <div className="grid gap-1.5">
           {[
             { keys: '← ↑', action: 'Previous move' },
@@ -702,7 +720,7 @@ const SECTIONS: Section[] = [
           ].map((s) => (
             <div
               key={s.keys}
-              className="flex items-center justify-between p-2 rounded-lg bg-bg-tertiary border border-white/[0.06]"
+              className="flex items-center justify-between p-2 rounded-lg bg-[#0f0f12] border border-white/[0.06]"
             >
               <span className="text-xs font-mono text-text-primary bg-bg-elevated px-2 py-0.5 rounded">
                 {s.keys}
@@ -715,7 +733,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- Leaderboard ---- */
   {
     id: 'leaderboard',
     icon: <Trophy size={18} />,
@@ -727,10 +744,13 @@ const SECTIONS: Section[] = [
           every rated game (Daily and Competitive modes).
         </p>
 
-        {/* Visual: mock leaderboard rows */}
-        <div className="rounded-xl bg-bg-tertiary border border-white/[0.06] overflow-hidden">
+        <div className="rounded-[12px] bg-[#0f0f12] border border-white/[0.06] overflow-hidden">
           <div className="grid grid-cols-[2rem_1fr_3.5rem_3rem_3rem] items-center gap-2 px-3 py-1.5 text-[10px] text-text-ghost uppercase tracking-wider border-b border-white/[0.04]">
-            <span>#</span><span>Player</span><span>ELO</span><span>Win%</span><span>Avg</span>
+            <span>#</span>
+            <span>Player</span>
+            <span>ELO</span>
+            <span>Win%</span>
+            <span>Avg</span>
           </div>
           {[
             { rank: 1, name: 'alice', elo: 1642, tier: '#f59e0b', win: 89, avg: 3.2 },
@@ -743,7 +763,10 @@ const SECTIONS: Section[] = [
             >
               <span className="font-mono text-text-ghost">{p.rank}</span>
               <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.tier }} />
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: p.tier }}
+                />
                 <span className="font-medium text-text-primary">{p.name}</span>
               </div>
               <span className="font-mono text-text-primary">{p.elo}</span>
@@ -756,7 +779,6 @@ const SECTIONS: Section[] = [
     ),
   },
 
-  /* ---- Dashboard ---- */
   {
     id: 'dashboard',
     icon: <Star size={18} />,
@@ -767,15 +789,14 @@ const SECTIONS: Section[] = [
           Your personal dashboard shows your overall performance stats and game history.
         </p>
 
-        {/* Visual: mini sparkline + guess distribution */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-2">
+          <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2">
             <p className="text-[10px] text-text-ghost uppercase tracking-wider">ELO Sparkline</p>
             <MiniSparkline />
             <p className="text-[10px] text-text-ghost">Your rating trend over recent games</p>
           </div>
 
-          <div className="p-3 rounded-xl bg-bg-tertiary border border-white/[0.06] space-y-2">
+          <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2">
             <p className="text-[10px] text-text-ghost uppercase tracking-wider">Guess Distribution</p>
             <div className="space-y-1">
               {[
@@ -816,7 +837,81 @@ const SECTIONS: Section[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Page Component                                                     */
+/*  Mobile accordion item                                              */
+/* ------------------------------------------------------------------ */
+
+function AccordionItem({
+  section,
+  isOpen,
+  isLocked,
+  onToggle,
+}: {
+  section: Section;
+  isOpen: boolean;
+  isLocked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className={clsx(
+        'rounded-[12px] bg-[#0f0f12] border overflow-hidden transition-colors',
+        isOpen ? 'border-white/[0.12]' : 'border-white/[0.06]',
+        isLocked && 'opacity-50',
+      )}
+    >
+      <button
+        onClick={onToggle}
+        disabled={isLocked}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        aria-expanded={isOpen}
+      >
+        <span className={clsx('shrink-0', isOpen ? 'text-[#6aaa64]' : 'text-text-ghost')}>
+          {isLocked ? <Lock size={14} /> : section.icon}
+        </span>
+        <span
+          className={clsx(
+            'flex-1 text-sm font-medium',
+            isOpen ? 'text-text-primary' : 'text-text-secondary',
+          )}
+        >
+          {section.title}
+        </span>
+        {isLocked ? (
+          <span className="text-[10px] text-text-ghost px-1.5 py-0.5 rounded bg-bg-elevated border border-white/[0.06]">
+            Sign in
+          </span>
+        ) : (
+          <ChevronDown
+            size={15}
+            className={clsx(
+              'text-text-ghost transition-transform duration-200',
+              isOpen && 'rotate-180',
+            )}
+          />
+        )}
+      </button>
+
+      <AnimatePresence initial={false}>
+        {isOpen && !isLocked && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-1 border-t border-white/[0.06]">
+              {section.content}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page Component                                                      */
 /* ------------------------------------------------------------------ */
 
 export default function LearnPage() {
@@ -825,11 +920,13 @@ export default function LearnPage() {
 
   const GUEST_UNLOCKED_IDS = ['modes', 'tiles'];
   const allSections = SECTIONS.filter((s) => s.id !== 'shortcuts');
-  const unlockedSections = user ? allSections : allSections.filter((s) => GUEST_UNLOCKED_IDS.includes(s.id));
 
-  const [activeSection, setActiveSection] = useState(unlockedSections[0].id);
+  const [activeSection, setActiveSection] = useState(allSections[0].id);
+  const [openAccordion, setOpenAccordion] = useState<string | null>(allSections[0].id);
 
-  const current = unlockedSections.find((s) => s.id === activeSection) ?? unlockedSections[0];
+  const current = allSections.find((s) => s.id === activeSection) ?? allSections[0];
+
+  const isLocked = (id: string) => !user && !GUEST_UNLOCKED_IDS.includes(id);
 
   return (
     <div className="min-h-[calc(100dvh-56px)] bg-bg-primary">
@@ -848,27 +945,42 @@ export default function LearnPage() {
           <p className="text-sm text-text-secondary">
             Everything you need to know about ELOquence.
           </p>
+          {!loading && !user && (
+            <div className="mt-3 flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[#538d4e]/10 border border-[#538d4e]/20">
+              <Lock size={12} className="text-[#6aaa64] shrink-0" />
+              <span className="text-xs text-text-secondary">
+                Some sections require an account.{' '}
+                <button
+                  onClick={() => router.push('/login')}
+                  className="text-[#6aaa64] hover:underline font-medium"
+                >
+                  Sign in
+                </button>{' '}
+                to unlock everything.
+              </span>
+            </div>
+          )}
         </motion.div>
 
-        {/* Two-column layout */}
-        <div className="flex gap-6">
+        {/* Desktop two-column layout */}
+        <div className="hidden md:flex gap-6">
           {/* Sidebar nav */}
           <motion.nav
             initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ ...springs.slide, delay: 0.05 }}
-            className="hidden md:flex flex-col gap-0.5 w-52 shrink-0 sticky top-20 self-start"
+            className="flex flex-col gap-0.5 w-52 shrink-0 sticky top-20 self-start"
           >
             {allSections.map((s) => {
-              const isLocked = !user && !GUEST_UNLOCKED_IDS.includes(s.id);
+              const locked = isLocked(s.id);
               return (
                 <button
                   key={s.id}
-                  onClick={() => !isLocked && setActiveSection(s.id)}
-                  disabled={isLocked}
+                  onClick={() => !locked && setActiveSection(s.id)}
+                  disabled={locked}
                   className={clsx(
-                    'flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors',
-                    isLocked
+                    'flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm transition-colors',
+                    locked
                       ? 'opacity-40 cursor-default'
                       : activeSection === s.id
                         ? 'bg-bg-tertiary text-text-primary font-medium'
@@ -878,10 +990,14 @@ export default function LearnPage() {
                   <span
                     className={clsx(
                       'shrink-0',
-                      isLocked ? 'text-text-ghost' : activeSection === s.id ? 'text-[#6aaa64]' : 'text-text-ghost',
+                      locked
+                        ? 'text-text-ghost'
+                        : activeSection === s.id
+                          ? 'text-[#6aaa64]'
+                          : 'text-text-ghost',
                     )}
                   >
-                    {isLocked ? <Lock size={14} /> : s.icon}
+                    {locked ? <Lock size={14} /> : s.icon}
                   </span>
                   {s.title}
                 </button>
@@ -889,25 +1005,7 @@ export default function LearnPage() {
             })}
           </motion.nav>
 
-          {/* Mobile section picker */}
-          <div className="md:hidden w-full mb-4">
-            <select
-              value={activeSection}
-              onChange={(e) => setActiveSection(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-bg-secondary border border-white/[0.08] text-sm text-text-primary"
-            >
-              {allSections.map((s) => {
-                const isLocked = !user && !GUEST_UNLOCKED_IDS.includes(s.id);
-                return (
-                  <option key={s.id} value={s.id} disabled={isLocked}>
-                    {isLocked ? `🔒 ${s.title}` : s.title}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* Content area */}
+          {/* Content panel */}
           <motion.div
             key={current.id}
             initial={{ opacity: 0, y: 8 }}
@@ -915,14 +1013,35 @@ export default function LearnPage() {
             transition={{ duration: 0.2 }}
             className="flex-1 min-w-0"
           >
-            <div className="rounded-2xl bg-bg-secondary border border-white/[0.08] p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-[#6aaa64]">{current.icon}</span>
+            <div className="rounded-2xl bg-[#16161a] border border-white/[0.08] p-5">
+              <div className="flex items-center gap-2 mb-5">
+                <span className="p-2 rounded-lg bg-[#538d4e]/10 border border-[#538d4e]/15 text-[#6aaa64]">
+                  {current.icon}
+                </span>
                 <h2 className="text-lg font-semibold text-text-primary">{current.title}</h2>
               </div>
               {current.content}
             </div>
           </motion.div>
+        </div>
+
+        {/* Mobile accordion layout */}
+        <div className="md:hidden flex flex-col gap-2">
+          {allSections.map((s) => {
+            const locked = isLocked(s.id);
+            return (
+              <AccordionItem
+                key={s.id}
+                section={s}
+                isOpen={openAccordion === s.id}
+                isLocked={locked}
+                onToggle={() => {
+                  if (locked) return;
+                  setOpenAccordion(openAccordion === s.id ? null : s.id);
+                }}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

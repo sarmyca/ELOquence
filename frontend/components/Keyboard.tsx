@@ -17,11 +17,11 @@ const ROWS = [
   ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'BACK'],
 ];
 
-const STATE_STYLES: Record<string, string> = {
-  correct: 'bg-tile-correct text-white',
-  present: 'bg-tile-present text-white',
-  absent: 'bg-[#3a3a3c] text-text-tertiary',
-  unused: 'bg-[#565758] text-text-primary',
+const KEY_STATE_STYLES: Record<string, string> = {
+  correct: 'bg-[#538d4e] text-white',
+  present: 'bg-[#b59f3b] text-white',
+  absent:  'bg-[#1e1e23] text-[#5c5c66]',
+  unused:  'bg-[#3c3c44] text-white',
 };
 
 export default function Keyboard({
@@ -46,22 +46,23 @@ export default function Keyboard({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onKey, onEnter, onBackspace]);
 
-  const getKeyStyle = (key: string) => {
-    if (key === 'ENTER' || key === 'BACK') return STATE_STYLES.unused;
+  const getKeyStyle = (key: string): string => {
+    if (key === 'ENTER' || key === 'BACK') return KEY_STATE_STYLES.unused;
     const state = letterStates[key];
-    return STATE_STYLES[state] || STATE_STYLES.unused;
+    return KEY_STATE_STYLES[state] ?? KEY_STATE_STYLES.unused;
   };
 
   return (
-    <div className="flex flex-col items-center gap-1.5 w-full max-w-[500px]">
+    <div className="flex flex-col items-center w-full max-w-[500px]" style={{ gap: '5px' }}>
       {ROWS.map((row, rowIndex) => (
-        <div key={rowIndex} className="flex gap-1.5 w-full justify-center">
+        <div key={rowIndex} className="flex w-full justify-center" style={{ gap: '5px' }}>
           {row.map((key) => {
             const isSpecial = key === 'ENTER' || key === 'BACK';
             return (
               <motion.button
                 key={key}
-                whileTap={{ scale: 0.92, y: 2 }}
+                whileHover={{ filter: 'brightness(1.10)' }}
+                whileTap={{ scale: 0.95 }}
                 transition={{ type: 'spring', damping: 30, stiffness: 700, mass: 0.3 }}
                 onClick={() => {
                   if (key === 'ENTER') onEnter();
@@ -69,11 +70,14 @@ export default function Keyboard({
                   else onKey(key);
                 }}
                 className={clsx(
-                  'flex items-center justify-center rounded font-bold text-sm select-none cursor-pointer transition-colors duration-100',
+                  'flex items-center justify-center rounded-[6px] font-bold text-sm select-none cursor-pointer transition-colors duration-100',
                   isSpecial ? 'flex-[1.5] text-xs' : 'flex-1',
                   getKeyStyle(key)
                 )}
-                style={{ height: 'var(--key-height)', minWidth: isSpecial ? '54px' : '32px' }}
+                style={{
+                  height: 'var(--key-height)',
+                  minWidth: isSpecial ? '54px' : '30px',
+                }}
                 aria-label={key === 'BACK' ? 'Backspace' : key}
               >
                 {key === 'BACK' ? (
@@ -87,6 +91,7 @@ export default function Keyboard({
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    aria-hidden="true"
                   >
                     <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
                     <line x1="18" y1="9" x2="13" y2="14" />

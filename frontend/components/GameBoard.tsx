@@ -8,7 +8,7 @@ interface GameBoardProps {
   patterns: number[];
   currentGuess: string;
   shakeRow: number;
-  /** Index of the row that is currently performing its flip reveal (-1 means none) */
+  /** Index of the row currently performing its flip reveal (-1 means none) */
   revealRow: number;
   maxGuesses?: number;
 }
@@ -32,17 +32,14 @@ export default function GameBoard({
 
   for (let i = 0; i < maxGuesses; i++) {
     if (i < guesses.length) {
-      // Submitted row — show revealed colors
       const tiles = patternToTiles(patterns[i]);
       rows.push({
         letters: guesses[i].split(''),
         states: tiles,
         isSubmitted: true,
-        // Only the revealRow is currently in its flip animation
         isFlippingRow: i === revealRow,
       });
     } else if (i === guesses.length) {
-      // Current input row
       const letters = currentGuess.split('');
       const states: TileState[] = Array(5)
         .fill('empty')
@@ -54,7 +51,6 @@ export default function GameBoard({
         isFlippingRow: false,
       });
     } else {
-      // Empty future row
       rows.push({
         letters: Array(5).fill(''),
         states: Array(5).fill('empty') as TileState[],

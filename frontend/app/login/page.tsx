@@ -33,24 +33,39 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[calc(100dvh-56px)] px-4">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4 bg-[#09090b]">
       <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={springs.modal}
         className="w-full max-w-sm"
       >
-        <div className="bg-bg-secondary border border-white/[0.1] rounded-2xl p-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-text-primary mb-1">Sign In</h1>
-            <p className="text-sm text-text-secondary">
-              Let&apos;s compete!
-            </p>
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <Link href="/" className="flex items-center gap-0.5">
+            <span className="font-semibold text-lg text-[#538d4e]">ELO</span>
+            <span className="font-semibold text-lg text-[#ededf0]">quence</span>
+          </Link>
+        </div>
+
+        {/* Card */}
+        <div className="bg-[#0f0f12] border border-white/[0.06] rounded-[12px] p-6 sm:p-8">
+          <h1 className="text-xl font-semibold text-[#ededf0] mb-6">Sign in</h1>
+
+          {/* Google */}
+          <GoogleSignInButton onError={(msg) => setError(msg)} />
+
+          {/* Divider */}
+          <div className="my-5 flex items-center gap-3">
+            <div className="flex-1 h-px bg-white/[0.06]" />
+            <span className="text-xs text-[#5c5c66]">or</span>
+            <div className="flex-1 h-px bg-white/[0.06]" />
           </div>
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+              <label htmlFor="email" className="text-sm text-[#9898a0]">
                 Email
               </label>
               <input
@@ -61,12 +76,12 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="px-3 py-2.5 rounded-lg bg-bg-tertiary border border-white/[0.1] text-text-primary placeholder-text-ghost text-sm focus:outline-none focus:border-white/[0.25] transition-colors"
+                className="h-11 px-3 rounded-lg bg-[#16161a] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+              <label htmlFor="password" className="text-sm text-[#9898a0]">
                 Password
               </label>
               <input
@@ -77,14 +92,15 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="px-3 py-2.5 rounded-lg bg-bg-tertiary border border-white/[0.1] text-text-primary placeholder-text-ghost text-sm focus:outline-none focus:border-white/[0.25] transition-colors"
+                className="h-11 px-3 rounded-lg bg-[#16161a] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
               />
             </div>
 
             {error && (
               <motion.p
-                initial={{ opacity: 0, y: -6 }}
+                initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.15 }}
                 className="text-xs text-[#e74c3c] bg-[#e74c3c]/10 border border-[#e74c3c]/20 rounded-lg px-3 py-2"
               >
                 {error}
@@ -94,9 +110,9 @@ export default function LoginPage() {
             <motion.button
               type="submit"
               disabled={loading}
-              whileHover={{ scale: loading ? 1 : 1.02 }}
+              whileHover={{ scale: loading ? 1 : 1.015 }}
               whileTap={{ scale: loading ? 1 : 0.97 }}
-              className="mt-2 py-3 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+              className="mt-1 h-11 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -109,17 +125,7 @@ export default function LoginPage() {
             </motion.button>
           </form>
 
-          <div className="mt-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/[0.1]" />
-            <span className="text-xs text-text-ghost uppercase tracking-wider">or</span>
-            <div className="flex-1 h-px bg-white/[0.1]" />
-          </div>
-
-          <div className="mt-4">
-            <GoogleSignInButton onError={(msg) => setError(msg)} />
-          </div>
-
-          <p className="mt-6 text-center text-sm text-text-secondary">
+          <p className="mt-6 text-center text-sm text-[#5c5c66]">
             No account?{' '}
             <Link
               href="/register"

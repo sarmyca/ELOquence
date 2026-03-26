@@ -10,23 +10,31 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          base: '#121215',
-          primary: '#18191d',
-          secondary: '#1f2024',
-          tertiary: '#282a2e',
-          elevated: '#313338',
+          base: '#09090b',
+          primary: '#0f0f12',
+          secondary: '#16161a',
+          tertiary: '#1e1e23',
+          elevated: '#27272e',
         },
         text: {
-          primary: '#f2f3f5',
-          accent: '#dcdee1',
-          secondary: '#b0b5bc',
-          tertiary: '#8b919a',
-          ghost: '#6b7280',
+          primary: '#ededf0',
+          secondary: '#9898a0',
+          tertiary: '#5c5c66',
+          ghost: '#3c3c44',
         },
         tile: {
-          correct: '#5a9e54',
-          present: '#c4a83d',
-          absent: '#44464a',
+          correct: '#538d4e',
+          present: '#b59f3b',
+          absent: '#3a3a3c',
+          empty: '#16161a',
+        },
+        w: {
+          green: '#538d4e',
+          'green-light': '#6aaa64',
+          'green-bright': '#7ec878',
+          yellow: '#b59f3b',
+          'yellow-light': '#c9b458',
+          gray: '#3a3a3c',
         },
         classification: {
           brilliant: '#1565c0',
@@ -49,6 +57,22 @@ const config: Config = {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
+      },
+      borderRadius: {
+        card: '12px',
+        'card-lg': '16px',
+      },
+      boxShadow: {
+        'glow-green': '0 0 24px rgba(83,141,78,0.2), 0 0 80px rgba(83,141,78,0.06)',
+        'glow-green-lg': '0 0 30px rgba(83,141,78,0.3), 0 0 100px rgba(83,141,78,0.08)',
+        'glow-yellow': '0 0 24px rgba(181,159,59,0.2), 0 0 80px rgba(181,159,59,0.06)',
+        'card': '0 1px 4px rgba(0,0,0,0.3)',
+        'card-hover': '0 4px 20px rgba(0,0,0,0.4)',
+        'elevated': '0 8px 32px rgba(0,0,0,0.5)',
+        'modal': '0 24px 64px rgba(0,0,0,0.7)',
+      },
+      animation: {
+        'shimmer': 'shimmer 2s ease-in-out infinite',
       },
     },
   },

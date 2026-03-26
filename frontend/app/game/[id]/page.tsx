@@ -34,9 +34,7 @@ export default function GamePage() {
   const [patterns, setPatterns] = useState<number[]>([]);
   const [gameStatus, setGameStatus] = useState<GameStatus>('in_progress');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // shakeRow: index of row to shake (-1 = none)
   const [shakeRow, setShakeRow] = useState(-1);
-  // revealRow: index of row currently doing flip animation (-1 = none)
   const [revealRow, setRevealRow] = useState(-1);
   const [toastMsg, setToastMsg] = useState('');
   const [toastVisible, setToastVisible] = useState(false);
@@ -80,7 +78,7 @@ export default function GamePage() {
     };
 
     const fetchGame = user
-      ? gamesApi.get(id).catch(() => dailyApi.guestGame(id))  // fallback to guest game
+      ? gamesApi.get(id).catch(() => dailyApi.guestGame(id))
       : dailyApi.guestGame(id);
 
     fetchGame
@@ -111,7 +109,6 @@ export default function GamePage() {
     guess.split('').forEach((letter: string, i: number) => {
       const current = letterStates[letter];
       const next = tiles[i];
-      // Priority: correct > present > absent
       if (current === 'correct') return;
       if (current === 'present' && next === 'absent') return;
       letterStates[letter] = next;
@@ -151,7 +148,6 @@ export default function GamePage() {
         : await dailyApi.guestGuess(id, currentGuess);
       const updatedGame: Game = res.data;
 
-      // Extract the pattern from the latest move in the response
       const sortedMoves = [...(updatedGame.moves || [])].sort(
         (a, b) => a.move_number - b.move_number
       );
@@ -160,12 +156,10 @@ export default function GamePage() {
 
       const rowIndex = guesses.length;
 
-      // Add the guess + pattern immediately so the board renders the revealed colors
       setGuesses((prev: string[]) => [...prev, currentGuess]);
       setPatterns((prev: number[]) => [...prev, pattern]);
       setCurrentGuess('');
 
-      // Save daily progress after every guess
       if (updatedGame.mode === 'daily') {
         const today = localDateStr();
         const allPatterns = [...patterns, pattern];
@@ -173,14 +167,10 @@ export default function GamePage() {
         localStorage.setItem(`eloquence_daily_game_id_${today}`, id);
       }
 
-      // Start flip animation on this row
       setRevealRow(rowIndex);
-
-      // Trigger radial wave effect
       setWavePattern(pattern);
       setWaveTrigger((prev: number) => prev + 1);
 
-      // After animation completes, clear flip flag and check win/lose
       setTimeout(() => {
         setRevealRow(-1);
 
@@ -189,7 +179,6 @@ export default function GamePage() {
         setGameStatus(status);
 
         if (status !== 'in_progress') {
-          // Mark daily as completed
           if (updatedGame.mode === 'daily') {
             const today = localDateStr();
             localStorage.setItem(`eloquence_daily_played_${today}`, 'true');
@@ -197,8 +186,8 @@ export default function GamePage() {
 
           setTimeout(() => setModalOpen(true), 250);
 
-          // Show achievement toasts for newly unlocked achievements
-          const newlyUnlocked: string[] = (updatedGame as Game & { newly_unlocked?: string[] }).newly_unlocked || [];
+          const newlyUnlocked: string[] =
+            (updatedGame as Game & { newly_unlocked?: string[] }).newly_unlocked || [];
           if (newlyUnlocked.length > 0) {
             const toastAchievements = newlyUnlocked.map((type) => {
               const meta = ACHIEVEMENT_META[type];
@@ -247,16 +236,25 @@ export default function GamePage() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Derive mode label for the pill badge
+  const modeLabel = game
+    ? game.mode === 'competitive'
+      ? game.is_placement
+        ? 'Placement'
+        : 'Competitive'
+      : game.mode.charAt(0).toUpperCase() + game.mode.slice(1)
+    : null;
+
   if (loadingGame) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+        <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="relative z-10 flex flex-col items-center h-[calc(100dvh-56px)] pt-1 pb-2 px-2 select-none justify-between">
+    <div className="relative z-10 flex flex-col items-center h-[calc(100dvh-56px)] pt-2 pb-2 px-2 select-none">
       <Toast message={toastMsg} visible={toastVisible} />
       <AchievementToast
         achievements={unlockedAchievements}
@@ -264,10 +262,11 @@ export default function GamePage() {
       />
       <GuessWaveEffect pattern={wavePattern} triggerKey={waveTrigger} />
 
-      {/* Top bar */}
-      <div className="w-full max-w-lg flex items-center justify-between px-2 mb-1">
+      {/* ── Top bar ── */}
+      <div className="w-full max-w-lg flex items-center justify-between px-1 mb-2 shrink-0">
+        {/* Back button */}
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          whileTap={{ scale: 0.92 }}
           onClick={() => {
             if (game?.rated && gameStatus === 'in_progress') {
               setShowAbandonConfirm(true);
@@ -275,33 +274,33 @@ export default function GamePage() {
               router.push('/play');
             }
           }}
-          className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-white/[0.06] transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-[#9898a0] hover:text-[#ededf0] hover:bg-white/[0.06] transition-colors"
           aria-label="Back to mode selection"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={17} />
         </motion.button>
 
-        <div className="flex flex-col items-center">
-          {game && (
-            <span className="text-xs text-text-tertiary capitalize font-medium">
-              {game.mode}
-              {game.is_placement && game.mode === 'competitive' && (
-                <span className="ml-1 text-[#b59f3b]">· Placement</span>
-              )}
-            </span>
-          )}
-        </div>
+        {/* Mode pill badge */}
+        {modeLabel && (
+          <span className="rounded-full bg-white/[0.06] text-[#9898a0] text-xs px-3 py-1 font-medium tracking-wide">
+            {modeLabel}
+          </span>
+        )}
 
-        {game?.mode === 'competitive' && (
-          <div className="flex items-center gap-1 text-text-secondary text-sm font-mono">
-            <Timer size={14} />
+        {/* Timer (competitive only) */}
+        {game?.mode === 'competitive' ? (
+          <div className="flex items-center gap-1.5 text-[#9898a0] text-xs font-mono tabular-nums min-w-[44px] justify-end">
+            <Timer size={13} strokeWidth={1.8} />
             <span>{formatTime(elapsed)}</span>
           </div>
+        ) : (
+          /* Spacer to keep pill centered when no timer */
+          <div className="w-8" />
         )}
       </div>
 
-      {/* Game board */}
-      <div className="flex items-start justify-center w-full pt-8">
+      {/* ── Board — flex-1 so it takes available space between header and keyboard ── */}
+      <div className="flex-1 flex items-center justify-center w-full">
         <GameBoard
           guesses={guesses}
           patterns={patterns}
@@ -311,43 +310,35 @@ export default function GamePage() {
         />
       </div>
 
-      {/* Guess progress + hints bar */}
-      <div className="flex-1 flex items-center justify-center w-full max-w-lg px-4">
-        <div className="flex items-center gap-4">
-          {/* Guess counter dots */}
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: 6 }).map((_, i) => {
-              const isUsed = i < guesses.length;
-              const isCurrent = i === guesses.length && gameStatus === 'in_progress';
-              let dotColor = 'bg-white/[0.08]';
-              if (isUsed && patterns[i] !== undefined) {
-                const tiles = patternToTiles(patterns[i]);
-                const greens = tiles.filter(t => t === 'correct').length;
-                if (greens === 5) dotColor = 'bg-tile-correct';
-                else if (greens > 0) dotColor = 'bg-tile-correct/60';
-                else if (tiles.some(t => t === 'present')) dotColor = 'bg-tile-present/60';
-                else dotColor = 'bg-tile-absent';
-              }
-              return (
-                <div
-                  key={i}
-                  className={`rounded-full transition-all duration-300 ${dotColor} ${
-                    isCurrent ? 'w-2.5 h-2.5 ring-1 ring-white/20' : 'w-2 h-2'
-                  }`}
-                />
-              );
-            })}
-          </div>
-          {gameStatus === 'in_progress' && guesses.length > 0 && (
-            <span className="text-[11px] text-text-ghost font-mono tabular-nums">
-              {guesses.length}/6
-            </span>
-          )}
-        </div>
+      {/* ── Progress dots ── */}
+      <div className="flex items-center justify-center gap-1.5 mb-3 shrink-0" aria-label="Guess progress">
+        {Array.from({ length: 6 }).map((_, i) => {
+          const isUsed = i < guesses.length;
+          const isCurrent = i === guesses.length && gameStatus === 'in_progress';
+
+          let dotColor = 'bg-white/[0.08]';
+          if (isUsed && patterns[i] !== undefined) {
+            const tiles = patternToTiles(patterns[i]);
+            const greens = tiles.filter((t) => t === 'correct').length;
+            if (greens === 5) dotColor = 'bg-[#538d4e]';
+            else if (greens > 0) dotColor = 'bg-[#538d4e]/60';
+            else if (tiles.some((t) => t === 'present')) dotColor = 'bg-[#b59f3b]/60';
+            else dotColor = 'bg-[#3a3a3c]';
+          }
+
+          return (
+            <div
+              key={i}
+              className={`rounded-full transition-all duration-300 ${dotColor} ${
+                isCurrent ? 'w-2 h-2 ring-1 ring-white/20' : 'w-1.5 h-1.5'
+              }`}
+            />
+          );
+        })}
       </div>
 
-      {/* Virtual keyboard */}
-      <div className="w-full px-1 pb-6 flex justify-center">
+      {/* ── Virtual keyboard ── */}
+      <div className="w-full flex justify-center shrink-0 pb-safe">
         <Keyboard
           onKey={handleKey}
           onEnter={handleEnter}
@@ -356,7 +347,7 @@ export default function GamePage() {
         />
       </div>
 
-      {/* Abandon confirmation modal */}
+      {/* ── Abandon confirmation modal ── */}
       <AnimatePresence>
         {showAbandonConfirm && (
           <>
@@ -364,45 +355,54 @@ export default function GamePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.18 }}
               className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
               onClick={() => !abandoning && setShowAbandonConfirm(false)}
             />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
               <motion.div
-                initial={{ opacity: 0, scale: 0.88, y: 24 }}
+                initial={{ opacity: 0, scale: 0.88, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 16 }}
+                exit={{ opacity: 0, scale: 0.92, y: 12 }}
                 transition={springs.modal}
-                className="w-full max-w-xs bg-bg-secondary rounded-2xl border border-white/[0.1] shadow-2xl overflow-hidden"
+                className="w-full max-w-xs bg-[#16161a] rounded-2xl border border-white/[0.10] shadow-modal overflow-hidden pointer-events-auto"
               >
-                <div className="h-1.5 w-full bg-[#e74c3c]" />
+                {/* Danger stripe */}
+                <div className="h-1 w-full bg-[#e74c3c]" />
+
                 <div className="p-5 flex flex-col gap-4">
                   <div className="flex flex-col items-center gap-2 text-center">
-                    <AlertTriangle size={28} className="text-[#e74c3c]" />
-                    <h3 className="text-base font-bold text-text-primary">Abandon game?</h3>
-                    <p className="text-xs text-text-secondary leading-relaxed">
-                      This will count as a <span className="text-[#e74c3c] font-semibold">loss</span> and you will lose ELO.
+                    <div className="w-10 h-10 rounded-full bg-[#e74c3c]/[0.12] flex items-center justify-center">
+                      <AlertTriangle size={20} className="text-[#e74c3c]" />
+                    </div>
+                    <h3 className="text-sm font-bold text-[#ededf0]">Abandon game?</h3>
+                    <p className="text-xs text-[#9898a0] leading-relaxed">
+                      This counts as a{' '}
+                      <span className="text-[#e74c3c] font-semibold">loss</span> and you will
+                      lose ELO.
                     </p>
                   </div>
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => setShowAbandonConfirm(false)}
                       disabled={abandoning}
-                      className="flex-1 py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors border border-white/[0.08]"
+                      className="flex-1 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.09] text-[#ededf0] font-medium text-xs transition-colors border border-white/[0.08] disabled:opacity-50"
                     >
-                      Continue playing
+                      Keep playing
                     </button>
                     <button
                       onClick={async () => {
                         setAbandoning(true);
                         try {
                           await gamesApi.delete(id);
-                        } catch { /* ignore */ }
+                        } catch {
+                          /* ignore */
+                        }
                         router.push('/play');
                       }}
                       disabled={abandoning}
-                      className="flex-1 py-2.5 rounded-xl bg-[#e74c3c] hover:bg-[#c0392b] text-white font-medium text-sm transition-colors"
+                      className="flex-1 py-2.5 rounded-xl bg-[#e74c3c] hover:bg-[#c0392b] text-white font-medium text-xs transition-colors disabled:opacity-60"
                     >
                       {abandoning ? 'Leaving...' : 'Abandon'}
                     </button>
@@ -414,8 +414,16 @@ export default function GamePage() {
         )}
       </AnimatePresence>
 
-      {/* Game over modal */}
-      {game && <GameOverModal game={game} open={modalOpen} isGuest={!user} onClose={() => setModalOpen(false)} gamesPlayed={user?.games_played} />}
+      {/* ── Game over modal ── */}
+      {game && (
+        <GameOverModal
+          game={game}
+          open={modalOpen}
+          isGuest={!user}
+          onClose={() => setModalOpen(false)}
+          gamesPlayed={user?.games_played}
+        />
+      )}
     </div>
   );
 }

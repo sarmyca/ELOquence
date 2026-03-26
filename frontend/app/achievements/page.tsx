@@ -18,6 +18,114 @@ interface UnlockedAchievement {
   unlocked_at: string;
 }
 
+interface MergedAchievement {
+  type: string;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+// ---- Skeleton card ----------------------------------------------------------
+
+function SkeletonCard() {
+  return (
+    <div
+      className="flex flex-col items-center gap-2.5 rounded-[12px] px-4 py-5"
+      style={{ background: '#0f0f12', border: '1px solid rgba(255,255,255,0.04)' }}
+    >
+      <div className="w-9 h-9 rounded-full bg-bg-elevated animate-pulse" />
+      <div className="w-16 h-2.5 rounded-full bg-bg-elevated animate-pulse" />
+      <div className="w-20 h-2 rounded-full bg-bg-elevated/60 animate-pulse" />
+    </div>
+  );
+}
+
+// ---- Achievement card -------------------------------------------------------
+
+interface AchievementCardProps {
+  ach: MergedAchievement;
+  index: number;
+  unlockedAt: string | undefined;
+}
+
+function AchievementCard({ ach, index, unlockedAt }: AchievementCardProps) {
+  const isUnlocked = !!unlockedAt;
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+
+  return (
+    <motion.div
+      variants={{
+        hidden: { opacity: 0, y: 18, scale: 0.95 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          transition: {
+            type: 'spring',
+            damping: 22,
+            stiffness: 320,
+            delay: index * 0.04,
+          },
+        },
+      }}
+      className="relative flex flex-col items-center text-center gap-2 rounded-[12px] px-4 py-5 transition-opacity"
+      style={{
+        background: '#0f0f12',
+        border: '1px solid rgba(255,255,255,0.06)',
+        opacity: isUnlocked ? 1 : 0.4,
+        filter: isUnlocked ? 'none' : 'grayscale(1)',
+        ...(isUnlocked
+          ? {
+              boxShadow:
+                'inset 0 2px 0 0 rgba(83,141,78,0.55), 0 1px 4px rgba(0,0,0,0.3)',
+            }
+          : {}),
+      }}
+    >
+      {/* Lock overlay */}
+      {!isUnlocked && (
+        <div className="absolute top-2.5 right-2.5">
+          <Lock size={11} className="text-text-ghost" />
+        </div>
+      )}
+
+      {/* Icon */}
+      <span
+        className="text-[30px] leading-none"
+        role="img"
+        aria-label={ach.name}
+      >
+        {ach.icon}
+      </span>
+
+      {/* Name */}
+      <span className="text-xs font-semibold text-text-primary leading-tight">
+        {ach.name}
+      </span>
+
+      {/* Description */}
+      <span className="text-[10px] text-text-secondary leading-snug">
+        {ach.description}
+      </span>
+
+      {/* Unlocked date */}
+      {isUnlocked && unlockedAt && (
+        <span className="text-[9px] text-text-ghost mt-auto pt-0.5">
+          {formatDate(unlockedAt)}
+        </span>
+      )}
+    </motion.div>
+  );
+}
+
+// ---- Page -------------------------------------------------------------------
+
 export default function AchievementsPage() {
   const [allAchievements, setAllAchievements] = useState<AchievementDef[]>([]);
   const [unlocked, setUnlocked] = useState<UnlockedAchievement[]>([]);
@@ -36,25 +144,8 @@ export default function AchievementsPage() {
 
   const unlockedMap = new Map(unlocked.map((u) => [u.type, u.unlocked_at]));
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
-      </div>
-    );
-  }
-
-  // Merge server data with local ACHIEVEMENT_META for icons/descriptions
-  const mergedAchievements = allAchievements.map((a) => {
+  // Merge server data with local ACHIEVEMENT_META for icons / descriptions
+  const mergedAchievements: MergedAchievement[] = allAchievements.map((a) => {
     const meta = ACHIEVEMENT_META[a.type];
     return {
       type: a.type,
@@ -66,113 +157,113 @@ export default function AchievementsPage() {
 
   const unlockedCount = unlocked.length;
   const totalCount = mergedAchievements.length;
+  const progressPct = totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0;
+
+  // ---- Render: loading ----
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Header skeleton */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-5 h-5 rounded bg-bg-elevated animate-pulse" />
+            <div className="w-32 h-5 rounded bg-bg-elevated animate-pulse" />
+          </div>
+          <div className="w-20 h-3.5 rounded bg-bg-elevated/60 animate-pulse mt-1 mb-3" />
+          <div className="h-1.5 w-48 rounded-full bg-bg-elevated animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         className="mb-6"
       >
-        <div className="flex items-center gap-3 mb-1">
-          <Trophy size={22} className="text-[#c9a227]" />
-          <h1 className="text-2xl font-bold text-text-primary">Achievements</h1>
+        <div className="flex items-center gap-2.5 mb-0.5">
+          <Trophy size={20} color="#c9a227" strokeWidth={1.8} aria-hidden="true" />
+          <h1 className="text-xl font-bold text-text-primary tracking-tight">
+            Achievements
+          </h1>
         </div>
-        <p className="text-sm text-text-secondary">
-          {unlockedCount} / {totalCount} unlocked
+
+        <p className="text-sm text-text-secondary mb-3">
+          <span className="text-text-primary font-semibold">{unlockedCount}</span>
+          <span className="text-text-ghost"> / {totalCount}</span>
+          {' '}unlocked
         </p>
+
         {/* Progress bar */}
-        <div className="mt-3 h-1.5 w-full max-w-xs bg-bg-tertiary rounded-full overflow-hidden">
+        <div
+          className="relative h-1.5 max-w-[240px] rounded-full overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+          role="progressbar"
+          aria-valuenow={unlockedCount}
+          aria-valuemin={0}
+          aria-valuemax={totalCount}
+          aria-label={`${unlockedCount} of ${totalCount} achievements unlocked`}
+        >
           <motion.div
-            className="h-full bg-[#c9a227] rounded-full"
-            initial={{ width: 0 }}
-            animate={{
-              width: totalCount > 0 ? `${(unlockedCount / totalCount) * 100}%` : '0%',
+            className="absolute inset-y-0 left-0 rounded-full"
+            initial={{ width: '0%' }}
+            animate={{ width: `${progressPct}%` }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+            style={{
+              background:
+                'linear-gradient(90deg, #a07a18 0%, #c9a227 50%, #e8c84a 100%)',
             }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
           />
         </div>
       </motion.div>
 
+      {/* Error state */}
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+        <div
+          className="mb-4 px-4 py-3 rounded-[10px] text-sm"
+          style={{
+            background: 'rgba(231,76,60,0.08)',
+            border: '1px solid rgba(231,76,60,0.2)',
+            color: '#f87171',
+          }}
+          role="alert"
+        >
           {error}
         </div>
       )}
 
-      {/* Achievement grid */}
-      <motion.div
-        variants={{ visible: stagger.medium }}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
-      >
-        {mergedAchievements.map((ach, i) => {
-          const unlockedAt = unlockedMap.get(ach.type);
-          const isUnlocked = !!unlockedAt;
-
-          return (
-            <motion.div
+      {/* Grid */}
+      {mergedAchievements.length > 0 ? (
+        <motion.div
+          variants={{ visible: stagger.medium }}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+        >
+          {mergedAchievements.map((ach, i) => (
+            <AchievementCard
               key={ach.type}
-              variants={{
-                hidden: { opacity: 0, y: 16, scale: 0.96 },
-                visible: {
-                  opacity: 1,
-                  y: 0,
-                  scale: 1,
-                  transition: {
-                    type: 'spring',
-                    damping: 22,
-                    stiffness: 350,
-                    delay: i * 0.04,
-                  },
-                },
-              }}
-              className={`relative flex flex-col items-center text-center gap-2 rounded-2xl border px-3 py-4 transition-colors ${
-                isUnlocked
-                  ? 'bg-bg-secondary border-white/[0.1] opacity-100'
-                  : 'bg-bg-tertiary/50 border-white/[0.04] opacity-50 grayscale'
-              }`}
-            >
-              {/* Lock icon overlay for locked achievements */}
-              {!isUnlocked && (
-                <div className="absolute top-2 right-2">
-                  <Lock size={12} className="text-text-ghost" />
-                </div>
-              )}
-
-              {/* Icon */}
-              <span className="text-3xl leading-none" role="img" aria-label={ach.name}>
-                {ach.icon}
-              </span>
-
-              {/* Name */}
-              <span className="text-xs font-semibold text-text-primary leading-tight">
-                {ach.name}
-              </span>
-
-              {/* Description */}
-              <span className="text-[10px] text-text-secondary leading-tight">
-                {ach.description}
-              </span>
-
-              {/* Unlocked date */}
-              {isUnlocked && unlockedAt && (
-                <span className="text-[10px] text-text-ghost mt-auto">
-                  {formatDate(unlockedAt)}
-                </span>
-              )}
-            </motion.div>
-          );
-        })}
-      </motion.div>
-
-      {mergedAchievements.length === 0 && !error && (
-        <div className="text-center py-16 text-text-secondary text-sm">
-          No achievements found.
-        </div>
+              ach={ach}
+              index={i}
+              unlockedAt={unlockedMap.get(ach.type)}
+            />
+          ))}
+        </motion.div>
+      ) : (
+        !error && (
+          <div className="text-center py-20 text-text-secondary text-sm">
+            No achievements found.
+          </div>
+        )
       )}
     </div>
   );

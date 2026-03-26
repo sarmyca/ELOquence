@@ -26,7 +26,6 @@ function randomizeTitleLetters() {
 
 const MAGNETIC_RADIUS = 2;
 
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -38,7 +37,6 @@ function neighbourY(distance: number): number {
 }
 
 function neighbourRotateZ(distance: number, signTowardHover: number): number {
-  // Tiles lean slightly toward the hovered tile
   if (distance === 1) return signTowardHover * 3;
   if (distance === 2) return signTowardHover * 1;
   return 0;
@@ -53,9 +51,6 @@ function neighbourScale(distance: number): number {
 // ---------------------------------------------------------------------------
 // SingleTile
 // ---------------------------------------------------------------------------
-// Encapsulates boot animation + hover state for one tile.
-// Boot phase: driven by useAnimate so we get fine-grained sequencing.
-// Idle / hover / neighbour phase: driven by the `animate` prop after boot.
 
 interface SingleTileProps {
   tile: { char: string; color: string };
@@ -81,15 +76,13 @@ function SingleTile({
   const dist =
     hoveredIndex !== null ? Math.abs(index - hoveredIndex) : Infinity;
   const inRadius = dist <= MAGNETIC_RADIUS && !isHovered;
-  // +1 if tile is to the RIGHT of hovered (should lean left), -1 if to the left
   const signTowardHover =
     hoveredIndex !== null && index > hoveredIndex ? -1 : 1;
 
-  // Derive the animate target after boot
   type TileTarget = { y: number; scale: number; rotateZ: number; opacity: number; rotateX: number };
   let idleTarget: TileTarget = { y: 0, scale: 1, rotateZ: 0, opacity: 1, rotateX: 0 };
   if (isHovered) {
-    idleTarget = { y: -11, scale: 1.15, rotateZ: 0, opacity: 1, rotateX: 0 };
+    idleTarget = { y: -12, scale: 1.15, rotateZ: 0, opacity: 1, rotateX: 0 };
   } else if (inRadius) {
     idleTarget = {
       y: neighbourY(dist),
@@ -100,12 +93,13 @@ function SingleTile({
     };
   }
 
+  const idleShadow = `0 4px 16px ${tile.color}25`;
+  const hoverShadow = `0 8px 40px ${tile.color}40, 0 0 0 1px ${tile.color}30`;
+
   return (
     <motion.span
       data-tile={index}
-      // ---- Boot: start fully hidden, flipped backward
       initial={{ rotateX: 90, opacity: 0, scale: 0.85, y: 8 }}
-      // ---- Boot entry animation (runs once on mount)
       animate={
         bootDone
           ? idleTarget
@@ -125,24 +119,21 @@ function SingleTile({
             }
       }
       onAnimationComplete={() => {
-        // Only fire the parent callback during the boot phase
         if (!bootDone) onBootComplete();
       }}
       whileHover={{
-        y: -11,
+        y: -12,
         scale: 1.15,
         rotateZ: 0,
         transition: springs.snappy,
       }}
       onHoverStart={() => onHoverStart(index)}
       onHoverEnd={onHoverEnd}
-      className="relative w-11 h-11 sm:w-[60px] sm:h-[60px] md:w-[72px] md:h-[72px] flex items-center justify-center rounded-lg text-white text-2xl sm:text-4xl md:text-5xl font-bold select-none cursor-default"
+      className="relative w-14 h-14 sm:w-[72px] sm:h-[72px] md:w-[84px] md:h-[84px] flex items-center justify-center rounded-lg text-white text-3xl sm:text-4xl md:text-5xl font-bold select-none cursor-default"
       style={{
         backgroundColor: tile.color,
         transformStyle: 'preserve-3d',
-        boxShadow: isHovered
-          ? `0 10px 36px ${tile.color}99, 0 0 0 2px ${tile.color}55`
-          : `0 4px 20px ${tile.color}33`,
+        boxShadow: isHovered ? hoverShadow : idleShadow,
         transition: 'box-shadow 0.15s ease',
         zIndex: isHovered ? 10 : 'auto',
       }}
@@ -159,7 +150,6 @@ function SingleTile({
 function TitleRow() {
   const [tiles] = useState(() => randomizeTitleLetters());
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  // Track how many tiles have completed their boot flip
   const landedCount = useRef(0);
   const [bootDone, setBootDone] = useState(false);
 
@@ -172,15 +162,12 @@ function TitleRow() {
     }
   };
 
-  // Once all tiles have landed, run the collective post-land sequence
   useEffect(() => {
     if (!bootDone) return;
 
     const runPostLand = async () => {
-      // Small settle pause
       await new Promise<void>((r) => setTimeout(r, 60));
 
-      // Collective scale pop staggered across tiles
       await animateRow(
         'span[data-tile]',
         { scale: [1, 1.07, 1] },
@@ -190,7 +177,6 @@ function TitleRow() {
           delay: (i: number) => i * 0.035,
         },
       );
-
     };
 
     runPostLand();
@@ -199,7 +185,7 @@ function TitleRow() {
   return (
     <motion.div
       ref={rowScope}
-      className="relative flex gap-1.5 sm:gap-2"
+      className="relative flex gap-2 sm:gap-2.5"
       inherit={false}
       style={{ perspective: 900 }}
     >
@@ -235,18 +221,16 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[80dvh]">
+      <div className="flex items-center justify-center min-h-dvh bg-[#09090b]">
         <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4 overflow-hidden">
-
-      {/* Hero */}
+    <div className="flex items-center justify-center min-h-dvh bg-[#09090b] px-4">
       <motion.div
-        className="relative z-10 flex flex-col items-center text-center gap-8 max-w-2xl"
+        className="flex flex-col items-center text-center"
         initial="hidden"
         animate="visible"
         variants={{
@@ -254,37 +238,48 @@ export default function HomePage() {
           visible: { transition: stagger.slow },
         }}
       >
-        {/* Animated title row */}
+        {/* Animated title tiles */}
         <TitleRow />
 
+        {/* Tagline */}
         <motion.p
           variants={{
-            hidden: { opacity: 0, y: 16 },
+            hidden: { opacity: 0, y: 14 },
             visible: { opacity: 1, y: 0, transition: springs.page },
           }}
-          className="text-lg sm:text-xl text-text-secondary max-w-md leading-relaxed"
+          className="mt-8 text-xl sm:text-2xl font-semibold text-[#ededf0] tracking-tight"
         >
-          Competitive Wordle.
-          <br className="hidden sm:block" />
-          Compete, analyze, improve.
+          Competitive Wordle
         </motion.p>
 
-        <motion.div
+        {/* Sub-tagline */}
+        <motion.p
           variants={{
-            hidden: { opacity: 0, y: 12 },
+            hidden: { opacity: 0, y: 10 },
             visible: { opacity: 1, y: 0, transition: springs.page },
           }}
-          className="flex flex-col sm:flex-row gap-3 mt-2"
+          className="mt-2 text-base text-[#9898a0]"
+        >
+          Compete. Analyze. Improve.
+        </motion.p>
+
+        {/* CTAs */}
+        <motion.div
+          variants={{
+            hidden: { opacity: 0, y: 10 },
+            visible: { opacity: 1, y: 0, transition: springs.page },
+          }}
+          className="mt-10 flex flex-row gap-4"
         >
           <Link
             href="/play"
-            className="group relative w-36 py-3.5 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white font-semibold text-sm text-center transition-all duration-200 shadow-lg shadow-[#538d4e]/25 hover:shadow-[#538d4e]/40 hover:scale-[1.02] active:scale-[0.98]"
+            className="inline-flex items-center justify-center px-10 py-3.5 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white font-semibold text-sm transition-all duration-200 hover:shadow-[0_0_24px_rgba(83,141,78,0.45)] active:scale-[0.97]"
           >
             Play
           </Link>
           <Link
             href="/login"
-            className="w-36 py-3.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-text-primary font-semibold text-sm text-center transition-all duration-200 border border-white/[0.1] hover:border-white/[0.2] hover:scale-[1.02] active:scale-[0.98]"
+            className="inline-flex items-center justify-center px-8 py-3.5 rounded-xl bg-transparent border border-white/[0.09] hover:border-white/[0.15] text-[#9898a0] hover:text-[#ededf0] font-semibold text-sm transition-all duration-200 active:scale-[0.97]"
           >
             Sign In
           </Link>

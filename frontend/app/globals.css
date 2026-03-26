@@ -3,97 +3,145 @@
 @tailwind utilities;
 
 :root {
-  --bg-base: #121215;
-  --bg-primary: #18191d;
-  --bg-secondary: #1f2024;
-  --bg-tertiary: #282a2e;
-  --bg-elevated: #313338;
-  --bg-hover: rgba(255, 255, 255, 0.06);
-  --bg-active: rgba(255, 255, 255, 0.09);
+  /* ── Backgrounds — true OLED blacks ── */
+  --bg-base: #09090b;
+  --bg-primary: #0f0f12;
+  --bg-secondary: #16161a;
+  --bg-tertiary: #1e1e23;
+  --bg-elevated: #27272e;
+  --bg-hover: rgba(255, 255, 255, 0.035);
+  --bg-active: rgba(255, 255, 255, 0.06);
 
-  --text-primary: #f2f3f5;
-  --text-accent: #dcdee1;
-  --text-secondary: #b0b5bc;
-  --text-tertiary: #8b919a;
-  --text-ghost: #6b7280;
+  /* ── Text — clean hierarchy ── */
+  --text-primary: #ededf0;
+  --text-secondary: #9898a0;
+  --text-tertiary: #5c5c66;
+  --text-ghost: #3c3c44;
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-default: rgba(255, 255, 255, 0.13);
-  --border-strong: rgba(255, 255, 255, 0.2);
-  --border-focus: rgba(255, 255, 255, 0.3);
+  /* ── Borders ── */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --border-focus: rgba(106, 170, 100, 0.5);
 
-  --tile-correct: #5a9e54;
-  --tile-present: #c4a83d;
-  --tile-absent: #44464a;
-  --tile-empty: #282a2e;
-  --tile-border: rgba(255, 255, 255, 0.18);
+  /* ── Wordle tile colors (authentic) ── */
+  --tile-correct: #538d4e;
+  --tile-present: #b59f3b;
+  --tile-absent: #3a3a3c;
+  --tile-empty: #16161a;
+  --tile-border: rgba(255, 255, 255, 0.10);
 
-  --tile-size: clamp(48px, calc((100dvh - 320px) / 7.5), 66px);
-  --tile-gap: clamp(4px, 0.75vw, 6px);
-  --key-height: clamp(42px, 7.5vw, 58px);
+  /* ── Brand accents (derived from Wordle) ── */
+  --green: #538d4e;
+  --green-light: #6aaa64;
+  --green-bright: #7ec878;
+  --yellow: #b59f3b;
+  --yellow-light: #c9b458;
+  --gray: #3a3a3c;
+  --red: #e74c3c;
+
+  /* ── Layout ── */
+  --tile-size: clamp(50px, calc((100dvh - 300px) / 7), 62px);
+  --tile-gap: clamp(4px, 0.65vw, 6px);
+  --key-height: clamp(44px, 7.5vw, 56px);
+  --nav-height: 52px;
+  --radius: 12px;
+  --radius-lg: 16px;
 }
 
-* {
-  box-sizing: border-box;
-}
+/* ── Reset ── */
+* { box-sizing: border-box; }
 
 html {
   background-color: var(--bg-base);
+  color-scheme: dark;
 }
 
 body {
-  background-color: transparent;
+  background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
+  overflow-x: hidden;
 }
 
+/* ── Focus — Wordle green ring ── */
 *:focus-visible {
-  outline: 2px solid #6aaf60;
+  outline: 2px solid var(--green-light);
   outline-offset: 2px;
 }
 
-.font-mono {
-  font-variant-numeric: tabular-nums;
-}
+/* ── Tabular numbers for data ── */
+.font-mono { font-variant-numeric: tabular-nums; }
 
+/* ── Shimmer loader ── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
 .skeleton {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2s ease-in-out infinite;
 }
 
-/* React Flow overrides for dark theme */
+/* ── Glow utilities ── */
+.glow-green {
+  box-shadow: 0 0 24px rgba(83, 141, 78, 0.2), 0 0 80px rgba(83, 141, 78, 0.06);
+}
+.glow-green-lg {
+  box-shadow: 0 0 30px rgba(83, 141, 78, 0.3), 0 0 100px rgba(83, 141, 78, 0.08);
+}
+.glow-yellow {
+  box-shadow: 0 0 24px rgba(181, 159, 59, 0.2), 0 0 80px rgba(181, 159, 59, 0.06);
+}
+
+/* ── Card primitives ── */
+.card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+}
+.card-elevated {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.card-interactive {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+.card-interactive:hover {
+  border-color: var(--border-default);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* ── React Flow dark overrides ── */
 .react-flow__controls button {
-  background-color: #1e1f23 !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  color: #9ba1a6 !important;
-  fill: #9ba1a6 !important;
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-tertiary) !important;
+  fill: var(--text-tertiary) !important;
 }
-.react-flow__controls button:hover {
-  background-color: #26272c !important;
-}
-.react-flow__minimap {
-  background-color: #0f1012 !important;
-}
-.react-flow__edge-path {
-  stroke-linecap: round;
-}
+.react-flow__controls button:hover { background-color: var(--bg-tertiary) !important; }
+.react-flow__minimap { background-color: var(--bg-base) !important; }
+.react-flow__edge-path { stroke-linecap: round; }
 
-/* Color-blind mode */
+/* ── Color-blind mode ── */
 .colorblind {
   --tile-correct: #f5793a;
   --tile-present: #85c0f9;
-  --tile-absent: #3a3a3c;
+  --green: #f5793a;
+  --green-light: #ff8c4a;
 }
 
-/* Reduced motion */
+/* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -102,8 +150,6 @@ body {
     scroll-behavior: auto !important;
   }
 }
-
-/* Manual reduce-motion class (mirrors the media query for user toggle) */
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
@@ -111,10 +157,14 @@ body {
   scroll-behavior: auto !important;
 }
 
-/* App-wide grid background */
-.app-bg-grid {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 64px 64px;
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* ── Selection ── */
+::selection {
+  background: rgba(83, 141, 78, 0.3);
+  color: #fff;
 }

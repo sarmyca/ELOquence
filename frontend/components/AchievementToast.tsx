@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { springs } from '@/lib/animations';
 
@@ -93,47 +93,74 @@ function SingleToast({
   index: number;
   onDismiss: () => void;
 }) {
+  const dismissRef = useRef(onDismiss);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onDismiss();
-    }, 4000);
-    return () => clearTimeout(timer);
+    dismissRef.current = onDismiss;
   }, [onDismiss]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => dismissRef.current(), 4000 + index * 400);
+    return () => clearTimeout(timer);
+  }, [index]);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -24, scale: 0.92 }}
+      initial={{ opacity: 0, y: -20, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -12, scale: 0.95 }}
+      exit={{ opacity: 0, y: -10, scale: 0.95 }}
       transition={{ ...springs.snappy, delay: index * 0.12 }}
-      className="relative overflow-hidden flex items-center gap-3 bg-bg-elevated border border-[#c9a227]/30 rounded-xl px-4 py-3 shadow-2xl cursor-pointer"
+      className="relative overflow-hidden flex items-center gap-3 rounded-[14px] cursor-pointer select-none"
       onClick={onDismiss}
       role="status"
       aria-live="polite"
       style={{
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(201,162,39,0.15)',
+        background:
+          'linear-gradient(135deg, #1e1a0e 0%, #221e0f 40%, #1a1a1e 100%)',
+        border: '1px solid rgba(201, 162, 39, 0.28)',
+        boxShadow:
+          '0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(201,162,39,0.12), inset 0 1px 0 rgba(201,162,39,0.08)',
+        padding: '12px 16px 12px 0',
       }}
     >
-      {/* Gold shimmer overlay */}
-      <motion.div
-        className="pointer-events-none absolute inset-0 rounded-xl"
-        animate={{ x: ['-100%', '200%'] }}
-        transition={{ duration: 1.8, ease: 'easeInOut', delay: 0.2 }}
+      {/* Gold left accent bar */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[14px]"
         style={{
-          background:
-            'linear-gradient(105deg, transparent 40%, rgba(201,162,39,0.12) 50%, transparent 60%)',
+          background: 'linear-gradient(180deg, #e8c84a 0%, #c9a227 50%, #a07a18 100%)',
         }}
       />
 
+      {/* Shimmer sweep */}
+      <motion.div
+        className="pointer-events-none absolute inset-0"
+        animate={{ x: ['-110%', '200%'] }}
+        transition={{ duration: 1.6, ease: 'easeInOut', delay: 0.25 }}
+        style={{
+          background:
+            'linear-gradient(105deg, transparent 35%, rgba(201,162,39,0.1) 50%, transparent 65%)',
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Spacer for left bar */}
+      <div className="w-4 flex-shrink-0" aria-hidden="true" />
+
       {/* Icon */}
-      <span className="text-2xl leading-none flex-shrink-0" role="img" aria-label={achievement.name}>
+      <span
+        className="text-[22px] leading-none flex-shrink-0"
+        role="img"
+        aria-label={achievement.name}
+      >
         {achievement.icon}
       </span>
 
       {/* Text */}
       <div className="flex flex-col min-w-0">
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-[#c9a227]">
-          Achievement Unlocked!
+        <span
+          className="text-[10px] uppercase tracking-widest font-bold"
+          style={{ color: '#c9a227' }}
+        >
+          Achievement Unlocked
         </span>
         <span className="text-sm font-bold text-text-primary leading-tight truncate">
           {achievement.name}
@@ -150,14 +177,13 @@ export default function AchievementToast({
   return (
     <AnimatePresence>
       {achievements.length > 0 && (
-        <div className="pointer-events-none fixed top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 w-72">
+        <div
+          className="pointer-events-none fixed top-[72px] left-1/2 -translate-x-1/2 z-[65] flex flex-col items-center gap-2"
+          style={{ width: 288 }}
+        >
           {achievements.map((ach, i) => (
             <div key={ach.type} className="pointer-events-auto w-full">
-              <SingleToast
-                achievement={ach}
-                index={i}
-                onDismiss={onDismiss}
-              />
+              <SingleToast achievement={ach} index={i} onDismiss={onDismiss} />
             </div>
           ))}
         </div>

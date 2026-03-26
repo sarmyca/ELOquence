@@ -4,80 +4,134 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
+  TrendingUp,
   BarChart2,
   Flame,
   Trophy,
   Target,
   Hash,
-  TrendingUp,
   Clock,
   Trash2,
   Star,
+  Sun,
+  Swords,
+  FlaskConical,
+  Gamepad2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { gamesApi, usersApi } from '@/lib/api';
 import { Game, getRatingTier, RATING_TIERS, EloHistoryEntry } from '@/lib/types';
-import { springs, stagger } from '@/lib/animations';
+import { springs, stagger, easings } from '@/lib/animations';
 import EloSparkline from '@/components/EloSparkline';
 import GuessDistribution from '@/components/GuessDistribution';
 import clsx from 'clsx';
 
-const MODE_ICONS: Record<string, string> = {
-  daily: '☀',
-  competitive: '⚔',
-  practice: '⚗',
-};
+// ─── Mode icon map (Lucide, no emoji) ─────────────────────────────────────────
+function ModeIcon({ mode, size = 14 }: { mode: string; size?: number }) {
+  const cls = 'shrink-0 text-text-ghost';
+  if (mode === 'daily') return <Sun size={size} className={cls} />;
+  if (mode === 'competitive') return <Swords size={size} className={cls} />;
+  if (mode === 'practice') return <FlaskConical size={size} className={cls} />;
+  return <Gamepad2 size={size} className={cls} />;
+}
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  won: { label: 'Won', color: '#538d4e' },
-  lost: { label: 'Lost', color: '#e74c3c' },
+// ─── Status config ────────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  won:         { label: 'Won',        color: '#538d4e' },
+  lost:        { label: 'Lost',       color: '#e74c3c' },
   in_progress: { label: 'In Progress', color: '#b59f3b' },
-  abandoned: { label: 'Abandoned', color: '#565758' },
+  abandoned:   { label: 'Abandoned',  color: '#3c3c44' },
 };
 
+// ─── Date helper ─────────────────────────────────────────────────────────────
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   const now = new Date();
-  const diff = now.getTime() - d.getTime();
-  const days = Math.floor(diff / 86400000);
+  const days = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days}d ago`;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface UserStats {
   distribution?: Record<string, number>;
   losses?: number;
   [key: string]: unknown;
 }
 
+// ─── Shimmer skeleton ─────────────────────────────────────────────────────────
+function Shimmer({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div
+      className={clsx('skeleton rounded-md bg-bg-tertiary', className)}
+      style={style}
+    />
+  );
+}
+
+// ─── Stat card ────────────────────────────────────────────────────────────────
+interface StatCardProps {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  variants: object;
+}
+function StatCard({ label, value, icon, variants }: StatCardProps) {
+  return (
+    <motion.div
+      variants={variants}
+      className="flex flex-col gap-3 p-4 rounded-[12px] bg-bg-primary border border-white/[0.06]"
+    >
+      <div className="flex items-center gap-1.5 text-text-ghost">
+        {icon}
+        <span className="text-[11px] uppercase tracking-widest font-medium">
+          {label}
+        </span>
+      </div>
+      <span className="text-2xl font-mono font-bold tabular-nums text-text-primary leading-none">
+        {value}
+      </span>
+    </motion.div>
+  );
+}
+
+// ─── Section label ────────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-[11px] uppercase tracking-widest font-semibold text-text-ghost">
+      {children}
+    </span>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [games, setGames] = useState<Game[]>([]);
-  const [loadingGames, setLoadingGames] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // New state for Phase 2
-  const [eloHistory, setEloHistory] = useState<EloHistoryEntry[]>([]);
-  const [userStats, setUserStats] = useState<UserStats | null>(null);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
+  const [games,         setGames]         = useState<Game[]>([]);
+  const [loadingGames,  setLoadingGames]   = useState(true);
+  const [deletingId,    setDeletingId]     = useState<string | null>(null);
+  const [eloHistory,    setEloHistory]     = useState<EloHistoryEntry[]>([]);
+  const [userStats,     setUserStats]      = useState<UserStats | null>(null);
+  const [loadingHistory,setLoadingHistory] = useState(false);
+  const [loadingStats,  setLoadingStats]   = useState(false);
 
+  // Auth guard
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
+    if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
 
+  // Fetch recent games
   useEffect(() => {
     if (!user) return;
     gamesApi
       .list({ per_page: 20 })
       .then((res) => {
-        const data = res.data;
-        setGames(Array.isArray(data) ? data : data.games || data.items || []);
+        const d = res.data;
+        setGames(Array.isArray(d) ? d : d.games ?? d.items ?? []);
       })
       .catch(() => {})
       .finally(() => setLoadingGames(false));
@@ -90,8 +144,8 @@ export default function DashboardPage() {
     usersApi
       .eloHistory(90)
       .then((res) => {
-        const data = res.data;
-        setEloHistory(Array.isArray(data) ? data : data.history || data.entries || []);
+        const d = res.data;
+        setEloHistory(Array.isArray(d) ? d : d.history ?? d.entries ?? []);
       })
       .catch(() => {})
       .finally(() => setLoadingHistory(false));
@@ -116,385 +170,396 @@ export default function DashboardPage() {
       await gamesApi.delete(gameId);
       setGames((prev) => prev.filter((g) => g.id !== gameId));
     } catch {
-      // ignore
+      // silent
     } finally {
       setDeletingId(null);
     }
   };
 
+  // ── Loading state ────────────────────────────────────────────────────────
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+        <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
       </div>
     );
   }
 
-  const tier = getRatingTier(user.elo_rating);
-
-  // Rank progress within current tier
+  // ── Derived values ───────────────────────────────────────────────────────
+  const tier      = getRatingTier(user.elo_rating);
   const tierIndex = RATING_TIERS.findIndex((t) => t.name === tier.name);
-  const nextTier = RATING_TIERS[tierIndex + 1] ?? null;
-  const tierMin = tier.min;
-  const tierMax = nextTier ? nextTier.min - 1 : tier.max;
+  const nextTier  = RATING_TIERS[tierIndex + 1] ?? null;
+  const tierMin   = tier.min;
+  const tierMax   = nextTier ? nextTier.min - 1 : tier.max;
   const tierRange = tierMax - tierMin;
   const tierProgress =
     tierRange > 0
       ? Math.max(0, Math.min(100, ((user.elo_rating - tierMin) / tierRange) * 100))
       : 100;
-  const toNextTier = nextTier
-    ? Math.max(0, nextTier.min - user.elo_rating)
-    : 0;
+  const toNextTier = nextTier ? Math.max(0, nextTier.min - user.elo_rating) : 0;
 
-  // Compute stats from recent games
-  const completedGames = games.filter(
-    (g) => g.status === 'won' || g.status === 'lost'
-  );
-  const wonGames = games.filter((g) => g.status === 'won');
-  // A "win" = gained ELO (positive elo_delta), not just status === 'won'
-  const eloWins = games.filter(
-    (g) => g.elo_delta != null && g.elo_delta > 0
-  );
+  const completedGames = games.filter((g) => g.status === 'won' || g.status === 'lost');
+  const wonGames       = games.filter((g) => g.status === 'won');
+  const eloWins        = games.filter((g) => (g.elo_delta ?? 0) > 0);
   const winRate =
     completedGames.length > 0
       ? Math.round((eloWins.length / completedGames.length) * 100)
       : 0;
   const avgGuesses =
     wonGames.length > 0
-      ? (wonGames.reduce((sum, g) => sum + g.num_guesses, 0) / wonGames.length).toFixed(1)
+      ? (wonGames.reduce((s, g) => s + g.num_guesses, 0) / wonGames.length).toFixed(1)
       : '—';
 
-  const STATS = [
-    {
-      icon: <Hash size={14} />,
-      label: 'Games Played',
-      value: user.games_played,
-    },
-    {
-      icon: <Trophy size={14} />,
-      label: 'Win Rate',
-      value: `${winRate}%`,
-    },
-    {
-      icon: <Target size={14} />,
-      label: 'Avg Guesses',
-      value: avgGuesses,
-    },
-    {
-      icon: <Flame size={14} />,
-      label: 'Current Streak',
-      value: user.current_streak,
-    },
-  ];
-
-  // Guess distribution from userStats or fallback to games
   const guessDistribution: Record<string, number> =
     (userStats?.distribution as Record<string, number>) ??
     wonGames.reduce<Record<string, number>>((acc, g) => {
-      const key = String(g.num_guesses);
-      acc[key] = (acc[key] ?? 0) + 1;
+      const k = String(g.num_guesses);
+      acc[k] = (acc[k] ?? 0) + 1;
       return acc;
     }, {});
+
   const lossCount =
     typeof userStats?.losses === 'number'
       ? userStats.losses
       : games.filter((g) => g.status === 'lost').length;
 
+  // ── Animation variants ───────────────────────────────────────────────────
+  const fadeUp = (delay = 0) => ({
+    initial: { opacity: 0, y: 16 },
+    animate: { opacity: 1, y: 0 },
+    transition: { ...springs.slide, delay },
+  });
+
+  const cardVariants = {
+    hidden:  { opacity: 0, y: 14 },
+    visible: { opacity: 1, y: 0, transition: springs.slide },
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Header: ELO display */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={springs.slide}
-        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4"
-      >
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <span
-              className="text-5xl font-bold font-mono tabular-nums"
-              style={{ color: tier.color }}
-            >
-              {Math.round(user.elo_rating)}
-            </span>
-            <div className="flex flex-col gap-1">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+
+      {/* ── HERO: ELO + tier + streaks ─────────────────────────────────── */}
+      <motion.section {...fadeUp(0)} aria-label="Rating overview">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+
+          {/* Left: ELO number + tier pill + placement badge + username */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-baseline gap-3 flex-wrap">
+              {/* Big ELO number */}
               <span
-                className="text-sm px-2.5 py-1 rounded-full font-medium"
-                style={{ color: tier.color, backgroundColor: `${tier.color}1a` }}
+                className="text-5xl font-mono font-bold tabular-nums leading-none"
+                style={{ color: tier.color }}
+              >
+                {Math.round(user.elo_rating)}
+              </span>
+
+              {/* Tier pill */}
+              <span
+                className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold leading-none"
+                style={{
+                  color: tier.color,
+                  backgroundColor: `${tier.color}1a`,
+                  border: `1px solid ${tier.color}33`,
+                }}
               >
                 {tier.name}
               </span>
+
+              {/* Placement badge */}
               {user.is_placement && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-[#b59f3b]/10 border border-[#b59f3b]/20 text-[#b59f3b] font-medium text-center">
-                  Placement
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium leading-none bg-[#b59f3b]/10 border border-[#b59f3b]/25 text-[#b59f3b]">
+                  Placement {user.games_played}/5
                 </span>
               )}
             </div>
+
+            <p className="text-sm text-text-secondary font-medium">{user.username}</p>
           </div>
-          <p className="text-sm text-text-secondary">{user.username}</p>
+
+          {/* Right: streak pills */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {user.current_streak > 0 && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs font-medium text-[#e67e22]">
+                <Flame size={12} />
+                {user.current_streak} streak
+              </div>
+            )}
+            {user.longest_streak > 0 && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-text-secondary">
+                <Star size={11} />
+                Best&nbsp;
+                <span className="font-mono tabular-nums text-text-primary font-semibold">
+                  {user.longest_streak}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          {user.current_streak > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#e67e22]/10 border border-[#e67e22]/20 text-[#e67e22] text-sm font-medium">
-              <Flame size={14} />
-              {user.current_streak} streak
-            </div>
-          )}
-          {user.longest_streak > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-secondary border border-white/[0.08] text-text-secondary text-sm">
-              <Star size={12} />
-              Best: {user.longest_streak}
-            </div>
-          )}
+        {/* Tier progress bar */}
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-2">
+            <SectionLabel>{tier.name} Progress</SectionLabel>
+            {nextTier ? (
+              <span className="text-[10px] font-mono tabular-nums text-text-ghost">
+                <span style={{ color: tier.color }}>{Math.round(user.elo_rating)}</span>
+                {' → '}
+                <span style={{ color: nextTier.color }}>{nextTier.name}</span>
+                {' · '}
+                <span className="text-text-secondary">{toNextTier} pts to go</span>
+              </span>
+            ) : (
+              <span className="text-[10px] font-mono text-text-ghost">Max rank reached</span>
+            )}
+          </div>
+          <div className="h-1.5 rounded-full bg-bg-tertiary border border-white/[0.06] overflow-hidden">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ backgroundColor: tier.color }}
+              initial={{ width: 0 }}
+              animate={{ width: `${tierProgress}%` }}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
+            />
+          </div>
         </div>
-      </motion.div>
+      </motion.section>
 
-      {/* Rank progress bar */}
+      {/* ── STATS GRID ─────────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springs.slide, delay: 0.1 }}
-        className="mb-8"
-      >
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost">
-            {tier.name} Progress
-          </span>
-          {nextTier ? (
-            <span className="text-[10px] font-mono tabular-nums text-text-ghost">
-              <span style={{ color: tier.color }}>{Math.round(user.elo_rating)}</span>
-              {' / '}
-              <span>{nextTier.min}</span>
-              {' to '}
-              <span style={{ color: nextTier.color }}>{nextTier.name}</span>
-              {' · '}
-              <span className="text-text-secondary">{toNextTier} to go</span>
-            </span>
-          ) : (
-            <span className="text-[10px] font-mono text-text-ghost">Max rank</span>
-          )}
-        </div>
-        <div className="h-2 rounded-full bg-bg-secondary border border-white/[0.06] overflow-hidden">
-          <motion.div
-            className="h-full rounded-full"
-            style={{ backgroundColor: tier.color }}
-            initial={{ width: 0 }}
-            animate={{ width: `${tierProgress}%` }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-          />
-        </div>
-      </motion.div>
-
-      {/* Stats grid */}
-      <motion.div
-        className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8"
+        className="grid grid-cols-2 sm:grid-cols-4 gap-3"
         initial="hidden"
         animate="visible"
         variants={{ hidden: {}, visible: { transition: stagger.fast } }}
+        aria-label="Player statistics"
       >
-        {STATS.map((stat, i) => (
-          <motion.div
-            key={i}
-            variants={{
-              hidden: { opacity: 0, y: 16 },
-              visible: { opacity: 1, y: 0, transition: springs.slide },
-            }}
-            className="flex flex-col gap-2 p-4 rounded-xl bg-bg-secondary border border-white/[0.08]"
-          >
-            <div className="flex items-center gap-1.5 text-text-ghost">
-              {stat.icon}
-              <span className="text-[10px] uppercase tracking-wider font-medium">
-                {stat.label}
-              </span>
-            </div>
-            <span className="text-2xl font-mono font-bold tabular-nums text-text-primary">
-              {stat.value}
-            </span>
-          </motion.div>
-        ))}
+        <StatCard
+          label="Games Played"
+          value={user.games_played}
+          icon={<Hash size={13} />}
+          variants={cardVariants}
+        />
+        <StatCard
+          label="Win Rate"
+          value={`${winRate}%`}
+          icon={<Trophy size={13} />}
+          variants={cardVariants}
+        />
+        <StatCard
+          label="Avg Guesses"
+          value={avgGuesses}
+          icon={<Target size={13} />}
+          variants={cardVariants}
+        />
+        <StatCard
+          label="Current Streak"
+          value={user.current_streak}
+          icon={<Flame size={13} />}
+          variants={cardVariants}
+        />
       </motion.div>
 
-      {/* ELO Sparkline */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springs.slide, delay: 0.2 }}
-        className="rounded-2xl bg-bg-secondary border border-white/[0.08] p-4 mb-4"
+      {/* ── ELO SPARKLINE ──────────────────────────────────────────────── */}
+      <motion.section
+        {...fadeUp(0.2)}
+        className="rounded-[14px] bg-bg-primary border border-white/[0.06] p-5"
+        aria-label="Rating history chart"
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp size={14} className="text-text-ghost" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost">
-              Rating History
-            </span>
+            <SectionLabel>Rating History</SectionLabel>
           </div>
           {eloHistory.length > 0 && (
             <span className="text-[10px] font-mono tabular-nums text-text-ghost">
-              Last {eloHistory.length} games
+              Last {eloHistory.length} game{eloHistory.length !== 1 ? 's' : ''}
             </span>
           )}
         </div>
+
         {loadingHistory ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+          <div className="space-y-2 py-4">
+            <Shimmer className="h-3 w-full" />
+            <Shimmer className="h-3 w-5/6" />
+            <Shimmer className="h-3 w-4/6" />
+            <Shimmer className="h-32 w-full mt-2" />
           </div>
         ) : (
           <EloSparkline data={eloHistory} height={180} />
         )}
-      </motion.div>
+      </motion.section>
 
-      {/* Guess Distribution */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springs.slide, delay: 0.25 }}
-        className="rounded-2xl bg-bg-secondary border border-white/[0.08] p-4 mb-8"
+      {/* ── GUESS DISTRIBUTION ─────────────────────────────────────────── */}
+      <motion.section
+        {...fadeUp(0.25)}
+        className="rounded-[14px] bg-bg-primary border border-white/[0.06] p-5"
+        aria-label="Guess distribution"
       >
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <BarChart2 size={14} className="text-text-ghost" />
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost">
-            Guess Distribution
-          </span>
+          <SectionLabel>Guess Distribution</SectionLabel>
         </div>
+
         {loadingStats ? (
-          <div className="flex items-center justify-center py-6">
-            <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+          <div className="space-y-2">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Shimmer className="h-3 w-3" />
+                <Shimmer className="h-5 flex-1" style={{ width: `${40 + i * 7}%` }} />
+              </div>
+            ))}
           </div>
         ) : (
-          <GuessDistribution
-            distribution={guessDistribution}
-            losses={lossCount}
-          />
+          <GuessDistribution distribution={guessDistribution} losses={lossCount} />
         )}
-      </motion.div>
+      </motion.section>
 
-      {/* Recent games */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springs.slide, delay: 0.3 }}
-      >
+      {/* ── RECENT GAMES ───────────────────────────────────────────────── */}
+      <motion.section {...fadeUp(0.3)} aria-label="Recent games">
+        {/* Section header */}
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
-            Recent Games
-          </h2>
+          <SectionLabel>Recent Games</SectionLabel>
           <Link
             href="/play"
-            className="text-xs text-[#6aaa64] hover:text-[#538d4e] font-medium transition-colors"
+            className="text-xs font-semibold text-[#6aaa64] hover:text-[#538d4e] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6aaa64] rounded"
+            aria-label="Play a new game"
           >
             Play New
           </Link>
         </div>
 
-        <div className="rounded-2xl bg-bg-secondary border border-white/[0.08] overflow-hidden">
+        {/* Games container */}
+        <div className="rounded-[14px] bg-bg-primary border border-white/[0.06] overflow-hidden">
           {loadingGames ? (
-            <div className="flex flex-col divide-y divide-white/[0.06]">
+            /* Shimmer rows */
+            <div className="divide-y divide-white/[0.04]">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3">
-                  <div className="skeleton h-4 w-4 rounded" />
-                  <div className="skeleton h-4 w-24 rounded" />
-                  <div className="skeleton h-4 w-16 rounded ml-auto" />
+                <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                  <Shimmer className="h-4 w-4 rounded-sm" />
+                  <Shimmer className="h-4 w-28 rounded-sm" />
+                  <Shimmer className="h-3 w-16 rounded-sm ml-auto" />
+                  <Shimmer className="h-3 w-10 rounded-sm" />
+                  <Shimmer className="h-4 w-4 rounded-sm" />
                 </div>
               ))}
             </div>
           ) : games.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-12">
-              <BarChart2 size={32} className="text-text-ghost" />
-              <p className="text-sm text-text-secondary">No games yet.</p>
+            /* Empty state */
+            <div className="flex flex-col items-center gap-4 py-16 px-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-bg-tertiary border border-white/[0.06] flex items-center justify-center">
+                <Gamepad2 size={22} className="text-text-ghost" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-text-secondary">No games yet</p>
+                <p className="text-xs text-text-ghost">
+                  Play a game to start building your history.
+                </p>
+              </div>
               <Link
                 href="/play"
-                className="px-4 py-2 rounded-lg bg-[#538d4e] hover:bg-[#6aaa64] text-white text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#538d4e] hover:bg-[#6aaa64] text-white text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6aaa64]"
               >
                 Play Your First Game
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-white/[0.06]">
+            /* Game rows */
+            <div className="divide-y divide-white/[0.04]" role="list">
               {games.map((game, i) => {
-                const statusInfo = STATUS_LABELS[game.status] || STATUS_LABELS.abandoned;
-                const isClickable =
-                  game.status === 'won' || game.status === 'lost';
-                const eloDelta = game.elo_delta;
+                const statusInfo  = STATUS_CONFIG[game.status] ?? STATUS_CONFIG.abandoned;
+                const isClickable = game.status === 'won' || game.status === 'lost';
+                const eloDelta    = game.elo_delta;
+                const showWord    =
+                  !(game.status === 'in_progress') &&
+                  !(game.status === 'abandoned' && game.mode === 'daily');
 
                 return (
                   <motion.div
                     key={game.id}
+                    role="listitem"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.04 }}
+                    transition={{ delay: Math.min(i * 0.045, 0.4), ...easings.fade }}
                   >
                     <div
                       className={clsx(
-                        'flex items-center gap-3 px-4 py-3 transition-colors',
+                        'flex items-center gap-3 px-4 py-3.5 transition-colors',
                         isClickable
-                          ? 'cursor-pointer hover:bg-white/[0.04]'
-                          : ''
+                          ? 'cursor-pointer hover:bg-white/[0.02] active:bg-white/[0.04]'
+                          : 'cursor-default'
                       )}
                       onClick={() => isClickable && router.push(`/review/${game.id}`)}
+                      aria-label={
+                        isClickable
+                          ? `Review ${showWord ? game.target_word : '?????'} — ${statusInfo.label}`
+                          : undefined
+                      }
                     >
                       {/* Mode icon */}
-                      <span className="text-base w-6 text-center shrink-0">
-                        {MODE_ICONS[game.mode] || '?'}
+                      <span className="shrink-0 w-[22px] flex items-center justify-center">
+                        <ModeIcon mode={game.mode} size={14} />
                       </span>
 
-                      {/* Word + mode */}
-                      <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-sm font-mono font-semibold uppercase text-text-primary truncate">
-                          {game.status === 'in_progress' || (game.status === 'abandoned' && game.mode === 'daily')
-                            ? '?????'
-                            : (game.target_word || '—')}
+                      {/* Word + mode label */}
+                      <div className="flex flex-col min-w-0 flex-1 gap-0.5">
+                        <span className="text-sm font-mono font-semibold uppercase text-text-primary tracking-wide truncate">
+                          {showWord ? (game.target_word ?? '—') : '?????'}
                         </span>
-                        <span className="text-[10px] text-text-ghost capitalize">
+                        <span className="text-[10px] text-text-ghost capitalize leading-none">
                           {game.mode}
                           {game.is_placement && game.mode === 'competitive' && ' · Placement'}
                         </span>
                       </div>
 
-                      {/* Result */}
+                      {/* Status + ELO delta */}
                       <div className="flex flex-col items-end gap-0.5 shrink-0">
                         <span
-                          className="text-xs font-medium"
+                          className="text-xs font-semibold"
                           style={{ color: statusInfo.color }}
                         >
                           {statusInfo.label}
-                          {game.status === 'won' && ` ${game.num_guesses}/6`}
+                          {game.status === 'won' && (
+                            <span className="font-mono font-normal text-[10px] ml-1 text-text-ghost">
+                              {game.num_guesses}/6
+                            </span>
+                          )}
                         </span>
                         {eloDelta !== null && game.rated && (
                           <span
                             className={clsx(
-                              'text-[10px] font-mono tabular-nums',
-                              (eloDelta ?? 0) >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]'
+                              'text-[10px] font-mono tabular-nums font-semibold',
+                              (eloDelta ?? 0) >= 0 ? 'text-[#538d4e]' : 'text-[#e74c3c]'
                             )}
                           >
-                            {(eloDelta ?? 0) >= 0 ? '+' : ''}{Math.round(eloDelta ?? 0)}
+                            {(eloDelta ?? 0) >= 0 ? '+' : ''}
+                            {Math.round(eloDelta ?? 0)}
                           </span>
                         )}
                       </div>
 
-                      {/* Date */}
-                      <div className="flex flex-col items-end shrink-0 min-w-[56px]">
-                        <span className="text-[10px] text-text-ghost">
+                      {/* Date + time */}
+                      <div className="flex flex-col items-end shrink-0 min-w-[52px] gap-0.5">
+                        <span className="text-[10px] text-text-ghost tabular-nums">
                           {formatDate(game.created_at)}
                         </span>
-                        {game.time_seconds && (
-                          <span className="text-[10px] text-text-ghost flex items-center gap-0.5">
-                            <Clock size={8} />
+                        {game.time_seconds != null && (
+                          <span className="text-[10px] text-text-ghost flex items-center gap-0.5 tabular-nums font-mono">
+                            <Clock size={8} className="shrink-0" />
                             {Math.floor(game.time_seconds / 60)}:
-                            {(game.time_seconds % 60).toString().padStart(2, '0')}
+                            {String(game.time_seconds % 60).padStart(2, '0')}
                           </span>
                         )}
                       </div>
 
-                      {/* Delete button */}
+                      {/* Delete */}
                       <button
                         onClick={(e) => handleDelete(game.id, e)}
                         disabled={deletingId === game.id}
-                        className="p-1.5 rounded-md text-text-ghost hover:text-[#e74c3c] hover:bg-[#e74c3c]/10 transition-colors shrink-0 disabled:opacity-40"
-                        aria-label="Delete game"
+                        className="p-1.5 ml-1 rounded-md text-text-ghost hover:text-[#e74c3c] hover:bg-[#e74c3c]/10 transition-colors shrink-0 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e74c3c]/50"
+                        aria-label={`Delete game — ${showWord ? game.target_word : '?????'}`}
                       >
                         {deletingId === game.id ? (
-                          <div className="w-3 h-3 rounded-full border border-current border-t-transparent animate-spin" />
+                          <span className="block w-3.5 h-3.5 rounded-full border border-current border-t-transparent animate-spin" />
                         ) : (
                           <Trash2 size={13} />
                         )}
@@ -506,7 +571,8 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </motion.div>
+      </motion.section>
+
     </div>
   );
 }

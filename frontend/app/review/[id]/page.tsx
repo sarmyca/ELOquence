@@ -12,8 +12,9 @@ const GameStateGraph = dynamic(
         <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
       </div>
     ),
-  }
+  },
 );
+
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -48,10 +49,19 @@ import {
 } from '@/lib/types';
 import clsx from 'clsx';
 
-// ---- ELO distribution calculator ----
+/* ------------------------------------------------------------------ */
+/*  ELO distribution calculator                                         */
+/* ------------------------------------------------------------------ */
+
 // Mirrors backend: calculate_performance_score + calculate_elo_delta
-const OUTCOME_MAP: Record<number, number> = { 1: 1.0, 2: 0.95, 3: 0.85, 4: 0.70, 5: 0.55, 6: 0.40 };
-// Typical accuracy by guess count (empirically reasonable estimates)
+const OUTCOME_MAP: Record<number, number> = {
+  1: 1.0,
+  2: 0.95,
+  3: 0.85,
+  4: 0.70,
+  5: 0.55,
+  6: 0.40,
+};
 const ACC_MAP: Record<number, number> = { 1: 100, 2: 90, 3: 75, 4: 60, 5: 45, 6: 35 };
 
 function computeEloDist(
@@ -69,23 +79,34 @@ function computeEloDist(
     const acc = ACC_MAP[g] / 100;
     const perf = 0.45 * acc + 0.35 * outcome + 0.20 * timeScore;
     const raw = k * (perf - expected);
-    rows.push({ label: `${g}/6`, delta: Math.round(Math.max(100 - playerElo, playerElo + raw) - playerElo) });
+    rows.push({
+      label: `${g}/6`,
+      delta: Math.round(Math.max(100 - playerElo, playerElo + raw) - playerElo),
+    });
   }
-  // X/6 loss: 0 accuracy, 0 outcome
   const lossPerf = 0.45 * 0 + 0.35 * 0 + 0.20 * timeScore;
   const lossRaw = k * (lossPerf - expected);
-  rows.push({ label: 'X/6', delta: Math.round(Math.max(100 - playerElo, playerElo + lossRaw) - playerElo) });
+  rows.push({
+    label: 'X/6',
+    delta: Math.round(Math.max(100 - playerElo, playerElo + lossRaw) - playerElo),
+  });
   return rows;
 }
 
-// ---- Skeleton ----
+/* ------------------------------------------------------------------ */
+/*  Skeleton                                                            */
+/* ------------------------------------------------------------------ */
+
 function Skeleton({ className }: { className?: string }) {
   return (
-    <div className={clsx('skeleton rounded-lg bg-bg-tertiary', className)} />
+    <div className={clsx('skeleton rounded-lg bg-[#1e1e23]', className)} />
   );
 }
 
-// ---- Mini board (compact replay) ----
+/* ------------------------------------------------------------------ */
+/*  Mini board (compact replay)                                         */
+/* ------------------------------------------------------------------ */
+
 function MiniBoard({
   guesses,
   patterns,
@@ -138,7 +159,9 @@ function MiniBoard({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    border: `1px solid ${isHighlighted ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'}`,
+                    border: `1px solid ${
+                      isHighlighted ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'
+                    }`,
                     transition: 'border-color 0.15s',
                   }}
                 >
@@ -163,7 +186,10 @@ function MiniBoard({
   );
 }
 
-// ---- Move row ----
+/* ------------------------------------------------------------------ */
+/*  Move row                                                            */
+/* ------------------------------------------------------------------ */
+
 interface MoveRowProps {
   move: MoveAnalysis;
   index: number;
@@ -183,8 +209,8 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
     <motion.div
       layout
       className={clsx(
-        'rounded-lg transition-colors duration-100 cursor-pointer',
-        isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]'
+        'rounded-[12px] transition-colors duration-100 cursor-pointer',
+        isActive ? 'bg-white/[0.06]' : 'hover:bg-white/[0.04]',
       )}
       onClick={onClick}
     >
@@ -211,7 +237,7 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
               animate={true}
             />
           ) : (
-            <span className="text-xs text-text-ghost px-2 py-0.5 rounded-full bg-bg-tertiary">
+            <span className="text-xs text-text-ghost px-2 py-0.5 rounded-full bg-[#1e1e23]">
               ?
             </span>
           )}
@@ -232,7 +258,7 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
       {revealed && (
         <div className="px-3 pb-2 flex items-center gap-2">
           <span className="text-[10px] text-text-ghost w-16">Efficiency</span>
-          <div className="flex-1 h-1 rounded-full bg-bg-tertiary overflow-hidden">
+          <div className="flex-1 h-1 rounded-full bg-[#1e1e23] overflow-hidden">
             <motion.div
               className="h-full rounded-full"
               style={{ backgroundColor: config?.color || '#565758' }}
@@ -261,67 +287,82 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
               {/* Stats row */}
               <div className="grid grid-cols-3 gap-2">
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowRemaining(!showRemaining); }}
-                  className="flex flex-col gap-0.5 p-2 rounded-lg bg-bg-tertiary text-left hover:bg-white/[0.08] transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRemaining(!showRemaining);
+                  }}
+                  className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#1e1e23] text-left hover:bg-white/[0.08] transition-colors"
                 >
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                     Remaining
-                    <ChevronDown size={9} className={clsx('transition-transform', showRemaining && 'rotate-180')} />
+                    <ChevronDown
+                      size={9}
+                      className={clsx('transition-transform', showRemaining && 'rotate-180')}
+                    />
                   </span>
                   <span className="text-sm font-mono font-bold tabular-nums text-text-primary">
                     {move.remaining_after ?? move.remaining_words ?? '—'}
                   </span>
                 </button>
-                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-bg-tertiary">
-                  <span className="text-[10px] text-text-ghost uppercase tracking-wider">Entropy</span>
+
+                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#1e1e23]">
+                  <span className="text-[10px] text-text-ghost uppercase tracking-wider">
+                    Entropy
+                  </span>
                   <span className="text-sm font-mono font-bold tabular-nums text-text-primary">
                     {(move.entropy_before ?? 0).toFixed(2)}
                   </span>
                 </div>
-                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-bg-tertiary">
-                  <span className="text-[10px] text-text-ghost uppercase tracking-wider">Luck</span>
+
+                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#1e1e23]">
+                  <span className="text-[10px] text-text-ghost uppercase tracking-wider">
+                    Luck
+                  </span>
                   <span
                     className={clsx(
                       'text-sm font-mono font-bold tabular-nums',
                       (move.luck ?? 0) > 0
-                        ? 'text-tile-correct'
+                        ? 'text-[#538d4e]'
                         : (move.luck ?? 0) < 0
-                        ? 'text-[#e74c3c]'
-                        : 'text-text-primary'
+                          ? 'text-[#e74c3c]'
+                          : 'text-text-primary',
                     )}
                   >
-                    {(move.luck ?? 0) > 0 ? '+' : ''}{(move.luck ?? 0).toFixed(2)}
+                    {(move.luck ?? 0) > 0 ? '+' : ''}
+                    {(move.luck ?? 0).toFixed(2)}
                   </span>
                 </div>
               </div>
 
               {/* Remaining words list */}
               <AnimatePresence>
-                {showRemaining && move.remaining_words_list && move.remaining_words_list.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="p-2 rounded-lg bg-bg-tertiary">
-                      <span className="text-[10px] text-text-ghost uppercase tracking-wider mb-1.5 block">
-                        Remaining words ({move.remaining_words_list.length})
-                      </span>
-                      <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
-                        {move.remaining_words_list.map((word: string) => (
-                          <span
-                            key={word}
-                            className="text-[11px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/[0.06] text-text-secondary"
-                          >
-                            {word}
-                          </span>
-                        ))}
+                {showRemaining &&
+                  move.remaining_words_list &&
+                  move.remaining_words_list.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-2 rounded-lg bg-[#1e1e23]">
+                        <span className="text-[10px] text-text-ghost uppercase tracking-wider mb-1.5 block">
+                          Remaining words ({move.remaining_words_list.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1 max-h-40 overflow-y-auto">
+                          {move.remaining_words_list.map((word: string) => (
+                            <span
+                              key={word}
+                              className="text-[11px] font-mono uppercase px-1.5 py-0.5 rounded bg-white/[0.06] text-text-secondary"
+                            >
+                              {word}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
+                    </motion.div>
+                  )}
               </AnimatePresence>
 
               {/* Optimal word */}
@@ -351,17 +392,26 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
 
               {/* Constraint violation */}
               {move.constraint_violation && move.constraint_violation !== 'none' && (
-                <div className={clsx(
-                  'text-xs p-2 rounded-lg',
-                  move.constraint_violation === 'hard'
-                    ? 'bg-[#e74c3c]/10 border border-[#e74c3c]/20'
-                    : 'bg-white/[0.03] border border-white/[0.06]'
-                )}>
-                  <span className={clsx(
-                    'font-medium',
-                    move.constraint_violation === 'hard' ? 'text-[#e74c3c]' : 'text-text-secondary'
-                  )}>
-                    {move.constraint_violation_reason || (move.constraint_violation === 'hard' ? 'Constraint violation' : 'Non-hard mode guess')}
+                <div
+                  className={clsx(
+                    'text-xs p-2 rounded-lg',
+                    move.constraint_violation === 'hard'
+                      ? 'bg-[#e74c3c]/10 border border-[#e74c3c]/20'
+                      : 'bg-white/[0.03] border border-white/[0.06]',
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      'font-medium',
+                      move.constraint_violation === 'hard'
+                        ? 'text-[#e74c3c]'
+                        : 'text-text-secondary',
+                    )}
+                  >
+                    {move.constraint_violation_reason ||
+                      (move.constraint_violation === 'hard'
+                        ? 'Constraint violation'
+                        : 'Non-hard mode guess')}
                   </span>
                 </div>
               )}
@@ -384,7 +434,10 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
   );
 }
 
-// ---- Top Picks panel ----
+/* ------------------------------------------------------------------ */
+/*  Top Picks panel                                                     */
+/* ------------------------------------------------------------------ */
+
 function TopPicksPanel({ moves }: { moves: MoveAnalysis[] }) {
   const [selectedMove, setSelectedMove] = useState(0);
   const move = moves[selectedMove];
@@ -401,7 +454,7 @@ function TopPicksPanel({ moves }: { moves: MoveAnalysis[] }) {
               'shrink-0 px-2.5 py-1 rounded-md text-xs font-mono font-semibold uppercase transition-colors',
               selectedMove === i
                 ? 'bg-bg-elevated text-text-primary'
-                : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
+                : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]',
             )}
           >
             {m.guess_word}
@@ -423,14 +476,14 @@ function TopPicksPanel({ moves }: { moves: MoveAnalysis[] }) {
               key={i}
               className={clsx(
                 'grid grid-cols-[1.5rem_1fr_4rem_5rem] px-2 py-1.5 rounded-md text-sm',
-                i === 0 ? 'bg-[#538d4e]/10' : 'hover:bg-white/[0.03]'
+                i === 0 ? 'bg-[#538d4e]/10' : 'hover:bg-white/[0.03]',
               )}
             >
               <span className="text-xs font-mono tabular-nums text-text-ghost">{i + 1}</span>
               <span
                 className={clsx(
                   'font-mono font-semibold uppercase',
-                  i === 0 ? 'text-[#6aaa64]' : 'text-text-primary'
+                  i === 0 ? 'text-[#6aaa64]' : 'text-text-primary',
                 )}
               >
                 {pick.word}
@@ -456,7 +509,10 @@ function TopPicksPanel({ moves }: { moves: MoveAnalysis[] }) {
   );
 }
 
-// ---- Patterns panel ----
+/* ------------------------------------------------------------------ */
+/*  Patterns panel                                                      */
+/* ------------------------------------------------------------------ */
+
 function PatternsPanel({ moves }: { moves: MoveAnalysis[] }) {
   const [selectedMove, setSelectedMove] = useState(0);
   const move = moves[selectedMove];
@@ -474,7 +530,7 @@ function PatternsPanel({ moves }: { moves: MoveAnalysis[] }) {
               'shrink-0 px-2.5 py-1 rounded-md text-xs font-mono font-semibold uppercase transition-colors',
               selectedMove === i
                 ? 'bg-bg-elevated text-text-primary'
-                : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
+                : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]',
             )}
           >
             {m.guess_word}
@@ -482,10 +538,7 @@ function PatternsPanel({ moves }: { moves: MoveAnalysis[] }) {
         ))}
       </div>
       {dist.length > 0 ? (
-        <PatternHistogram
-          distribution={dist}
-          actualPattern={actualPattern}
-        />
+        <PatternHistogram distribution={dist} actualPattern={actualPattern} />
       ) : (
         <p className="text-sm text-text-ghost text-center py-6">
           No pattern distribution data for this move.
@@ -495,7 +548,10 @@ function PatternsPanel({ moves }: { moves: MoveAnalysis[] }) {
   );
 }
 
-// ---- Letter Map panel ----
+/* ------------------------------------------------------------------ */
+/*  Letter Map panel                                                    */
+/* ------------------------------------------------------------------ */
+
 function LetterMapPanel({ moves }: { moves: MoveAnalysis[] }) {
   const [selectedMove, setSelectedMove] = useState(0);
   const move = moves[selectedMove];
@@ -512,7 +568,7 @@ function LetterMapPanel({ moves }: { moves: MoveAnalysis[] }) {
               'shrink-0 px-2.5 py-1 rounded-md text-xs font-mono font-semibold uppercase transition-colors',
               selectedMove === i
                 ? 'bg-bg-elevated text-text-primary'
-                : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
+                : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]',
             )}
           >
             {m.guess_word}
@@ -530,7 +586,10 @@ function LetterMapPanel({ moves }: { moves: MoveAnalysis[] }) {
   );
 }
 
-// ---- Main review page ----
+/* ------------------------------------------------------------------ */
+/*  Main review page                                                    */
+/* ------------------------------------------------------------------ */
+
 export default function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -586,17 +645,17 @@ export default function ReviewPage() {
     }
   }, [game, runAnalysis]);
 
-  // Show all classifications immediately, animate only the score counter
+  // Reveal all immediately, animate only the score counter
   useEffect(() => {
     if (!analysis) return;
     const total = analysis.moves.length;
     setRevealedCount(total);
     setDisplayScore(0);
 
-    // Animate score counter from 0 to final over 600ms
     const steps = 20;
     const stepMs = 30;
     const timers: ReturnType<typeof setTimeout>[] = [];
+
     for (let i = 1; i <= steps; i++) {
       const t = setTimeout(() => {
         setDisplayScore(Math.round((i / steps) * analysis.accuracy_score));
@@ -607,10 +666,9 @@ export default function ReviewPage() {
     return () => timers.forEach(clearTimeout);
   }, [analysis]);
 
-  // Keyboard navigation: arrows for moves, numbers for tabs
+  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept when typing in an input
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -675,17 +733,22 @@ export default function ReviewPage() {
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-text-primary">Game Review</h1>
           {game && (
-            <p className="text-xs text-text-secondary capitalize">
+            <p className="text-xs text-text-secondary capitalize truncate">
               {game.mode} · {game.status === 'won' ? `Solved in ${game.num_guesses}/6` : 'Not solved'}
               {game.target_word && (
                 <>
                   {' '}·{' '}
                   <span className="font-mono uppercase">{game.target_word}</span>
                   {game.word_difficulty != null && (
-                    <span> · <span style={{ color: getRatingTier(game.word_difficulty).color }}>{Math.round(game.word_difficulty)}</span></span>
+                    <span>
+                      {' '}·{' '}
+                      <span style={{ color: getRatingTier(game.word_difficulty).color }}>
+                        {Math.round(game.word_difficulty)}
+                      </span>
+                    </span>
                   )}
                 </>
               )}
@@ -694,16 +757,22 @@ export default function ReviewPage() {
         </div>
       </div>
 
-      <div className={clsx(
-        'grid grid-cols-1 gap-4 min-h-0 flex-1',
-        game && analysis
-          ? 'lg:grid-cols-[auto_1fr_320px]'
-          : 'lg:grid-cols-[auto_1fr]'
-      )}>
+      {/* Three-column grid */}
+      <div
+        className={clsx(
+          'grid grid-cols-1 gap-4 min-h-0 flex-1',
+          game && analysis
+            ? 'lg:grid-cols-[auto_1fr_320px]'
+            : 'lg:grid-cols-[auto_1fr]',
+        )}
+      >
         {/* LEFT COLUMN */}
-        <div className="flex flex-col gap-3 items-center lg:items-start overflow-y-auto pr-1" style={{ maxHeight: 'calc(100dvh - 120px)' }}>
+        <div
+          className="flex flex-col gap-3 items-center lg:items-start overflow-y-auto pr-1"
+          style={{ maxHeight: 'calc(100dvh - 120px)' }}
+        >
           {/* Mini board */}
-          <div className="p-4 rounded-2xl bg-bg-secondary border border-white/[0.08]">
+          <div className="p-4 rounded-2xl bg-[#16161a] border border-white/[0.08]">
             <MiniBoard
               guesses={guesses}
               patterns={boardPatterns}
@@ -713,7 +782,7 @@ export default function ReviewPage() {
           </div>
 
           {/* Accuracy gauge */}
-          <div className="flex flex-col items-center p-3 rounded-2xl bg-bg-secondary border border-white/[0.08] w-full">
+          <div className="flex flex-col items-center p-3 rounded-2xl bg-[#16161a] border border-white/[0.08] w-full">
             {loadingAnalysis ? (
               <div className="flex flex-col items-center gap-3 py-4">
                 <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
@@ -729,7 +798,7 @@ export default function ReviewPage() {
           {/* Stats */}
           {game && (
             <div className="grid grid-cols-2 gap-2 w-full">
-              <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-bg-secondary border border-white/[0.08]">
+              <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#16161a] border border-white/[0.08]">
                 <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                   <Hash size={9} /> Guesses
                 </span>
@@ -742,66 +811,86 @@ export default function ReviewPage() {
                 <div className="relative">
                   <button
                     onClick={() => setShowEloDist(!showEloDist)}
-                    className="w-full flex flex-col gap-0.5 p-3 rounded-xl bg-bg-secondary border border-white/[0.08] hover:bg-white/[0.04] transition-colors text-left"
+                    className="w-full flex flex-col gap-0.5 p-3 rounded-xl bg-[#16161a] border border-white/[0.08] hover:bg-white/[0.04] transition-colors text-left"
                   >
                     <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                       <TrendingUp size={9} /> Rating
-                      <ChevronDown size={9} className={clsx('transition-transform', showEloDist && 'rotate-180')} />
+                      <ChevronDown
+                        size={9}
+                        className={clsx('transition-transform', showEloDist && 'rotate-180')}
+                      />
                     </span>
                     <span
                       className={clsx(
                         'text-lg font-mono font-bold tabular-nums',
-                        (eloDelta ?? 0) >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]'
+                        (eloDelta ?? 0) >= 0 ? 'text-[#538d4e]' : 'text-[#e74c3c]',
                       )}
                     >
-                      {(eloDelta ?? 0) >= 0 ? '+' : ''}{Math.round(eloDelta ?? 0)}
+                      {(eloDelta ?? 0) >= 0 ? '+' : ''}
+                      {Math.round(eloDelta ?? 0)}
                     </span>
                   </button>
 
                   <AnimatePresence>
-                    {showEloDist && game.elo_before != null && game.word_difficulty != null && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute left-0 right-0 top-full mt-1 z-20 p-2.5 rounded-xl bg-bg-secondary border border-white/[0.1] shadow-xl"
-                      >
-                        <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-1.5">ELO by outcome</p>
-                        <div className="flex flex-col gap-0.5">
-                          {computeEloDist(game.elo_before, game.word_difficulty, game.is_placement).map((row) => {
-                            const isActual =
-                              (wonGame && row.label === `${game.num_guesses}/6`) ||
-                              (!wonGame && row.label === 'X/6');
-                            return (
-                              <div
-                                key={row.label}
-                                className={clsx(
-                                  'flex items-center justify-between px-2 py-1 rounded-md text-xs font-mono tabular-nums',
-                                  isActual ? 'bg-white/[0.08]' : ''
-                                )}
-                              >
-                                <span className={clsx('text-text-secondary', isActual && 'text-text-primary font-semibold')}>
-                                  {row.label}
-                                </span>
-                                <span className={clsx(
-                                  row.delta >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]',
-                                  isActual && 'font-semibold'
-                                )}>
-                                  {row.delta >= 0 ? '+' : ''}{row.delta}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
+                    {showEloDist &&
+                      game.elo_before != null &&
+                      game.word_difficulty != null && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute left-0 right-0 top-full mt-1 z-20 p-2.5 rounded-xl bg-[#16161a] border border-white/[0.1] shadow-xl"
+                        >
+                          <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-1.5">
+                            ELO by outcome
+                          </p>
+                          <div className="flex flex-col gap-0.5">
+                            {computeEloDist(
+                              game.elo_before,
+                              game.word_difficulty,
+                              game.is_placement,
+                            ).map((row) => {
+                              const isActual =
+                                (wonGame && row.label === `${game.num_guesses}/6`) ||
+                                (!wonGame && row.label === 'X/6');
+                              return (
+                                <div
+                                  key={row.label}
+                                  className={clsx(
+                                    'flex items-center justify-between px-2 py-1 rounded-md text-xs font-mono tabular-nums',
+                                    isActual ? 'bg-white/[0.08]' : '',
+                                  )}
+                                >
+                                  <span
+                                    className={clsx(
+                                      'text-text-secondary',
+                                      isActual && 'text-text-primary font-semibold',
+                                    )}
+                                  >
+                                    {row.label}
+                                  </span>
+                                  <span
+                                    className={clsx(
+                                      row.delta >= 0 ? 'text-[#538d4e]' : 'text-[#e74c3c]',
+                                      isActual && 'font-semibold',
+                                    )}
+                                  >
+                                    {row.delta >= 0 ? '+' : ''}
+                                    {row.delta}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
                   </AnimatePresence>
                 </div>
               )}
 
               {game.accuracy_score !== null && (
-                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-bg-secondary border border-white/[0.08]">
+                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#16161a] border border-white/[0.08]">
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                     <Target size={9} /> Accuracy
                   </span>
@@ -812,7 +901,7 @@ export default function ReviewPage() {
               )}
 
               {game.luck_factor !== null && (
-                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-bg-secondary border border-white/[0.08]">
+                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#16161a] border border-white/[0.08]">
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                     <Zap size={9} /> Luck
                   </span>
@@ -820,10 +909,10 @@ export default function ReviewPage() {
                     className={clsx(
                       'text-lg font-mono font-bold tabular-nums',
                       (game.luck_factor ?? 0) > 0
-                        ? 'text-tile-correct'
+                        ? 'text-[#538d4e]'
                         : (game.luck_factor ?? 0) < 0
-                        ? 'text-[#e74c3c]'
-                        : 'text-text-primary'
+                          ? 'text-[#e74c3c]'
+                          : 'text-text-primary',
                     )}
                   >
                     {(game.luck_factor ?? 0) > 0 ? '+' : ''}
@@ -842,20 +931,13 @@ export default function ReviewPage() {
               playerAccuracy={game.accuracy_score}
             />
           )}
-
-
-
         </div>
 
         {/* CENTER COLUMN */}
         <div className="flex flex-col gap-2 min-h-0">
-          <TabSystem
-            tabs={TABS}
-            activeTab={activeTab}
-            onChange={setActiveTab}
-          />
+          <TabSystem tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
-          <div className="p-4 rounded-2xl bg-bg-secondary border border-white/[0.08] min-h-0 flex-1 overflow-y-auto">
+          <div className="p-4 rounded-2xl bg-[#16161a] border border-white/[0.08] min-h-0 flex-1 overflow-y-auto">
             {/* Analysis tab */}
             {activeTab === 'analysis' && (
               <div className="flex flex-col gap-1">
@@ -879,7 +961,7 @@ export default function ReviewPage() {
                     <p className="text-sm text-text-secondary mb-3">{analysisError}</p>
                     <button
                       onClick={runAnalysis}
-                      className="px-4 py-2 rounded-lg bg-bg-tertiary hover:bg-bg-elevated text-text-primary text-sm transition-colors border border-white/[0.08]"
+                      className="px-4 py-2 rounded-lg bg-[#1e1e23] hover:bg-bg-elevated text-text-primary text-sm transition-colors border border-white/[0.08]"
                     >
                       Retry Analysis
                     </button>
@@ -911,33 +993,37 @@ export default function ReviewPage() {
                         <span className="text-sm font-mono font-semibold text-text-primary uppercase tracking-wider flex-1">
                           {move.guess_word}
                         </span>
-                        <span className="text-xs text-text-ghost px-2 py-0.5 rounded-full bg-bg-tertiary">
+                        <span className="text-xs text-text-ghost px-2 py-0.5 rounded-full bg-[#1e1e23]">
                           ?
                         </span>
                       </div>
                     ))
                 ) : null}
-              {/* Summary flags */}
-              {analysis && (analysis.constraint_violations > 0 || analysis.traps_encountered > 0) && (
-                <div className="flex gap-2 flex-wrap mt-3">
-                  {analysis.constraint_violations > 0 && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#e74c3c]/10 border border-[#e74c3c]/20 text-[#e74c3c]">
-                      {analysis.constraint_violations} constraint violation{analysis.constraint_violations !== 1 ? 's' : ''}
-                    </span>
+
+                {/* Summary flags */}
+                {analysis &&
+                  (analysis.constraint_violations > 0 || analysis.traps_encountered > 0) && (
+                    <div className="flex gap-2 flex-wrap mt-3">
+                      {analysis.constraint_violations > 0 && (
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-[#e74c3c]/10 border border-[#e74c3c]/20 text-[#e74c3c]">
+                          {analysis.constraint_violations} constraint violation
+                          {analysis.constraint_violations !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                      {analysis.traps_encountered > 0 && (
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-[#9c27b0]/10 border border-[#9c27b0]/20 text-[#9c27b0]">
+                          {analysis.traps_encountered} trap
+                          {analysis.traps_encountered !== 1 ? 's' : ''} encountered
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {analysis.traps_encountered > 0 && (
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-[#9c27b0]/10 border border-[#9c27b0]/20 text-[#9c27b0]">
-                      {analysis.traps_encountered} trap{analysis.traps_encountered !== 1 ? 's' : ''} encountered
-                    </span>
-                  )}
-                </div>
-              )}
               </div>
             )}
 
             {/* Top Picks tab */}
-            {activeTab === 'top_picks' && (
-              analysis ? (
+            {activeTab === 'top_picks' &&
+              (analysis ? (
                 <TopPicksPanel moves={analysis.moves} />
               ) : (
                 <div className="flex items-center justify-center py-12">
@@ -945,12 +1031,11 @@ export default function ReviewPage() {
                     {loadingAnalysis ? 'Analyzing...' : 'No data available.'}
                   </p>
                 </div>
-              )
-            )}
+              ))}
 
             {/* Timeline tab */}
-            {activeTab === 'timeline' && (
-              analysis ? (
+            {activeTab === 'timeline' &&
+              (analysis ? (
                 <div className="flex flex-col gap-6">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost mb-3">
@@ -971,12 +1056,11 @@ export default function ReviewPage() {
                     {loadingAnalysis ? 'Analyzing...' : 'No data available.'}
                   </p>
                 </div>
-              )
-            )}
+              ))}
 
             {/* Patterns tab */}
-            {activeTab === 'patterns' && (
-              analysis ? (
+            {activeTab === 'patterns' &&
+              (analysis ? (
                 <PatternsPanel moves={analysis.moves} />
               ) : (
                 <div className="flex items-center justify-center py-12">
@@ -984,12 +1068,11 @@ export default function ReviewPage() {
                     {loadingAnalysis ? 'Analyzing...' : 'No data available.'}
                   </p>
                 </div>
-              )
-            )}
+              ))}
 
             {/* Letter Map tab */}
-            {activeTab === 'letter_map' && (
-              analysis ? (
+            {activeTab === 'letter_map' &&
+              (analysis ? (
                 <LetterMapPanel moves={analysis.moves} />
               ) : (
                 <div className="flex items-center justify-center py-12">
@@ -997,15 +1080,11 @@ export default function ReviewPage() {
                     {loadingAnalysis ? 'Analyzing...' : 'No data available.'}
                   </p>
                 </div>
-              )
-            )}
+              ))}
 
             {/* Graph tab */}
-            {activeTab === 'graph' && game && (
-              <GameStateGraph gameId={game.id} />
-            )}
+            {activeTab === 'graph' && game && <GameStateGraph gameId={game.id} />}
           </div>
-
         </div>
 
         {/* RIGHT COLUMN — Coach Chat */}
@@ -1018,7 +1097,6 @@ export default function ReviewPage() {
           </div>
         )}
       </div>
-
     </div>
   );
 }
