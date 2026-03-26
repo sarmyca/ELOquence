@@ -41,7 +41,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4 bg-[#09090b]">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4 bg-[#111113]">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -57,7 +57,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-[#0f0f12] border border-white/[0.06] rounded-[12px] p-6 sm:p-8">
+        <div className="bg-[#171719] border border-white/[0.06] rounded-[12px] p-6 sm:p-8">
           <h1 className="text-xl font-semibold text-[#ededf0] mb-6">Create account</h1>
 
           {/* Google */}
@@ -84,7 +84,7 @@ export default function RegisterPage() {
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="h-11 px-3 rounded-lg bg-[#16161a] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
+                className="h-11 px-3 rounded-lg bg-[#1d1d21] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
               />
             </div>
 
@@ -102,7 +102,7 @@ export default function RegisterPage() {
                 placeholder="wordmaster99"
                 minLength={3}
                 maxLength={20}
-                className="h-11 px-3 rounded-lg bg-[#16161a] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
+                className="h-11 px-3 rounded-lg bg-[#1d1d21] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
               />
             </div>
 
@@ -118,7 +118,7 @@ export default function RegisterPage() {
                 required
                 autoComplete="new-password"
                 placeholder="Min. 6 characters"
-                className="h-11 px-3 rounded-lg bg-[#16161a] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
+                className="h-11 px-3 rounded-lg bg-[#1d1d21] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
               />
             </div>
 

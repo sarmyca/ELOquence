@@ -15,8 +15,8 @@ interface TileProps {
 }
 
 const STATE_STYLES: Record<TileState, string> = {
-  empty:   'bg-[#16161a] border-2 border-white/[0.10]',
-  tbd:     'bg-[#16161a] border-2 border-white/[0.25]',
+  empty:   'bg-[#1d1d21] border-2 border-white/[0.10]',
+  tbd:     'bg-[#1d1d21] border-2 border-white/[0.25]',
   correct: 'bg-[#538d4e] border-2 border-[#538d4e]',
   present: 'bg-[#b59f3b] border-2 border-[#b59f3b]',
   absent:  'bg-[#3a3a3c] border-2 border-[#3a3a3c]',

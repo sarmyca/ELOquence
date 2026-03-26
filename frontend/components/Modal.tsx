@@ -19,7 +19,7 @@ interface ModalProps {
 /**
  * General-purpose modal with AnimatePresence enter/exit.
  * Backdrop: bg-black/60 backdrop-blur-sm.
- * Card: bg-[#16161a] rounded-[16px] border border-white/[0.06].
+ * Card: bg-[#1d1d21] rounded-[16px] border border-white/[0.06].
  *
  * Usage:
  *   <Modal open={open} onClose={() => setOpen(false)}>
@@ -92,7 +92,7 @@ export default function Modal({
               transition={springs.modal}
               className={`
                 pointer-events-auto relative w-full ${maxWidth}
-                bg-[#16161a]
+                bg-[#1d1d21]
                 rounded-[16px]
                 border border-white/[0.06]
                 shadow-modal

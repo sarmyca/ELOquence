@@ -171,7 +171,7 @@ const SECTIONS: Section[] = [
           ].map((m) => (
             <div
               key={m.name}
-              className="flex gap-3 p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06]"
+              className="flex gap-3 p-3 rounded-[12px] bg-[#171719] border border-white/[0.06]"
             >
               <span className="text-xl mt-0.5">{m.emoji}</span>
               <div>
@@ -219,7 +219,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-2">
           <p className="text-xs font-semibold text-text-primary">Example — answer is CRANE</p>
           <div className="flex flex-col gap-1.5 items-start">
             <div className="flex items-center gap-3">
@@ -237,7 +237,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06]">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06]">
           <p className="text-xs text-text-secondary leading-relaxed">
             <span className="font-semibold text-text-primary">Tip:</span> Pay attention to
             yellows — they tell you which letters to reuse in a different spot. Ignoring them
@@ -259,7 +259,7 @@ const SECTIONS: Section[] = [
           with the magnitude depending on the word&apos;s difficulty relative to your rating.
         </p>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06]">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06]">
           <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-2">Example: Win vs hard word</p>
           <div className="flex items-center gap-3">
             <div className="text-center">
@@ -289,7 +289,7 @@ const SECTIONS: Section[] = [
             ].map((t) => (
               <div
                 key={t.name}
-                className="flex items-center gap-2 p-2 rounded-lg bg-[#0f0f12] border border-white/[0.06]"
+                className="flex items-center gap-2 p-2 rounded-lg bg-[#171719] border border-white/[0.06]"
               >
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
@@ -304,7 +304,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Placement Matches</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Your first 5 rated games use a boosted K-factor (128 vs 32), so your rating adjusts
@@ -312,7 +312,7 @@ const SECTIONS: Section[] = [
           </p>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Word Difficulty</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Each word has its own difficulty rating based on how hard it is to solve. Beating a
@@ -336,7 +336,7 @@ const SECTIONS: Section[] = [
           possibilities.
         </p>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-3">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-3">
           <p className="text-[10px] text-text-ghost uppercase tracking-wider">Example Move Analysis</p>
           <div className="flex items-center gap-3">
             <TileRow word="SALET" pattern={['gray', 'yellow', 'gray', 'yellow', 'gray']} />
@@ -388,7 +388,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2.5">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-2.5">
           <p className="text-xs font-semibold text-text-primary">How Classification Works</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Each guess is compared to the optimal guess (highest expected information gain).
@@ -426,7 +426,7 @@ const SECTIONS: Section[] = [
           </p>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Key Metrics</p>
           <ul className="text-xs text-text-secondary space-y-1 leading-relaxed">
             <li>
@@ -458,7 +458,7 @@ const SECTIONS: Section[] = [
           exactly what happened at each step.
         </p>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-2">
           <p className="text-[10px] text-text-ghost uppercase tracking-wider">Example: Entropy Timeline</p>
           <div className="flex items-end gap-1.5" style={{ height: 64 }}>
             {[
@@ -525,7 +525,7 @@ const SECTIONS: Section[] = [
             ].map((tab) => (
               <div
                 key={tab.key}
-                className="flex gap-2.5 p-2.5 rounded-lg bg-[#0f0f12] border border-white/[0.06]"
+                className="flex gap-2.5 p-2.5 rounded-lg bg-[#171719] border border-white/[0.06]"
               >
                 <span className="text-[10px] font-mono text-text-ghost bg-bg-elevated w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5">
                   {tab.key}
@@ -572,7 +572,7 @@ const SECTIONS: Section[] = [
             </div>
           </div>
 
-          <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2.5">
+          <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-2.5">
             <p className="text-xs font-semibold text-text-secondary">Soft Violation</p>
             <p className="text-xs text-text-secondary leading-relaxed">
               Omitting a letter you know is in the word. Sometimes a valid strategy for
@@ -606,7 +606,7 @@ const SECTIONS: Section[] = [
           differs between them.
         </p>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2.5">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-2.5">
           <p className="text-[10px] text-text-ghost uppercase tracking-wider">Example: _IGHT trap</p>
           <div className="flex flex-wrap gap-1.5">
             {['LIGHT', 'MIGHT', 'NIGHT', 'RIGHT', 'SIGHT', 'TIGHT'].map((w) => (
@@ -624,7 +624,7 @@ const SECTIONS: Section[] = [
           </p>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Why Traps Matter</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             When trapped, random guessing gives you only a 1-in-N chance of finding the answer.
@@ -633,7 +633,7 @@ const SECTIONS: Section[] = [
           </p>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Detection</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Traps are only detected when 20 or fewer words remain. The review page highlights traps
@@ -655,7 +655,7 @@ const SECTIONS: Section[] = [
           ask questions about your game in natural language.
         </p>
 
-        <div className="rounded-[12px] bg-[#0f0f12] border border-white/[0.06] overflow-hidden">
+        <div className="rounded-[12px] bg-[#171719] border border-white/[0.06] overflow-hidden">
           <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06]">
             <MessageSquare size={11} className="text-[#6aaa64]" />
             <span className="text-[10px] font-semibold text-text-primary">Coach Chat</span>
@@ -684,7 +684,7 @@ const SECTIONS: Section[] = [
             ].map((q) => (
               <span
                 key={q}
-                className="text-xs px-2.5 py-1.5 rounded-lg bg-[#0f0f12] border border-white/[0.06] text-text-secondary"
+                className="text-xs px-2.5 py-1.5 rounded-lg bg-[#171719] border border-white/[0.06] text-text-secondary"
               >
                 {q}
               </span>
@@ -692,7 +692,7 @@ const SECTIONS: Section[] = [
           </div>
         </div>
 
-        <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-1.5">
+        <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-1.5">
           <p className="text-xs font-semibold text-text-primary">Limits</p>
           <p className="text-xs text-text-secondary leading-relaxed">
             Each game session has a 10-message limit. The coach has full context of your game
@@ -720,7 +720,7 @@ const SECTIONS: Section[] = [
           ].map((s) => (
             <div
               key={s.keys}
-              className="flex items-center justify-between p-2 rounded-lg bg-[#0f0f12] border border-white/[0.06]"
+              className="flex items-center justify-between p-2 rounded-lg bg-[#171719] border border-white/[0.06]"
             >
               <span className="text-xs font-mono text-text-primary bg-bg-elevated px-2 py-0.5 rounded">
                 {s.keys}
@@ -744,7 +744,7 @@ const SECTIONS: Section[] = [
           every rated game (Daily and Competitive modes).
         </p>
 
-        <div className="rounded-[12px] bg-[#0f0f12] border border-white/[0.06] overflow-hidden">
+        <div className="rounded-[12px] bg-[#171719] border border-white/[0.06] overflow-hidden">
           <div className="grid grid-cols-[2rem_1fr_3.5rem_3rem_3rem] items-center gap-2 px-3 py-1.5 text-[10px] text-text-ghost uppercase tracking-wider border-b border-white/[0.04]">
             <span>#</span>
             <span>Player</span>
@@ -790,13 +790,13 @@ const SECTIONS: Section[] = [
         </p>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2">
+          <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-2">
             <p className="text-[10px] text-text-ghost uppercase tracking-wider">ELO Sparkline</p>
             <MiniSparkline />
             <p className="text-[10px] text-text-ghost">Your rating trend over recent games</p>
           </div>
 
-          <div className="p-3 rounded-[12px] bg-[#0f0f12] border border-white/[0.06] space-y-2">
+          <div className="p-3 rounded-[12px] bg-[#171719] border border-white/[0.06] space-y-2">
             <p className="text-[10px] text-text-ghost uppercase tracking-wider">Guess Distribution</p>
             <div className="space-y-1">
               {[
@@ -854,7 +854,7 @@ function AccordionItem({
   return (
     <div
       className={clsx(
-        'rounded-[12px] bg-[#0f0f12] border overflow-hidden transition-colors',
+        'rounded-[12px] bg-[#171719] border overflow-hidden transition-colors',
         isOpen ? 'border-white/[0.12]' : 'border-white/[0.06]',
         isLocked && 'opacity-50',
       )}
@@ -1013,7 +1013,7 @@ export default function LearnPage() {
             transition={{ duration: 0.2 }}
             className="flex-1 min-w-0"
           >
-            <div className="rounded-2xl bg-[#16161a] border border-white/[0.08] p-5">
+            <div className="rounded-2xl bg-[#1d1d21] border border-white/[0.08] p-5">
               <div className="flex items-center gap-2 mb-5">
                 <span className="p-2 rounded-lg bg-[#538d4e]/10 border border-[#538d4e]/15 text-[#6aaa64]">
                   {current.icon}

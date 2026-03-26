@@ -365,7 +365,7 @@ export default function GamePage() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.92, y: 12 }}
                 transition={springs.modal}
-                className="w-full max-w-xs bg-[#16161a] rounded-2xl border border-white/[0.10] shadow-modal overflow-hidden pointer-events-auto"
+                className="w-full max-w-xs bg-[#1d1d21] rounded-2xl border border-white/[0.10] shadow-modal overflow-hidden pointer-events-auto"
               >
                 {/* Danger stripe */}
                 <div className="h-1 w-full bg-[#e74c3c]" />

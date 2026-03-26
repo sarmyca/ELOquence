@@ -10,11 +10,11 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          base: '#09090b',
-          primary: '#0f0f12',
-          secondary: '#16161a',
-          tertiary: '#1e1e23',
-          elevated: '#27272e',
+          base: '#111113',
+          primary: '#171719',
+          secondary: '#1d1d21',
+          tertiary: '#25252a',
+          elevated: '#2e2e35',
         },
         text: {
           primary: '#ededf0',
@@ -26,7 +26,7 @@ const config: Config = {
           correct: '#538d4e',
           present: '#b59f3b',
           absent: '#3a3a3c',
-          empty: '#16161a',
+          empty: '#1d1d21',
         },
         w: {
           green: '#538d4e',

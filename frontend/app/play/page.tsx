@@ -360,7 +360,7 @@ export default function PlayPage() {
               exit={{ opacity: 0, scale: 0.92, y: 16 }}
               transition={springs.modal}
               className="w-full max-w-sm rounded-2xl border border-white/[0.10] shadow-2xl overflow-hidden"
-              style={{ backgroundColor: '#16161a' }}
+              style={{ backgroundColor: '#1d1d21' }}
             >
               <div className="h-1.5 w-full bg-gradient-to-r from-[#538d4e] to-[#6aaa64]" />
               <div className="p-6 flex flex-col gap-5">
@@ -408,7 +408,7 @@ export default function PlayPage() {
                   <div
                     className="flex-1 min-w-0 py-2 px-3 rounded-lg border text-xs font-mono truncate"
                     style={{
-                      backgroundColor: '#1e1e23',
+                      backgroundColor: '#25252a',
                       borderColor: 'rgba(255,255,255,0.08)',
                       color: '#5c5c66',
                     }}
@@ -423,7 +423,7 @@ export default function PlayPage() {
                     onClick={handleCopyChallengeLink}
                     className="shrink-0 px-3 py-2 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1.5"
                     style={{
-                      backgroundColor: '#1e1e23',
+                      backgroundColor: '#25252a',
                       borderColor: 'rgba(255,255,255,0.08)',
                       color: '#ededf0',
                     }}
@@ -533,7 +533,7 @@ export default function PlayPage() {
             disabled={!!creating}
             className="group relative w-full flex flex-col gap-4 text-left rounded-[12px] border transition-all duration-200 cursor-pointer"
             style={{
-              backgroundColor: '#0f0f12',
+              backgroundColor: '#171719',
               borderColor: 'rgba(255,255,255,0.06)',
               padding: '1.25rem',
             }}
@@ -653,7 +653,7 @@ export default function PlayPage() {
                 onClick={() => router.push('/login')}
                 className="relative flex flex-col gap-3 p-4 rounded-[12px] border text-left transition-all duration-200 cursor-pointer"
                 style={{
-                  backgroundColor: '#0f0f12',
+                  backgroundColor: '#171719',
                   borderColor: 'rgba(255,255,255,0.06)',
                   opacity: 0.55,
                 }}
@@ -813,7 +813,7 @@ export default function PlayPage() {
           disabled={!!creating}
           className="group relative w-full flex flex-col gap-4 text-left rounded-[12px] border transition-all duration-200 cursor-pointer"
           style={{
-            backgroundColor: '#0f0f12',
+            backgroundColor: '#171719',
             borderColor: 'rgba(255,255,255,0.06)',
             padding: '1.25rem',
           }}
@@ -982,7 +982,7 @@ export default function PlayPage() {
                 disabled={!!creating}
                 className="relative flex flex-col gap-3 p-4 rounded-[12px] border text-left transition-all duration-200 cursor-pointer disabled:opacity-70"
                 style={{
-                  backgroundColor: '#0f0f12',
+                  backgroundColor: '#171719',
                   borderColor: 'rgba(255,255,255,0.06)',
                 }}
                 onMouseEnter={(e) => {
@@ -1062,7 +1062,7 @@ export default function PlayPage() {
             disabled={creatingChallenge || !!creating}
             className="w-full py-2.5 rounded-[12px] border text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             style={{
-              backgroundColor: '#0f0f12',
+              backgroundColor: '#171719',
               borderColor: 'rgba(255,255,255,0.06)',
               color: '#9898a0',
             }}

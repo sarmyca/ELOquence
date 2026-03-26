@@ -99,7 +99,7 @@ function computeEloDist(
 
 function Skeleton({ className }: { className?: string }) {
   return (
-    <div className={clsx('skeleton rounded-lg bg-[#1e1e23]', className)} />
+    <div className={clsx('skeleton rounded-lg bg-[#25252a]', className)} />
   );
 }
 
@@ -237,7 +237,7 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
               animate={true}
             />
           ) : (
-            <span className="text-xs text-text-ghost px-2 py-0.5 rounded-full bg-[#1e1e23]">
+            <span className="text-xs text-text-ghost px-2 py-0.5 rounded-full bg-[#25252a]">
               ?
             </span>
           )}
@@ -258,7 +258,7 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
       {revealed && (
         <div className="px-3 pb-2 flex items-center gap-2">
           <span className="text-[10px] text-text-ghost w-16">Efficiency</span>
-          <div className="flex-1 h-1 rounded-full bg-[#1e1e23] overflow-hidden">
+          <div className="flex-1 h-1 rounded-full bg-[#25252a] overflow-hidden">
             <motion.div
               className="h-full rounded-full"
               style={{ backgroundColor: config?.color || '#565758' }}
@@ -291,7 +291,7 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
                     e.stopPropagation();
                     setShowRemaining(!showRemaining);
                   }}
-                  className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#1e1e23] text-left hover:bg-white/[0.08] transition-colors"
+                  className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#25252a] text-left hover:bg-white/[0.08] transition-colors"
                 >
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                     Remaining
@@ -305,7 +305,7 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
                   </span>
                 </button>
 
-                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#1e1e23]">
+                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#25252a]">
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider">
                     Entropy
                   </span>
@@ -314,7 +314,7 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#1e1e23]">
+                <div className="flex flex-col gap-0.5 p-2 rounded-lg bg-[#25252a]">
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider">
                     Luck
                   </span>
@@ -346,7 +346,7 @@ function MoveRow({ move, index, revealed, isActive, onClick, gameId }: MoveRowPr
                       transition={{ duration: 0.15 }}
                       className="overflow-hidden"
                     >
-                      <div className="p-2 rounded-lg bg-[#1e1e23]">
+                      <div className="p-2 rounded-lg bg-[#25252a]">
                         <span className="text-[10px] text-text-ghost uppercase tracking-wider mb-1.5 block">
                           Remaining words ({move.remaining_words_list.length})
                         </span>
@@ -772,7 +772,7 @@ export default function ReviewPage() {
           style={{ maxHeight: 'calc(100dvh - 120px)' }}
         >
           {/* Mini board */}
-          <div className="p-4 rounded-2xl bg-[#16161a] border border-white/[0.08]">
+          <div className="p-4 rounded-2xl bg-[#1d1d21] border border-white/[0.08]">
             <MiniBoard
               guesses={guesses}
               patterns={boardPatterns}
@@ -782,7 +782,7 @@ export default function ReviewPage() {
           </div>
 
           {/* Accuracy gauge */}
-          <div className="flex flex-col items-center p-3 rounded-2xl bg-[#16161a] border border-white/[0.08] w-full">
+          <div className="flex flex-col items-center p-3 rounded-2xl bg-[#1d1d21] border border-white/[0.08] w-full">
             {loadingAnalysis ? (
               <div className="flex flex-col items-center gap-3 py-4">
                 <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
@@ -798,7 +798,7 @@ export default function ReviewPage() {
           {/* Stats */}
           {game && (
             <div className="grid grid-cols-2 gap-2 w-full">
-              <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#16161a] border border-white/[0.08]">
+              <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#1d1d21] border border-white/[0.08]">
                 <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                   <Hash size={9} /> Guesses
                 </span>
@@ -811,7 +811,7 @@ export default function ReviewPage() {
                 <div className="relative">
                   <button
                     onClick={() => setShowEloDist(!showEloDist)}
-                    className="w-full flex flex-col gap-0.5 p-3 rounded-xl bg-[#16161a] border border-white/[0.08] hover:bg-white/[0.04] transition-colors text-left"
+                    className="w-full flex flex-col gap-0.5 p-3 rounded-xl bg-[#1d1d21] border border-white/[0.08] hover:bg-white/[0.04] transition-colors text-left"
                   >
                     <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                       <TrendingUp size={9} /> Rating
@@ -840,7 +840,7 @@ export default function ReviewPage() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -4 }}
                           transition={{ duration: 0.15 }}
-                          className="absolute left-0 right-0 top-full mt-1 z-20 p-2.5 rounded-xl bg-[#16161a] border border-white/[0.1] shadow-xl"
+                          className="absolute left-0 right-0 top-full mt-1 z-20 p-2.5 rounded-xl bg-[#1d1d21] border border-white/[0.1] shadow-xl"
                         >
                           <p className="text-[10px] text-text-ghost uppercase tracking-wider mb-1.5">
                             ELO by outcome
@@ -890,7 +890,7 @@ export default function ReviewPage() {
               )}
 
               {game.accuracy_score !== null && (
-                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#16161a] border border-white/[0.08]">
+                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#1d1d21] border border-white/[0.08]">
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                     <Target size={9} /> Accuracy
                   </span>
@@ -901,7 +901,7 @@ export default function ReviewPage() {
               )}
 
               {game.luck_factor !== null && (
-                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#16161a] border border-white/[0.08]">
+                <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-[#1d1d21] border border-white/[0.08]">
                   <span className="text-[10px] text-text-ghost uppercase tracking-wider flex items-center gap-1">
                     <Zap size={9} /> Luck
                   </span>
@@ -937,7 +937,7 @@ export default function ReviewPage() {
         <div className="flex flex-col gap-2 min-h-0">
           <TabSystem tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
-          <div className="p-4 rounded-2xl bg-[#16161a] border border-white/[0.08] min-h-0 flex-1 overflow-y-auto">
+          <div className="p-4 rounded-2xl bg-[#1d1d21] border border-white/[0.08] min-h-0 flex-1 overflow-y-auto">
             {/* Analysis tab */}
             {activeTab === 'analysis' && (
               <div className="flex flex-col gap-1">
@@ -961,7 +961,7 @@ export default function ReviewPage() {
                     <p className="text-sm text-text-secondary mb-3">{analysisError}</p>
                     <button
                       onClick={runAnalysis}
-                      className="px-4 py-2 rounded-lg bg-[#1e1e23] hover:bg-bg-elevated text-text-primary text-sm transition-colors border border-white/[0.08]"
+                      className="px-4 py-2 rounded-lg bg-[#25252a] hover:bg-bg-elevated text-text-primary text-sm transition-colors border border-white/[0.08]"
                     >
                       Retry Analysis
                     </button>
@@ -993,7 +993,7 @@ export default function ReviewPage() {
                         <span className="text-sm font-mono font-semibold text-text-primary uppercase tracking-wider flex-1">
                           {move.guess_word}
                         </span>
-                        <span className="text-xs text-text-ghost px-2 py-0.5 rounded-full bg-[#1e1e23]">
+                        <span className="text-xs text-text-ghost px-2 py-0.5 rounded-full bg-[#25252a]">
                           ?
                         </span>
                       </div>

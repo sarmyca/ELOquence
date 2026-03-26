@@ -229,7 +229,7 @@ export default function GameOverModal({
                 transition={springs.modal}
                 className="
                   w-full max-w-sm
-                  bg-[#16161a]
+                  bg-[#1d1d21]
                   rounded-[16px]
                   border border-white/[0.08]
                   shadow-modal

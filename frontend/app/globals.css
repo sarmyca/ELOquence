@@ -4,11 +4,11 @@
 
 :root {
   /* ── Backgrounds — true OLED blacks ── */
-  --bg-base: #09090b;
-  --bg-primary: #0f0f12;
-  --bg-secondary: #16161a;
-  --bg-tertiary: #1e1e23;
-  --bg-elevated: #27272e;
+  --bg-base: #111113;
+  --bg-primary: #171719;
+  --bg-secondary: #1d1d21;
+  --bg-tertiary: #25252a;
+  --bg-elevated: #2e2e35;
   --bg-hover: rgba(255, 255, 255, 0.035);
   --bg-active: rgba(255, 255, 255, 0.06);
 
@@ -28,7 +28,7 @@
   --tile-correct: #538d4e;
   --tile-present: #b59f3b;
   --tile-absent: #3a3a3c;
-  --tile-empty: #16161a;
+  --tile-empty: #1d1d21;
   --tile-border: rgba(255, 255, 255, 0.10);
 
   /* ── Brand accents (derived from Wordle) ── */

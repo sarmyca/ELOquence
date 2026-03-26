@@ -160,7 +160,7 @@ export default function ChallengePage() {
           transition={springs.slide}
           className="text-center"
         >
-          <div className="w-16 h-16 rounded-2xl bg-[#0f0f12] border border-white/[0.08] flex items-center justify-center mx-auto mb-5">
+          <div className="w-16 h-16 rounded-2xl bg-[#171719] border border-white/[0.08] flex items-center justify-center mx-auto mb-5">
             <Swords size={28} className="text-text-ghost" />
           </div>
           <h1 className="text-xl font-bold text-text-primary mb-2">Challenge not found</h1>
@@ -205,7 +205,7 @@ export default function ChallengePage() {
             hidden: { opacity: 0, y: 24 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
-          className="rounded-2xl bg-[#16161a] border border-white/[0.08] overflow-hidden"
+          className="rounded-2xl bg-[#1d1d21] border border-white/[0.08] overflow-hidden"
         >
           {/* Gradient accent stripe */}
           <div className="h-1 w-full bg-gradient-to-r from-[#538d4e] via-[#6aaa64] to-[#538d4e]" />
@@ -308,7 +308,7 @@ export default function ChallengePage() {
               hidden: { opacity: 0, y: 24 },
               visible: { opacity: 1, y: 0, transition: springs.slide },
             }}
-            className="rounded-2xl bg-[#16161a] border border-white/[0.08] overflow-hidden"
+            className="rounded-2xl bg-[#1d1d21] border border-white/[0.08] overflow-hidden"
           >
             <div className="px-4 pt-4 pb-2.5 border-b border-white/[0.06] flex items-center gap-2">
               <Trophy size={13} className="text-[#c9a227]" />
@@ -404,7 +404,7 @@ export default function ChallengePage() {
             hidden: { opacity: 0, y: 24 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
-          className="rounded-2xl bg-[#16161a] border border-white/[0.08] p-4"
+          className="rounded-2xl bg-[#1d1d21] border border-white/[0.08] p-4"
         >
           <div className="flex items-center gap-2 mb-3">
             <Share2 size={13} className="text-text-ghost" />
@@ -414,7 +414,7 @@ export default function ChallengePage() {
           </div>
 
           <div className="flex gap-2">
-            <div className="flex-1 min-w-0 py-2 px-3 rounded-lg bg-[#0f0f12] border border-white/[0.08] text-xs text-text-ghost font-mono truncate">
+            <div className="flex-1 min-w-0 py-2 px-3 rounded-lg bg-[#171719] border border-white/[0.08] text-xs text-text-ghost font-mono truncate">
               {shareUrl}
             </div>
             <motion.button

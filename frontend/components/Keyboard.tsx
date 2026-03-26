@@ -20,7 +20,7 @@ const ROWS = [
 const KEY_STATE_STYLES: Record<string, string> = {
   correct: 'bg-[#538d4e] text-white',
   present: 'bg-[#b59f3b] text-white',
-  absent:  'bg-[#1e1e23] text-[#5c5c66]',
+  absent:  'bg-[#25252a] text-[#5c5c66]',
   unused:  'bg-[#3c3c44] text-white',
 };
 

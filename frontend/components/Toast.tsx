@@ -24,7 +24,7 @@ export default function Toast({ message, visible }: ToastProps) {
             className="
               px-5 py-2.5
               rounded-full
-              bg-[#27272e]
+              bg-[#2e2e35]
               border border-white/[0.06]
               shadow-elevated
               text-sm font-semibold text-text-primary

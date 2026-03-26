@@ -198,7 +198,7 @@ export default function LeaderboardPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...springs.slide, delay: 0.14 }}
-        className="bg-[#0f0f12] border border-white/[0.06] rounded-[12px] overflow-hidden"
+        className="bg-[#171719] border border-white/[0.06] rounded-[12px] overflow-hidden"
       >
         {/* Column headers */}
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.06]">
@@ -254,7 +254,7 @@ export default function LeaderboardPage() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0f0f12] border border-white/[0.06] text-sm text-[#9898a0] hover:text-[#ededf0] hover:border-white/[0.10] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#171719] border border-white/[0.06] text-sm text-[#9898a0] hover:text-[#ededf0] hover:border-white/[0.10] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
           >
             <ChevronLeft size={14} />
             Previous
@@ -267,7 +267,7 @@ export default function LeaderboardPage() {
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={!hasMore}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0f0f12] border border-white/[0.06] text-sm text-[#9898a0] hover:text-[#ededf0] hover:border-white/[0.10] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#171719] border border-white/[0.06] text-sm text-[#9898a0] hover:text-[#ededf0] hover:border-white/[0.10] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
           >
             Next
             <ChevronRight size={14} />

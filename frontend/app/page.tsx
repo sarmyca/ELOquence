@@ -221,14 +221,14 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-dvh bg-[#09090b]">
+      <div className="flex items-center justify-center min-h-dvh bg-[#111113]">
         <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-center min-h-dvh bg-[#09090b] px-4">
+    <div className="flex items-center justify-center min-h-dvh bg-[#111113] px-4">
       <motion.div
         className="flex flex-col items-center text-center"
         initial="hidden"

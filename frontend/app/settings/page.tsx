@@ -38,7 +38,7 @@ function Modal({
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="relative w-full max-w-md rounded-2xl bg-[#16161a] border border-white/[0.08] shadow-modal p-6">
+      <div className="relative w-full max-w-md rounded-2xl bg-[#1d1d21] border border-white/[0.08] shadow-modal p-6">
         {children}
       </div>
     </div>
@@ -64,10 +64,10 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#538d4e]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#16161a] shrink-0 ${
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#538d4e]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1d1d21] shrink-0 ${
         checked
           ? 'bg-[#538d4e]'
-          : 'bg-[#1e1e23] border border-white/[0.1]'
+          : 'bg-[#25252a] border border-white/[0.1]'
       }`}
     >
       <span
@@ -283,7 +283,7 @@ function DeleteAccountModal({
         }}
         placeholder="DELETE"
         disabled={loading}
-        className="w-full mb-5 px-3 py-2 text-sm rounded-lg bg-[#1e1e23] border border-white/[0.08] text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-[#e74c3c]/50 transition-colors disabled:opacity-40 font-mono tracking-wider"
+        className="w-full mb-5 px-3 py-2 text-sm rounded-lg bg-[#25252a] border border-white/[0.08] text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-[#e74c3c]/50 transition-colors disabled:opacity-40 font-mono tracking-wider"
       />
 
       {error && (
@@ -335,7 +335,7 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 p-4 rounded-[12px] bg-[#16161a] border border-white/[0.08]">
+    <div className="flex items-center justify-between gap-4 p-4 rounded-[12px] bg-[#1d1d21] border border-white/[0.08]">
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-9 h-9 rounded-lg bg-bg-tertiary flex items-center justify-center shrink-0 text-text-secondary">
           {icon}
@@ -391,7 +391,7 @@ export default function SettingsPage() {
       <div className="max-w-xl mx-auto px-4 py-8">
         {/* Page header */}
         <div className="flex items-center gap-2.5 mb-7">
-          <div className="p-2 rounded-lg bg-[#0f0f12] border border-white/[0.08] text-text-secondary">
+          <div className="p-2 rounded-lg bg-[#171719] border border-white/[0.08] text-text-secondary">
             <Settings size={18} />
           </div>
           <div>
@@ -432,7 +432,7 @@ export default function SettingsPage() {
               </SettingRow>
 
               {colorBlind && (
-                <div className="p-4 rounded-[12px] bg-[#16161a] border border-white/[0.08]">
+                <div className="p-4 rounded-[12px] bg-[#1d1d21] border border-white/[0.08]">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost mb-3">
                     Color Preview
                   </p>
@@ -473,7 +473,7 @@ export default function SettingsPage() {
               Danger Zone
             </p>
 
-            <div className="rounded-[12px] bg-[#16161a] border border-[#e74c3c]/30 overflow-hidden">
+            <div className="rounded-[12px] bg-[#1d1d21] border border-[#e74c3c]/30 overflow-hidden">
               {/* Header strip */}
               <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#e74c3c]/20 bg-[#e74c3c]/[0.05]">
                 <AlertTriangle size={14} className="text-[#e74c3c]" />

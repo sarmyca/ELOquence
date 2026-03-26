@@ -31,7 +31,7 @@ function SkeletonCard() {
   return (
     <div
       className="flex flex-col items-center gap-2.5 rounded-[12px] px-4 py-5"
-      style={{ background: '#0f0f12', border: '1px solid rgba(255,255,255,0.04)' }}
+      style={{ background: '#171719', border: '1px solid rgba(255,255,255,0.04)' }}
     >
       <div className="w-9 h-9 rounded-full bg-bg-elevated animate-pulse" />
       <div className="w-16 h-2.5 rounded-full bg-bg-elevated animate-pulse" />
@@ -76,7 +76,7 @@ function AchievementCard({ ach, index, unlockedAt }: AchievementCardProps) {
       }}
       className="relative flex flex-col items-center text-center gap-2 rounded-[12px] px-4 py-5 transition-opacity"
       style={{
-        background: '#0f0f12',
+        background: '#171719',
         border: '1px solid rgba(255,255,255,0.06)',
         opacity: isUnlocked ? 1 : 0.4,
         filter: isUnlocked ? 'none' : 'grayscale(1)',
