@@ -201,7 +201,7 @@ export default function PlayPage() {
       icon: <Sun size={22} />,
       title: 'Daily',
       subtitle: "Today's Puzzle",
-      desc: 'One word per day. Race against the community.',
+      desc: 'One word per day. Play against the community.',
       accentColor: '#6aaa64',
       borderColor: 'rgba(106,170,100,0.25)',
       requiresAuth: false,
@@ -720,7 +720,7 @@ export default function PlayPage() {
           )}
 
           <p className="text-sm text-text-secondary leading-relaxed">
-            One word per day. Race against the community.
+            One word per day. Play against the community.
           </p>
 
           {/* Rated toggle — only after placements are done */}

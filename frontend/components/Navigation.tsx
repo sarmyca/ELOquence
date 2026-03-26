@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, LogOut, BarChart2, Trophy, ShieldCheck, Settings } from 'lucide-react';
+import { Menu, X, LogOut, BarChart2, ShieldCheck, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { getRatingTier } from '@/lib/types';
 import clsx from 'clsx';
@@ -65,14 +65,7 @@ export default function Navigation() {
                   : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
               )}
             >
-              {link.href === '/achievements' ? (
-                <span className="flex items-center gap-1.5">
-                  <Trophy size={13} />
-                  {link.label}
-                </span>
-              ) : (
-                link.label
-              )}
+              {link.label}
             </Link>
           ))}
           {user?.is_admin && (
@@ -175,14 +168,7 @@ export default function Navigation() {
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/[0.04]'
                   )}
                 >
-                  {link.href === '/achievements' ? (
-                    <span className="flex items-center gap-1.5">
-                      <Trophy size={13} />
-                      {link.label}
-                    </span>
-                  ) : (
-                    link.label
-                  )}
+                  {link.label}
                 </Link>
               ))}
               {user?.is_admin && (

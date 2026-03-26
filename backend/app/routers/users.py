@@ -9,6 +9,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.achievement import Achievement
 from app.models.elo_history import EloHistory
 from app.models.game import Game
 from app.models.move import Move
@@ -257,7 +258,12 @@ async def delete_account(
             delete(Game).where(Game.user_id == current_user.id)
         )
 
-    # 4. Delete the user record itself.
+    # 4. Delete achievements.
+    await db.execute(
+        delete(Achievement).where(Achievement.user_id == current_user.id)
+    )
+
+    # 5. Delete the user record itself.
     await db.delete(current_user)
 
     await db.commit()

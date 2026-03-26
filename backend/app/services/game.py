@@ -9,7 +9,7 @@ from datetime import date, datetime, timezone
 import httpx
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -208,14 +208,26 @@ async def create_game(
 
     pool = await _get_word_pool(mode, word_pool)
 
+    # Abandon any in-progress games of the same mode for this user
+    await db.execute(
+        update(Game)
+        .where(
+            Game.user_id == user.id,
+            Game.mode == mode,
+            Game.status == "in_progress",
+        )
+        .values(status="abandoned")
+    )
+
     if mode == "daily":
         target_word, difficulty = await _get_or_create_daily_word(db)
-        # Only one daily game per user per day
+        # Only one non-abandoned daily game per user per day
         existing = await db.execute(
             select(Game).where(
                 Game.user_id == user.id,
                 Game.mode == "daily",
                 func.date(Game.created_at) == date.today(),
+                Game.status != "abandoned",
             )
         )
         if existing.scalar_one_or_none():
@@ -276,6 +288,13 @@ async def submit_guess(
     from app.analysis.engine import ALL_WORDS, compute_pattern, is_valid_word
     from app.services.elo import apply_elo_update
 
+    # Validate word before touching the DB to avoid poisoning the session
+    if not is_valid_word(guess):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"'{guess}' is not a valid word.",
+        )
+
     # Load game with moves — allow guest games (user_id is None)
     result = await db.execute(
         select(Game)
@@ -293,12 +312,6 @@ async def submit_guess(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Game is already {game.status}.",
-        )
-
-    if not is_valid_word(guess):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"'{guess}' is not a valid word.",
         )
 
     pattern = compute_pattern(guess, game.target_word)

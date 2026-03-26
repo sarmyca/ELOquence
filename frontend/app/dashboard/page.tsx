@@ -441,11 +441,9 @@ export default function DashboardPage() {
                       {/* Word + mode */}
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-sm font-mono font-semibold uppercase text-text-primary truncate">
-                          {game.status === 'in_progress'
+                          {game.status === 'in_progress' || (game.status === 'abandoned' && game.mode === 'daily')
                             ? '?????'
-                            : game.target_word
-                            ? game.target_word
-                            : '—'}
+                            : (game.target_word || '—')}
                         </span>
                         <span className="text-[10px] text-text-ghost capitalize">
                           {game.mode}

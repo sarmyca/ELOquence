@@ -10,17 +10,15 @@ import { springs, stagger } from '@/lib/animations';
 // Data
 // ---------------------------------------------------------------------------
 
-const TITLE_LETTERS = [
-  { char: 'E', color: '#538d4e' },
-  { char: 'L', color: '#b59f3b' },
-  { char: 'O', color: '#538d4e' },
-  { char: 'Q', color: '#3a3a3c' },
-  { char: 'U', color: '#538d4e' },
-  { char: 'E', color: '#b59f3b' },
-  { char: 'N', color: '#538d4e' },
-  { char: 'C', color: '#3a3a3c' },
-  { char: 'E', color: '#538d4e' },
-] as const;
+const TILE_COLORS = ['#538d4e', '#b59f3b', '#3a3a3c'] as const;
+const TITLE_CHARS = 'ELOQUENCE';
+
+function randomizeTitleLetters() {
+  return TITLE_CHARS.split('').map((char) => ({
+    char,
+    color: TILE_COLORS[Math.floor(Math.random() * TILE_COLORS.length)],
+  }));
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -60,7 +58,7 @@ function neighbourScale(distance: number): number {
 // Idle / hover / neighbour phase: driven by the `animate` prop after boot.
 
 interface SingleTileProps {
-  tile: (typeof TITLE_LETTERS)[number];
+  tile: { char: string; color: string };
   index: number;
   hoveredIndex: number | null;
   bootDone: boolean;
@@ -159,6 +157,7 @@ function SingleTile({
 // ---------------------------------------------------------------------------
 
 function TitleRow() {
+  const [tiles] = useState(() => randomizeTitleLetters());
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   // Track how many tiles have completed their boot flip
   const landedCount = useRef(0);
@@ -168,7 +167,7 @@ function TitleRow() {
 
   const handleBootComplete = () => {
     landedCount.current += 1;
-    if (landedCount.current === TITLE_LETTERS.length) {
+    if (landedCount.current === tiles.length) {
       setBootDone(true);
     }
   };
@@ -204,7 +203,7 @@ function TitleRow() {
       inherit={false}
       style={{ perspective: 900 }}
     >
-      {TITLE_LETTERS.map((tile, i) => (
+      {tiles.map((tile, i) => (
         <SingleTile
           key={i}
           tile={tile}

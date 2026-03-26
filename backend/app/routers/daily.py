@@ -30,12 +30,13 @@ async def get_daily_info(
     daily_result = await db.execute(select(DailyWord).where(DailyWord.date == today))
     daily = daily_result.scalar_one_or_none()
 
-    # Check whether the user already has a daily game today
+    # Check whether the user already has a non-abandoned daily game today
     played_result = await db.execute(
         select(Game).where(
             Game.user_id == current_user.id,
             Game.mode == "daily",
             func.date(Game.created_at) == today,
+            Game.status != "abandoned",
         )
     )
     existing_game = played_result.scalar_one_or_none()
@@ -161,7 +162,7 @@ async def start_daily_game(
 
     today = date.today()
 
-    # Return existing game if user already started today's daily
+    # Return existing non-abandoned game if user already started today's daily
     played_result = await db.execute(
         select(Game)
         .options(selectinload(Game.moves))
@@ -169,6 +170,7 @@ async def start_daily_game(
             Game.user_id == current_user.id,
             Game.mode == "daily",
             func.date(Game.created_at) == today,
+            Game.status != "abandoned",
         )
     )
     existing = played_result.scalar_one_or_none()
