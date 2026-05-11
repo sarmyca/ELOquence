@@ -6,14 +6,21 @@ interface AccuracyGaugeProps {
   score: number;
   animated?: boolean;
   size?: number;
+  /** Display label below the number (default: "Accuracy") */
+  label?: string;
+  /** Alias for score — used when embedding as a generic gauge */
+  value?: number;
+  /** Max value for the gauge scale (default: 100) */
+  max?: number;
 }
 
-function getGaugeColor(score: number): string {
-  if (score >= 85) return '#538d4e';
-  if (score >= 70) return '#6aaa64';
-  if (score >= 55) return '#b59f3b';
-  if (score >= 40) return '#e67e22';
-  return '#e74c3c';
+function getGaugeColor(score: number, max: number): string {
+  const pct = score / max;
+  if (pct >= 0.85) return 'var(--tile-correct)';
+  if (pct >= 0.70) return 'var(--green-light)';
+  if (pct >= 0.55) return 'var(--tile-present)';
+  if (pct >= 0.40) return '#e67e22';
+  return 'var(--red)';
 }
 
 function describeArc(
@@ -40,7 +47,14 @@ export default function AccuracyGauge({
   score,
   animated = true,
   size = 160,
+  label = 'Accuracy',
+  value,
+  max = 100,
 }: AccuracyGaugeProps) {
+  // `value` prop is an alias for `score` when used generically
+  const effectiveScore = value ?? score;
+  const clampedScore = Math.min(max, Math.max(0, effectiveScore));
+
   const cx = size / 2;
   const cy = size / 2;
   const r = size / 2 - 14;
@@ -51,16 +65,14 @@ export default function AccuracyGauge({
   const totalSweep = 270;
 
   const bgPath = describeArc(cx, cy, r, startAngle, startAngle + totalSweep);
-
   const circumference = (totalSweep / 360) * 2 * Math.PI * r;
-
-  const color = getGaugeColor(score);
+  const color = getGaugeColor(clampedScore, max);
 
   // Animated display number
-  const displayScore = useMotionValue(animated ? 0 : score);
+  const displayScore = useMotionValue(animated ? 0 : clampedScore);
   const springScore = useSpring(displayScore, { damping: 30, stiffness: 80 });
   const roundedScore = useTransform(springScore, (v) => Math.round(v));
-  const [displayNum, setDisplayNum] = useState(animated ? 0 : score);
+  const [displayNum, setDisplayNum] = useState(animated ? 0 : clampedScore);
 
   useEffect(() => {
     const unsub = roundedScore.on('change', (v) => setDisplayNum(v));
@@ -70,32 +82,32 @@ export default function AccuracyGauge({
   useEffect(() => {
     if (animated) {
       const timer = setTimeout(() => {
-        displayScore.set(score);
+        displayScore.set(clampedScore);
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [score, animated, displayScore]);
+  }, [clampedScore, animated, displayScore]);
 
   // Animated stroke dashoffset
-  const fillRatio = score / 100;
+  const fillRatio = clampedScore / max;
   const dashOffset = circumference * (1 - fillRatio);
 
   return (
     <div
       className="flex flex-col items-center"
       role="meter"
-      aria-valuenow={score}
+      aria-valuenow={clampedScore}
       aria-valuemin={0}
-      aria-valuemax={100}
-      aria-label={`Accuracy: ${score}%`}
-      aria-valuetext={`Accuracy: ${score} percent`}
+      aria-valuemax={max}
+      aria-label={`${label}: ${clampedScore}`}
+      aria-valuetext={`${label}: ${clampedScore} out of ${max}`}
     >
       <svg width={size} height={size}>
-        {/* Background arc */}
+        {/* Background arc — theme-aware */}
         <path
           d={bgPath}
           fill="none"
-          stroke="#1e1f23"
+          stroke="var(--bg-muted)"
           strokeWidth={thickness}
           strokeLinecap="round"
         />
@@ -111,7 +123,7 @@ export default function AccuracyGauge({
           animate={{ strokeDashoffset: dashOffset }}
           transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
         />
-        {/* Center text */}
+        {/* Center number */}
         <text
           x={cx}
           y={cy - 6}
@@ -120,21 +132,22 @@ export default function AccuracyGauge({
           fill={color}
           fontSize={size * 0.22}
           fontWeight="700"
-          fontFamily="JetBrains Mono, monospace"
+          fontFamily="var(--font-mono, JetBrains Mono, monospace)"
           style={{ fontVariantNumeric: 'tabular-nums' }}
         >
           {displayNum}
         </text>
+        {/* Label */}
         <text
           x={cx}
           y={cy + size * 0.14}
           textAnchor="middle"
           dominantBaseline="middle"
-          fill="#9ba1a6"
+          fill="var(--text-secondary)"
           fontSize={size * 0.085}
-          fontFamily="Inter, sans-serif"
+          fontFamily="var(--font-sans, Inter, sans-serif)"
         >
-          Accuracy
+          {label}
         </text>
       </svg>
     </div>

@@ -40,14 +40,13 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
         const count = counts[key] ?? 0;
         const isHighlighted = highlightKey === key;
         const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
-        const barColor = isHighlighted ? '#6aaa64' : '#538d4e';
         const isLarge = pct > 40;
 
         return (
           <div key={key} className="flex items-center gap-2">
             {/* Label */}
             <span
-              className="font-mono tabular-nums shrink-0 text-right text-text-secondary"
+              className="font-sans font-bold tabular-nums shrink-0 text-right text-text-secondary"
               style={{ fontSize: 14, width: 16 }}
             >
               {label}
@@ -58,9 +57,11 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
               <motion.div
                 className="absolute inset-y-0 left-0 rounded-sm flex items-center overflow-hidden"
                 style={{
-                  backgroundColor: barColor,
+                  backgroundColor: isHighlighted
+                    ? 'var(--tile-correct)'
+                    : 'var(--text-secondary)',
+                  opacity: isHighlighted ? 1 : 0.6,
                   minWidth: 8,
-                  boxShadow: isHighlighted ? `0 0 8px ${barColor}60` : undefined,
                 }}
                 initial={{ width: '0%' }}
                 animate={{ width: `max(8px, ${pct}%)` }}
@@ -72,8 +73,12 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
               >
                 {isLarge && (
                   <span
-                    className="font-mono tabular-nums text-white px-2 shrink-0"
-                    style={{ fontSize: 12, fontWeight: 700 }}
+                    className="font-sans tabular-nums px-2 shrink-0"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: isHighlighted ? '#ffffff' : 'var(--bg-base)',
+                    }}
                   >
                     {count}
                   </span>
@@ -84,7 +89,7 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
             {/* Count outside bar if bar is small */}
             {!isLarge && (
               <motion.span
-                className="font-mono tabular-nums text-text-secondary shrink-0"
+                className="font-sans tabular-nums text-text-secondary shrink-0"
                 style={{ fontSize: 12, width: 28, textAlign: 'right' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -95,7 +100,7 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
             )}
             {isLarge && (
               <span
-                className="font-mono tabular-nums text-text-ghost shrink-0"
+                className="font-sans tabular-nums text-text-tertiary shrink-0"
                 style={{ fontSize: 10, width: 28, textAlign: 'right' }}
               />
             )}
@@ -104,7 +109,7 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
       })}
 
       {total > 0 && (
-        <p className="text-[10px] text-text-ghost mt-1 tabular-nums">
+        <p className="text-[10px] text-text-tertiary mt-1 tabular-nums">
           {total} game{total !== 1 ? 's' : ''} total
         </p>
       )}

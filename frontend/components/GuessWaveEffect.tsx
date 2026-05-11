@@ -7,28 +7,52 @@ interface Props {
   triggerKey: number;
 }
 
+/**
+ * Read --tile-correct and --tile-present from the document root at call time.
+ * Returns [r, g, b] in 0–1 range, falling back to the light-theme values.
+ */
+function getCSSColor(varName: string, fallbackHex: string): [number, number, number] {
+  let hex = fallbackHex;
+  if (typeof document !== 'undefined') {
+    const raw = getComputedStyle(document.documentElement)
+      .getPropertyValue(varName)
+      .trim();
+    if (raw) hex = raw;
+  }
+  // Strip leading #
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3
+    ? clean.split('').map((c) => c + c).join('')
+    : clean;
+  const r = parseInt(full.slice(0, 2), 16) / 255;
+  const g = parseInt(full.slice(2, 4), 16) / 255;
+  const b = parseInt(full.slice(4, 6), 16) / 255;
+  return [r, g, b];
+}
+
 function getShaderColor(pattern: number): [number, number, number] {
   const tiles = patternToTiles(pattern);
   const green  = tiles.filter((t: TileState) => t === 'correct').length;
   const yellow = tiles.filter((t: TileState) => t === 'present').length;
 
-  // Gray only contributes if ALL 5 tiles are gray (complete miss)
   const allGray = green === 0 && yellow === 0;
-
   if (allGray) {
-    // Muted gray wave
-    return [0.35, 0.35, 0.38];
+    // Very muted tint — light theme gray
+    return [0.47, 0.49, 0.49];
   }
 
-  // Blend only green and yellow, weighted by count
   const total = green + yellow || 1;
   const gW = green / total;
   const yW = yellow / total;
 
+  // Read live CSS vars so this works in both light and dark themes
+  const [gr, gg, gb] = getCSSColor('--tile-correct', '#6aaa64');
+  const [yr, yg, yb] = getCSSColor('--tile-present', '#c9b458');
+
   return [
-    gW * 0.325 + yW * 0.710,
-    gW * 0.553 + yW * 0.624,
-    gW * 0.306 + yW * 0.231,
+    gW * gr + yW * yr,
+    gW * gg + yW * yg,
+    gW * gb + yW * yb,
   ];
 }
 
@@ -89,6 +113,12 @@ export default function GuessWaveEffect({ pattern, triggerKey }: Props) {
   const activeRef = useRef(false);
   const failedRef = useRef(false);
 
+  // Respect prefers-reduced-motion — no-op if matched
+  const prefersReducedMotion =
+    typeof window !== 'undefined'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false;
+
   const ensureGL = useCallback(() => {
     if (failedRef.current) return null;
     if (glRef.current) return glRef.current;
@@ -134,6 +164,8 @@ export default function GuessWaveEffect({ pattern, triggerKey }: Props) {
   }, []);
 
   useEffect(() => {
+    // Skip entirely when reduced-motion is requested
+    if (prefersReducedMotion) return;
     if (pattern === null) return;
 
     activeRef.current = false;
@@ -153,6 +185,7 @@ export default function GuessWaveEffect({ pattern, triggerKey }: Props) {
     canvas.style.height = `${h}px`;
     gl.viewport(0, 0, canvas.width, canvas.height);
 
+    // Read CSS vars at trigger time so light/dark theme is respected
     const tint = getShaderColor(pattern);
     gl.uniform2f(locs.u_resolution!, canvas.width, canvas.height);
     gl.uniform3f(locs.u_tint!, tint[0], tint[1], tint[2]);
@@ -201,7 +234,10 @@ export default function GuessWaveEffect({ pattern, triggerKey }: Props) {
       activeRef.current = false;
       cancelAnimationFrame(rafRef.current);
     };
-  }, [pattern, triggerKey, ensureGL]);
+  }, [pattern, triggerKey, ensureGL, prefersReducedMotion]);
+
+  // When reduced motion is active, render nothing
+  if (prefersReducedMotion) return null;
 
   return (
     <canvas

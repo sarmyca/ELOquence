@@ -21,16 +21,12 @@ export default function Toast({ message, visible }: ToastProps) {
           aria-live="assertive"
         >
           <div
-            className="
-              px-5 py-2.5
-              rounded-full
-              bg-[#2e2e35]
-              border border-white/[0.06]
-              shadow-elevated
-              text-sm font-semibold text-text-primary
-              whitespace-nowrap
-              select-none
-            "
+            className="px-5 py-2.5 rounded-full shadow-elevated text-sm font-semibold whitespace-nowrap select-none"
+            style={{
+              backgroundColor: 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+            }}
           >
             {message}
           </div>

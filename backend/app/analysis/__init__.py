@@ -35,12 +35,23 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
     from app.analysis.engine import (
         ANSWERS,
         COMPETITIVE_ANSWERS,
+        DICTIONARY_SIZES,
+        HARD_MODE_STARTER,
         PATTERN_MATRIX,
+        STANDARD_MODE_STARTER,
+        actual_solutions_after,
+        bot_best_pick,
+        bot_solve_path as compute_bot_solve_path,
         compute_entropy,
         compute_expected_remaining,
+        compute_luck_score,
+        compute_skill_score,
+        expected_solutions_after,
+        expected_steps_remaining,
         find_optimal_guess,
         get_remaining_answers,
         get_word_index,
+        uniqueness_percentile as compute_uniqueness_percentile,
     )
     from app.analysis.traps import detect_trap
 
@@ -205,6 +216,52 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
             p //= 3
         constraint_state.update(guess, pattern_tiles)
 
+        # ------------------------------------------------------------------
+        # WordleBot-spec per-turn metrics
+        # ------------------------------------------------------------------
+        skill = compute_skill_score(player_entropy, optimal_info, n_remaining)
+        luck_s = compute_luck_score(info_gained, player_entropy, n_remaining)
+        exp_sol_after = round(expected_solutions_after(guess_idx, possible) if guess_idx is not None else float(n_remaining), 2)
+        act_sol_after = actual_solutions_after(guess_idx, possible, pattern) if guess_idx is not None else len(new_possible)
+        exp_steps = round(expected_steps_remaining(new_possible), 2)
+        bot_word = bot_best_pick(possible)
+
+        # Rationale for bot pick (short text explaining why)
+        if bot_word == guess:
+            bot_rationale = "You matched the bot's pick."
+        elif optimal_word and optimal_word == bot_word:
+            bot_rationale = f"Bot preferred {bot_word} (highest expected info gain)."
+        else:
+            bot_rationale = f"Bot would pick {bot_word} to maximize information."
+
+        # Candidate top-N with probability field
+        candidates = [
+            {
+                "word": tp["word"],
+                "entropy": round(tp["entropy"], 3),
+                "expected_remaining": round(tp["expected_remaining"], 2),
+                "probability": round(tp["expected_remaining"] / max(1, n_remaining), 4),
+            }
+            for tp in top_picks[:20]
+        ]
+
+        # Contextual tip case
+        tip_case = ""
+        if skill < 50 and n_remaining > 5:
+            # Detect common sub-patterns for educational tips
+            if guess_idx is not None and len(new_possible) > len(possible) * 0.8:
+                tip_case = "efficient_split"
+            elif bot_word and bot_word != guess:
+                # Check if bot word is an answer candidate
+                try:
+                    bw_idx = get_word_index(bot_word)
+                    if bw_idx < len(answer_pool) and bw_idx in set(possible.tolist()):
+                        tip_case = "bot_suggests_solution"
+                    else:
+                        tip_case = "efficient_split"
+                except ValueError:
+                    tip_case = "efficient_split"
+
         results.append(
             {
                 "move_number": move_num,
@@ -235,11 +292,24 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
                         "word": tp["word"],
                         "entropy": round(tp["entropy"], 3),
                         "expected_remaining": round(tp["expected_remaining"], 2),
+                        "probability": 0.0,
                     }
                     for tp in top_picks
                 ],
                 "pattern_distribution": pattern_dist,
                 "letter_frequencies": letter_freq,
+                # WordleBot-spec fields
+                "skill_score": skill,
+                "luck_score": luck_s,
+                "remaining_before": n_remaining,
+                "expected_solutions_after": exp_sol_after,
+                "actual_solutions_after": act_sol_after,
+                "expected_steps_until_solution": exp_steps,
+                "bot_pick": bot_word,
+                "bot_pick_rationale": bot_rationale,
+                "scenario_count": 0,
+                "candidates_top_n": candidates,
+                "tip_case": tip_case,
             }
         )
 
@@ -250,12 +320,39 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
 
     avg_luck = total_luck / len(game_moves) if game_moves else 0.0
 
+    # WordleBot-spec aggregates
+    non_opener_skill = [r["skill_score"] for r in results[1:] if r["classification"] != "forced"]
+    skill_avg_excl_opener = round(sum(non_opener_skill) / len(non_opener_skill), 1) if non_opener_skill else 0.0
+
+    all_luck_scores = [r["luck_score"] for r in results]
+    luck_avg_score = round(sum(all_luck_scores) / len(all_luck_scores), 1) if all_luck_scores else 50.0
+
+    guesses_list = [r["guess_word"] for r in results]
+    patterns_list = [r["pattern"] for r in results]
+    uniq = compute_uniqueness_percentile(guesses_list, patterns_list)
+    bot_path = compute_bot_solve_path(guesses_list, patterns_list)
+
+    # Failure score (only if game was not won — all 6 guesses used with no solution)
+    # Approximated as 100 - accuracy when game exhausts all guesses without solution
+    failure_score: float | None = None
+    if len(results) == 6 and results[-1]["remaining_after"] > 0:
+        failure_score = round(100.0 - accuracy, 1)
+
     return {
         "accuracy_score": round(accuracy, 1),
         "luck_factor": round(avg_luck, 3),
         "moves": results,
         "constraint_violations": constraint_violation_count,
         "traps_encountered": trap_count,
+        # WordleBot-spec aggregates
+        "skill_avg_excluding_opener": skill_avg_excl_opener,
+        "luck_avg": luck_avg_score,
+        "uniqueness_percentile": uniq,
+        "bot_solve_path": bot_path,
+        "failure_score": failure_score,
+        "standard_mode_starter": STANDARD_MODE_STARTER,
+        "hard_mode_starter": HARD_MODE_STARTER,
+        "dictionary_sizes": DICTIONARY_SIZES,
     }
 
 

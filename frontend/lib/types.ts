@@ -72,6 +72,7 @@ export interface TopPick {
   word: string;
   entropy: number;
   expected_remaining: number;
+  probability?: number;
 }
 
 export interface PatternBucket {
@@ -94,6 +95,25 @@ export interface MoveAnalysis extends Move {
   } | null;
   pattern_distribution?: PatternBucket[];
   letter_frequencies?: Record<string, Record<string, number>>;
+  // WordleBot-spec per-turn fields
+  skill_score?: number;
+  luck_score?: number;
+  remaining_before?: number;
+  expected_solutions_after?: number;
+  actual_solutions_after?: number;
+  expected_steps_until_solution?: number;
+  bot_pick?: string;
+  bot_pick_rationale?: string;
+  scenario_count?: number;
+  candidates_top_n?: TopPick[];
+  tip_case?: string;
+}
+
+export interface DictionaryInfo {
+  guesses: number;
+  suggestions: number;
+  solutions: number;
+  legacy: number;
 }
 
 export interface AnalysisResult {
@@ -102,6 +122,15 @@ export interface AnalysisResult {
   moves: MoveAnalysis[];
   constraint_violations: number;
   traps_encountered: number;
+  // WordleBot-spec aggregate fields
+  skill_avg_excluding_opener?: number;
+  luck_avg?: number;
+  uniqueness_percentile?: number;
+  bot_solve_path?: string[];
+  failure_score?: number | null;
+  standard_mode_starter?: string;
+  hard_mode_starter?: string;
+  dictionary_sizes?: DictionaryInfo;
 }
 
 export interface EloHistoryEntry {

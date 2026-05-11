@@ -1,10 +1,10 @@
 'use client';
 import { memo } from 'react';
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps, type Edge } from '@xyflow/react';
 import MiniTiles from '@/components/MiniTiles';
 import { CLASSIFICATION_CONFIG, Classification } from '@/lib/types';
 
-export interface GuessEdgeData {
+export type GuessEdgeData = {
   guess_word: string;
   pattern: number;
   info_gained: number;
@@ -12,7 +12,9 @@ export interface GuessEdgeData {
   is_player_path: boolean;
   is_optimal_path: boolean;
   is_alternative: boolean;
-}
+} & Record<string, unknown>;
+
+export type GuessRfEdge = Edge<GuessEdgeData, 'guessEdge'>;
 
 function GuessEdge({
   id,
@@ -21,7 +23,7 @@ function GuessEdge({
   sourcePosition, targetPosition,
   data,
   style,
-}: EdgeProps<GuessEdgeData>) {
+}: EdgeProps<GuessRfEdge>) {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX, sourceY, targetX, targetY,
     sourcePosition, targetPosition,
@@ -33,7 +35,8 @@ function GuessEdge({
 
   const classification = data?.classification as Classification | undefined;
   const config = classification ? CLASSIFICATION_CONFIG[classification] : null;
-  const edgeColor = isPlayer && config ? config.color : isOptimal ? '#538d4e' : 'rgba(255,255,255,0.15)';
+  const edgeColor =
+    isPlayer && config ? config.color : isOptimal ? 'var(--tile-correct)' : 'var(--border-default)';
 
   // Edge thickness based on quality
   const strokeWidth = isPlayer ? 3 : isOptimal ? 2 : 1;
@@ -63,16 +66,16 @@ function GuessEdge({
           }}
         >
           <div
-            className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-md"
+            className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-md bg-bg-base"
             style={{
-              backgroundColor: 'rgba(15,16,18,0.9)',
-              border: `1px solid ${isPlayer || isOptimal ? edgeColor + '40' : 'rgba(255,255,255,0.06)'}`,
+              border: `1px solid ${isPlayer || isOptimal ? edgeColor : 'var(--border-subtle)'}`,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
             }}
           >
             {/* Guess word */}
             <span
               className="text-[10px] font-mono font-bold uppercase tracking-wider"
-              style={{ color: isPlayer || isOptimal ? edgeColor : '#9ba1a6' }}
+              style={{ color: isPlayer || isOptimal ? edgeColor : 'var(--text-secondary)' }}
             >
               {data?.guess_word}
             </span>

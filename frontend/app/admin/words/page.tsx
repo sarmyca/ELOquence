@@ -87,7 +87,7 @@ export default function AdminWordsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+        <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -104,35 +104,35 @@ export default function AdminWordsPage() {
         className="mb-6"
       >
         <div className="flex items-center gap-2 mb-1">
-          <Link href="/admin" className="text-text-secondary hover:text-text-primary text-sm transition-colors">
+          <Link href="/admin" className="font-sans text-text-secondary hover:text-text-primary text-sm transition-colors">
             Admin
           </Link>
-          <span className="text-text-ghost text-sm">/</span>
-          <span className="text-sm text-text-primary">Daily Words</span>
+          <span className="text-text-tertiary text-sm">/</span>
+          <span className="font-sans text-sm text-text-primary">Daily Words</span>
         </div>
-        <h1 className="text-2xl font-bold text-text-primary">Daily Words</h1>
-        <p className="text-sm text-text-secondary mt-0.5">Schedule words for upcoming days.</p>
+        <h1 className="font-display font-black text-3xl text-text-primary">Admin · Words</h1>
+        <p className="font-sans text-text-secondary mt-0.5">Schedule words for upcoming days.</p>
       </motion.div>
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+        <div className="mb-4 px-4 py-3 rounded-card border text-sm" style={{ background: 'rgba(231,76,60,0.08)', borderColor: 'rgba(231,76,60,0.25)', color: 'var(--red)' }}>
           {error}
         </div>
       )}
 
-      {/* Form */}
+      {/* Form card */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.3 }}
-        className="bg-bg-secondary border border-white/[0.08] rounded-2xl px-5 py-5 mb-6"
+        className="bg-bg-base border border-border-default rounded-card-lg p-6 mb-6"
       >
-        <h2 className="text-sm font-semibold text-text-primary mb-4">Schedule a Word</h2>
+        <h2 className="font-sans font-semibold text-text-primary text-sm mb-4">Schedule a Word</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Word */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-text-secondary font-medium">
+              <label className="text-xs uppercase tracking-wider text-text-secondary font-semibold font-sans">
                 Word (5 letters)
               </label>
               <input
@@ -141,26 +141,26 @@ export default function AdminWordsPage() {
                 onChange={(e) => setFormWord(e.target.value.toUpperCase().slice(0, 5))}
                 placeholder="CRANE"
                 maxLength={5}
-                className="px-3 py-2.5 bg-bg-tertiary border border-white/[0.08] rounded-xl text-sm font-mono tracking-widest text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-white/[0.2] transition-colors uppercase"
+                className="bg-transparent border-2 border-border-default rounded-md px-3 py-2 focus:border-tile-correct outline-none text-text-primary font-mono tracking-widest text-sm uppercase placeholder:text-text-tertiary transition-colors"
               />
             </div>
             {/* Date */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase tracking-wider text-text-secondary font-medium">
+              <label className="text-xs uppercase tracking-wider text-text-secondary font-semibold font-sans">
                 Date
               </label>
               <input
                 type="date"
                 value={formDate}
                 onChange={(e) => setFormDate(e.target.value)}
-                className="px-3 py-2.5 bg-bg-tertiary border border-white/[0.08] rounded-xl text-sm text-text-primary focus:outline-none focus:border-white/[0.2] transition-colors [color-scheme:dark]"
+                className="bg-transparent border-2 border-border-default rounded-md px-3 py-2 focus:border-tile-correct outline-none text-text-primary font-sans text-sm transition-colors"
               />
             </div>
           </div>
 
           {/* Difficulty slider */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase tracking-wider text-text-secondary font-medium">
+            <label className="text-xs uppercase tracking-wider text-text-secondary font-semibold font-sans">
               Difficulty — {difficultyLabel(formDifficulty)} ({formDifficulty})
             </label>
             <input
@@ -170,25 +170,26 @@ export default function AdminWordsPage() {
               step={1}
               value={formDifficulty}
               onChange={(e) => setFormDifficulty(Number(e.target.value))}
-              className="w-full accent-[#6aaa64]"
+              className="w-full"
+              style={{ accentColor: 'var(--tile-correct)' }}
             />
-            <div className="flex justify-between text-[10px] text-text-ghost">
+            <div className="flex justify-between text-[10px] text-text-tertiary font-sans">
               <span>Very Easy</span>
               <span>Very Hard</span>
             </div>
           </div>
 
           {formError && (
-            <p className="text-xs text-red-400">{formError}</p>
+            <p className="text-xs font-sans" style={{ color: 'var(--red)' }}>{formError}</p>
           )}
           {success && (
-            <p className="text-xs text-[#6aaa64]">{success}</p>
+            <p className="text-xs font-sans" style={{ color: 'var(--tile-correct)' }}>{success}</p>
           )}
 
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#538d4e] hover:bg-[#6aaa64] disabled:opacity-60 text-white text-sm font-medium rounded-xl transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-tile-correct text-white font-bold uppercase tracking-wider rounded-md hover:brightness-110 active:scale-[0.98] transition-[filter,transform] disabled:opacity-60 font-sans text-sm"
           >
             {submitting ? (
               <Loader2 size={14} className="animate-spin" />
@@ -200,42 +201,42 @@ export default function AdminWordsPage() {
         </form>
       </motion.div>
 
-      {/* Words list */}
+      {/* Words list card */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.3 }}
-        className="bg-bg-secondary border border-white/[0.08] rounded-2xl overflow-hidden"
+        className="bg-bg-base border border-border-default rounded-card-lg overflow-hidden"
       >
-        <div className="px-5 py-3 border-b border-white/[0.06]">
-          <h2 className="text-sm font-semibold text-text-primary">Scheduled Words</h2>
+        <div className="px-6 py-3 border-b border-border-default">
+          <h2 className="font-sans font-semibold text-text-primary text-sm">Scheduled Words</h2>
         </div>
         {fetching ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+            <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }} />
           </div>
         ) : words.length === 0 ? (
-          <div className="text-center py-12 text-text-secondary text-sm">No daily words scheduled.</div>
+          <div className="text-center py-12 text-text-secondary font-sans text-sm">No daily words scheduled.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm font-sans">
               <thead>
-                <tr className="border-b border-white/[0.04]">
-                  <th className="text-left px-5 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium">Date</th>
-                  <th className="text-left px-5 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium">Word</th>
-                  <th className="text-left px-5 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium">Difficulty</th>
+                <tr className="border-b-2 border-border-default">
+                  <th className="text-left px-6 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold">Date</th>
+                  <th className="text-left px-6 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold">Word</th>
+                  <th className="text-left px-6 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold">Difficulty</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.04]">
+              <tbody>
                 {[...words]
                   .sort((a, b) => a.date.localeCompare(b.date))
                   .map((w) => (
-                    <tr key={w.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-5 py-3 text-text-secondary font-mono">{w.date}</td>
-                      <td className="px-5 py-3 text-text-primary font-mono font-semibold tracking-widest">
+                    <tr key={w.id} className="border-b border-border-subtle hover:bg-bg-elevated/50 transition-colors">
+                      <td className="px-6 py-3 text-text-secondary font-mono tabular-nums">{w.date}</td>
+                      <td className="px-6 py-3 text-text-primary font-mono font-semibold tracking-widest">
                         {w.word}
                       </td>
-                      <td className="px-5 py-3 text-text-secondary">
+                      <td className="px-6 py-3 text-text-secondary">
                         {w.difficulty != null ? difficultyLabel(w.difficulty) : '—'}
                       </td>
                     </tr>

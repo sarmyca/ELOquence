@@ -66,6 +66,9 @@ export const dailyApi = {
   guestGame: (gameId: string) => api.get(`/daily/guest/${gameId}`),
   guestGuess: (gameId: string, guess: string) =>
     api.post(`/daily/guest/${gameId}/guess`, { guess }),
+  archive: (year: number, month: number) =>
+    api.get('/daily/archive', { params: { year, month } }),
+  replay: (date: string) => api.post('/daily/replay', { date }),
 };
 
 // Leaderboard

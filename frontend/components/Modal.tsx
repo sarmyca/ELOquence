@@ -18,13 +18,8 @@ interface ModalProps {
 
 /**
  * General-purpose modal with AnimatePresence enter/exit.
- * Backdrop: bg-black/60 backdrop-blur-sm.
- * Card: bg-[#1d1d21] rounded-[16px] border border-white/[0.06].
- *
- * Usage:
- *   <Modal open={open} onClose={() => setOpen(false)}>
- *     <p>Content here</p>
- *   </Modal>
+ * Backdrop: rgba(255,255,255,0.5) light / rgba(0,0,0,0.6) dark + backdrop-blur.
+ * Card: bg-bg-base, 1px border-subtle, heavy shadow.
  */
 export default function Modal({
   open,
@@ -39,11 +34,9 @@ export default function Modal({
   // Trap focus and handle Escape
   useEffect(() => {
     if (!open) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose?.();
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
@@ -64,14 +57,15 @@ export default function Modal({
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — light: translucent white blur, dark: dark blur */}
           <motion.div
             key="modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            transition={{ duration: 0.22 }}
+            className="fixed inset-0 z-50 backdrop-blur-sm"
+            style={{ backgroundColor: 'rgba(255,255,255,0.5)' }}
             aria-hidden="true"
             onClick={() => onClose?.()}
           />
@@ -88,16 +82,14 @@ export default function Modal({
               key="modal-card"
               initial={{ opacity: 0, scale: 0.88, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.93, y: 10 }}
+              exit={{ opacity: 0, scale: 0.93, y: 14 }}
               transition={springs.modal}
-              className={`
-                pointer-events-auto relative w-full ${maxWidth}
-                bg-[#1d1d21]
-                rounded-[16px]
-                border border-white/[0.06]
-                shadow-modal
-                overflow-hidden
-              `}
+              className={`pointer-events-auto relative w-full ${maxWidth} rounded-card-lg overflow-hidden`}
+              style={{
+                backgroundColor: 'var(--bg-base)',
+                border: '1px solid var(--border-subtle)',
+                boxShadow: '0 24px 64px rgba(0,0,0,0.15)',
+              }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Close button */}
@@ -105,13 +97,18 @@ export default function Modal({
                 <button
                   onClick={onClose}
                   aria-label="Close dialog"
-                  className="
-                    absolute top-3.5 right-3.5 z-10
-                    p-1.5 rounded-lg
-                    text-text-ghost hover:text-text-secondary
-                    hover:bg-white/[0.06]
-                    transition-colors duration-150
-                  "
+                  className="absolute top-3.5 right-3.5 z-10 p-1.5 rounded-lg transition-colors duration-150"
+                  style={{
+                    color: 'var(--text-tertiary)',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)';
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'var(--bg-muted)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-tertiary)';
+                    (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
+                  }}
                 >
                   <X size={15} />
                 </button>

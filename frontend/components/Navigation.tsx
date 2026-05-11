@@ -3,19 +3,21 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, LogOut, BarChart2, ShieldCheck, Settings } from 'lucide-react';
+import { Menu, X, LogOut, ShieldCheck, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { getRatingTier } from '@/lib/types';
 import clsx from 'clsx';
 
 const GUEST_NAV_LINKS = [
   { href: '/play', label: 'Play' },
+  { href: '/archive', label: 'Archive' },
   { href: '/leaderboard', label: 'Leaderboard' },
   { href: '/learn', label: 'Learn' },
 ];
 
 const AUTH_NAV_LINKS = [
   { href: '/play', label: 'Play' },
+  { href: '/archive', label: 'Archive' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/leaderboard', label: 'Leaderboard' },
   { href: '/learn', label: 'Learn' },
@@ -47,7 +49,7 @@ export default function Navigation() {
 
   return (
     <header
-      className="sticky top-0 z-50 bg-bg-base border-b border-white/[0.06]"
+      className="sticky top-0 z-50 bg-bg-base/95 backdrop-blur-md border-b border-border-default"
       style={{ height: '52px' }}
     >
       <div className="max-w-6xl mx-auto px-4 h-full flex items-center justify-between">
@@ -55,11 +57,10 @@ export default function Navigation() {
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center tracking-tight transition-opacity duration-150 hover:opacity-80"
+          className="font-display font-black text-xl text-text-primary tracking-tight transition-opacity duration-150 hover:opacity-70"
           aria-label="ELOquence home"
         >
-          <span className="text-base font-bold" style={{ color: '#538d4e' }}>ELO</span>
-          <span className="text-base font-semibold" style={{ color: '#ededf0' }}>quence</span>
+          ELOquence
         </Link>
 
         {/* Desktop nav links */}
@@ -71,20 +72,13 @@ export default function Navigation() {
                 key={link.href}
                 href={link.href}
                 className={clsx(
-                  'relative px-3 py-1.5 text-sm transition-colors duration-150 flex flex-col items-center gap-0',
+                  'relative px-3 py-1.5 text-sm transition-colors duration-150',
                   active
-                    ? 'text-[#ededf0]'
-                    : 'text-[#9898a0] hover:text-[#ededf0]'
+                    ? 'text-text-primary underline underline-offset-8 decoration-2 decoration-tile-correct'
+                    : 'text-text-secondary hover:text-text-primary no-underline'
                 )}
               >
                 {link.label}
-                {active && (
-                  <span
-                    className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-[2px] h-[2px] rounded-full bg-[#538d4e]"
-                    style={{ marginBottom: '-1px' }}
-                    aria-hidden="true"
-                  />
-                )}
               </Link>
             );
           })}
@@ -94,18 +88,17 @@ export default function Navigation() {
               className={clsx(
                 'relative px-3 py-1.5 text-sm transition-colors duration-150 flex items-center gap-1.5',
                 pathname.startsWith('/admin')
-                  ? 'text-[#c9a227]'
-                  : 'text-[#9898a0] hover:text-[#c9a227]'
+                  ? 'text-text-primary underline underline-offset-8 decoration-2'
+                  : 'text-text-secondary hover:text-text-primary no-underline'
               )}
+              style={
+                pathname.startsWith('/admin')
+                  ? { textDecorationColor: 'var(--gold)' }
+                  : undefined
+              }
             >
               <ShieldCheck size={13} aria-hidden="true" />
               Admin
-              {pathname.startsWith('/admin') && (
-                <span
-                  className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-[2px] h-[2px] rounded-full bg-[#c9a227]"
-                  aria-hidden="true"
-                />
-              )}
             </Link>
           )}
         </nav>
@@ -131,15 +124,15 @@ export default function Navigation() {
               </div>
 
               {/* Thin divider */}
-              <div className="w-px h-3.5 bg-white/[0.09] mx-0.5" aria-hidden="true" />
+              <div className="w-px h-3.5 bg-border-subtle mx-0.5" aria-hidden="true" />
 
               {/* Username */}
-              <span className="text-sm text-[#9898a0]">{user.username}</span>
+              <span className="text-sm text-text-secondary">{user.username}</span>
 
               {/* Settings */}
               <Link
                 href="/settings"
-                className="p-1.5 rounded-md text-[#5c5c66] hover:text-[#ededf0] hover:bg-white/[0.06] transition-colors duration-150"
+                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors duration-150"
                 aria-label="Settings"
               >
                 <Settings size={15} aria-hidden="true" />
@@ -148,7 +141,7 @@ export default function Navigation() {
               {/* Logout */}
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-md text-[#5c5c66] hover:text-red-400 hover:bg-white/[0.06] transition-colors duration-150"
+                className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors duration-150"
                 aria-label="Log out"
               >
                 <LogOut size={15} aria-hidden="true" />
@@ -157,10 +150,7 @@ export default function Navigation() {
           ) : (
             <Link
               href="/login"
-              className="flex items-center gap-1.5 text-sm transition-colors duration-150"
-              style={{ color: '#6aaa64' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#7ec878')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#6aaa64')}
+              className="text-sm text-text-secondary hover:text-text-primary transition-colors duration-150 flex items-center gap-1"
             >
               Sign In
               <span aria-hidden="true" style={{ fontSize: '0.85em' }}>&rarr;</span>
@@ -170,7 +160,7 @@ export default function Navigation() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden p-1.5 rounded-md text-[#9898a0] hover:text-[#ededf0] hover:bg-white/[0.06] transition-colors duration-150"
+          className="md:hidden p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors duration-150"
           onClick={() => setMobileOpen((v) => !v)}
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           aria-expanded={mobileOpen}
@@ -191,7 +181,7 @@ export default function Navigation() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="md:hidden absolute left-0 right-0 bg-bg-base border-b border-white/[0.06]"
+            className="md:hidden absolute left-0 right-0 bg-bg-base border-b border-border-default"
             style={{ top: '52px' }}
           >
             <div className="px-3 py-2.5 flex flex-col">
@@ -207,13 +197,14 @@ export default function Navigation() {
                     className={clsx(
                       'flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors duration-150',
                       active
-                        ? 'text-[#ededf0]'
-                        : 'text-[#9898a0] hover:text-[#ededf0] hover:bg-white/[0.04]'
+                        ? 'text-text-primary font-medium'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated'
                     )}
                   >
                     {active && (
                       <span
-                        className="w-[2px] h-[2px] rounded-full bg-[#538d4e] flex-shrink-0"
+                        className="w-1 h-1 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: 'var(--tile-correct)' }}
                         aria-hidden="true"
                       />
                     )}
@@ -229,8 +220,8 @@ export default function Navigation() {
                   className={clsx(
                     'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors duration-150',
                     pathname.startsWith('/admin')
-                      ? 'text-[#c9a227]'
-                      : 'text-[#9898a0] hover:text-[#c9a227] hover:bg-white/[0.04]'
+                      ? 'text-text-primary font-medium'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated'
                   )}
                 >
                   <ShieldCheck size={13} aria-hidden="true" />
@@ -239,7 +230,7 @@ export default function Navigation() {
               )}
 
               {/* Divider */}
-              <div className="my-1.5 border-t border-white/[0.06]" aria-hidden="true" />
+              <div className="my-1.5 border-t border-border-subtle" aria-hidden="true" />
 
               {/* Auth section */}
               {user ? (
@@ -251,7 +242,7 @@ export default function Navigation() {
                       style={{ backgroundColor: tier?.color }}
                       aria-hidden="true"
                     />
-                    <span className="text-sm text-[#9898a0]">{user.username}</span>
+                    <span className="text-sm text-text-secondary">{user.username}</span>
                     <span
                       className="ml-auto font-mono text-sm"
                       style={{ color: tier?.color }}
@@ -267,8 +258,8 @@ export default function Navigation() {
                     className={clsx(
                       'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors duration-150',
                       pathname === '/settings'
-                        ? 'text-[#ededf0]'
-                        : 'text-[#9898a0] hover:text-[#ededf0] hover:bg-white/[0.04]'
+                        ? 'text-text-primary font-medium'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated'
                     )}
                   >
                     <Settings size={14} aria-hidden="true" />
@@ -277,7 +268,7 @@ export default function Navigation() {
 
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-[#9898a0] hover:text-red-400 hover:bg-white/[0.04] transition-colors duration-150 text-left w-full"
+                    className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-bg-elevated transition-colors duration-150 text-left w-full"
                   >
                     <LogOut size={14} aria-hidden="true" />
                     Log out
@@ -287,8 +278,7 @@ export default function Navigation() {
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-sm transition-colors duration-150"
-                  style={{ color: '#6aaa64' }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
                 >
                   Sign In
                   <span aria-hidden="true" style={{ fontSize: '0.85em' }}>&rarr;</span>

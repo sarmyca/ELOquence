@@ -3,6 +3,7 @@ import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { AlertCircle } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { springs } from '@/lib/animations';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
@@ -33,7 +34,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4 bg-[#111113]">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-52px)] px-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -41,31 +42,43 @@ export default function LoginPage() {
         className="w-full max-w-sm"
       >
         {/* Logo */}
-        <div className="flex justify-center mb-6">
-          <Link href="/" className="flex items-center gap-0.5">
-            <span className="font-semibold text-lg text-[#538d4e]">ELO</span>
-            <span className="font-semibold text-lg text-[#ededf0]">quence</span>
+        <div className="flex justify-center mb-8">
+          <Link
+            href="/"
+            className="font-display font-black text-xl text-text-primary tracking-tight transition-opacity duration-150 hover:opacity-70"
+            aria-label="ELOquence home"
+          >
+            ELOquence
           </Link>
         </div>
 
         {/* Card */}
-        <div className="bg-[#171719] border border-white/[0.06] rounded-[12px] p-6 sm:p-8">
-          <h1 className="text-xl font-semibold text-[#ededf0] mb-6">Sign in</h1>
+        <div
+          className="bg-bg-base border border-border-default rounded-card-lg p-8"
+          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}
+        >
+          <h1 className="font-display font-black text-3xl tracking-tight text-text-primary mb-8">
+            Sign In
+          </h1>
 
           {/* Google */}
           <GoogleSignInButton onError={(msg) => setError(msg)} />
 
           {/* Divider */}
-          <div className="my-5 flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/[0.06]" />
-            <span className="text-xs text-[#5c5c66]">or</span>
-            <div className="flex-1 h-px bg-white/[0.06]" />
+          <div className="my-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-border-subtle" />
+            <span className="text-xs text-text-secondary">or</span>
+            <div className="flex-1 h-px bg-border-subtle" />
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {/* Email */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="email" className="text-sm text-[#9898a0]">
+              <label
+                htmlFor="email"
+                className="text-xs font-semibold uppercase tracking-wider text-text-secondary"
+              >
                 Email
               </label>
               <input
@@ -76,12 +89,16 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="h-11 px-3 rounded-lg bg-[#1d1d21] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
+                className="bg-transparent border-2 border-border-default focus:border-tile-correct focus:outline-none rounded-md px-3.5 py-3 text-base text-text-primary placeholder:text-text-tertiary transition-colors duration-150"
               />
             </div>
 
+            {/* Password */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="password" className="text-sm text-[#9898a0]">
+              <label
+                htmlFor="password"
+                className="text-xs font-semibold uppercase tracking-wider text-text-secondary"
+              >
                 Password
               </label>
               <input
@@ -92,32 +109,36 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="h-11 px-3 rounded-lg bg-[#1d1d21] border border-white/[0.09] text-[#ededf0] placeholder-[#5c5c66] text-sm focus:outline-none focus:border-[#538d4e]/50 transition-colors"
+                className="bg-transparent border-2 border-border-default focus:border-tile-correct focus:outline-none rounded-md px-3.5 py-3 text-base text-text-primary placeholder:text-text-tertiary transition-colors duration-150"
               />
             </div>
 
+            {/* Error */}
             {error && (
               <motion.p
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.15 }}
-                className="text-xs text-[#e74c3c] bg-[#e74c3c]/10 border border-[#e74c3c]/20 rounded-lg px-3 py-2"
+                className="flex items-center gap-2 text-sm mt-1"
+                style={{ color: 'var(--red)' }}
+                role="alert"
               >
+                <AlertCircle size={14} aria-hidden="true" className="flex-shrink-0" />
                 {error}
               </motion.p>
             )}
 
+            {/* Submit */}
             <motion.button
               type="submit"
               disabled={loading}
-              whileHover={{ scale: loading ? 1 : 1.015 }}
-              whileTap={{ scale: loading ? 1 : 0.97 }}
-              className="mt-1 h-11 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              whileTap={{ scale: loading ? 1 : 0.98 }}
+              className="w-full bg-tile-correct text-white font-bold uppercase tracking-wider rounded-md py-3.5 mt-1 text-sm transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <>
                   <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                  Signing in...
+                  Signing in…
                 </>
               ) : (
                 'Sign In'
@@ -125,11 +146,11 @@ export default function LoginPage() {
             </motion.button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-[#5c5c66]">
+          <p className="mt-6 text-center text-sm text-text-secondary">
             No account?{' '}
             <Link
               href="/register"
-              className="text-[#6aaa64] hover:text-[#538d4e] font-medium transition-colors"
+              className="text-text-secondary hover:text-text-primary font-medium transition-colors duration-150 underline underline-offset-2"
             >
               Create one free
             </Link>

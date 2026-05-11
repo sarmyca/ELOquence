@@ -42,6 +42,9 @@ class Game(Base):
     elo_delta: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_placement: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
+    # Game options
+    hard_mode: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Quality metrics
     constraint_violations: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     traps_encountered: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

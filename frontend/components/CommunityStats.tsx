@@ -34,7 +34,7 @@ export default function CommunityStats({ gameId, playerGuesses, playerAccuracy }
   }, [gameId]);
 
   if (loading) {
-    return <div className="skeleton h-16 rounded-xl bg-bg-tertiary animate-pulse" />;
+    return <div className="skeleton h-16 rounded-xl bg-bg-elevated animate-pulse" />;
   }
 
   if (!stats || stats.times_played < 2) return null;
@@ -52,45 +52,50 @@ export default function CommunityStats({ gameId, playerGuesses, playerAccuracy }
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-xl bg-bg-secondary border border-white/[0.08] p-3"
+      className="rounded-xl bg-bg-base border border-border-subtle p-3"
     >
       <div className="flex items-center gap-1.5 mb-2">
-        <Users size={11} className="text-text-ghost" />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost">
+        <Users size={11} className="text-text-secondary" />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
           Community
         </span>
-        <span className="text-[10px] text-text-ghost ml-auto">
+        <span className="text-[10px] text-text-secondary ml-auto">
           {stats.times_played} games
         </span>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[9px] text-text-ghost">Avg Guesses</span>
+          <span className="text-[9px] text-text-secondary">Avg Guesses</span>
           <span
             className={clsx(
-              'text-sm font-mono font-bold tabular-nums',
+              'text-sm font-sans font-semibold tabular-nums',
               guessComparison === 'better'
                 ? 'text-tile-correct'
                 : guessComparison === 'worse'
-                ? 'text-[#e74c3c]'
+                ? 'text-red'
                 : 'text-text-primary'
             )}
+            style={
+              guessComparison === 'worse'
+                ? { color: 'var(--red)' }
+                : undefined
+            }
           >
             {stats.avg_guesses?.toFixed(1) ?? '—'}
           </span>
         </div>
 
         <div className="flex flex-col gap-0.5">
-          <span className="text-[9px] text-text-ghost">Solve Rate</span>
-          <span className="text-sm font-mono font-bold tabular-nums text-text-primary">
+          <span className="text-[9px] text-text-secondary">Solve Rate</span>
+          <span className="text-sm font-sans font-semibold tabular-nums text-text-primary">
             {stats.solve_rate}%
           </span>
         </div>
 
         <div className="flex flex-col gap-0.5">
-          <span className="text-[9px] text-text-ghost">Avg Accuracy</span>
-          <span className="text-sm font-mono font-bold tabular-nums text-text-primary">
+          <span className="text-[9px] text-text-secondary">Avg Accuracy</span>
+          <span className="text-sm font-sans font-semibold tabular-nums text-text-primary">
             {stats.avg_accuracy !== null && stats.avg_accuracy !== undefined
               ? `${stats.avg_accuracy.toFixed(0)}%`
               : '—'}

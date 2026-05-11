@@ -11,6 +11,7 @@ class GameCreate(BaseModel):
 
     mode: Literal["daily", "competitive", "practice"]
     word_pool: Literal["standard", "competitive"] = "standard"
+    hard_mode: bool = False
 
 
 class GuessSubmit(BaseModel):
@@ -69,6 +70,7 @@ class GameResponse(BaseModel):
     num_guesses: int
     time_seconds: float | None = None
     rated: bool
+    hard_mode: bool = False
     accuracy_score: float | None = None
     luck_factor: float | None = None
     elo_before: float | None = None

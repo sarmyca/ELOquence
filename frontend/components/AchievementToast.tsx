@@ -109,25 +109,19 @@ function SingleToast({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -10, scale: 0.95 }}
       transition={{ ...springs.snappy, delay: index * 0.12 }}
-      className="relative overflow-hidden flex items-center gap-3 rounded-[14px] cursor-pointer select-none"
+      className="relative overflow-hidden flex items-center gap-3 rounded-card-lg cursor-pointer select-none bg-bg-base border border-border-default"
       onClick={onDismiss}
       role="status"
       aria-live="polite"
       style={{
-        background:
-          'linear-gradient(135deg, #1e1a0e 0%, #221e0f 40%, #1a1a1e 100%)',
-        border: '1px solid rgba(201, 162, 39, 0.28)',
-        boxShadow:
-          '0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(201,162,39,0.12), inset 0 1px 0 rgba(201,162,39,0.08)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
         padding: '12px 16px 12px 0',
       }}
     >
       {/* Gold left accent bar */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[14px]"
-        style={{
-          background: 'linear-gradient(180deg, #e8c84a 0%, #c9a227 50%, #a07a18 100%)',
-        }}
+        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-card-lg"
+        style={{ backgroundColor: 'var(--gold)' }}
       />
 
       {/* Shimmer sweep */}
@@ -137,7 +131,7 @@ function SingleToast({
         transition={{ duration: 1.6, ease: 'easeInOut', delay: 0.25 }}
         style={{
           background:
-            'linear-gradient(105deg, transparent 35%, rgba(201,162,39,0.1) 50%, transparent 65%)',
+            'linear-gradient(105deg, transparent 35%, rgba(201,162,39,0.06) 50%, transparent 65%)',
         }}
         aria-hidden="true"
       />
@@ -158,11 +152,11 @@ function SingleToast({
       <div className="flex flex-col min-w-0">
         <span
           className="text-[10px] uppercase tracking-widest font-bold"
-          style={{ color: '#c9a227' }}
+          style={{ color: 'var(--gold)' }}
         >
           Achievement Unlocked
         </span>
-        <span className="text-sm font-bold text-text-primary leading-tight truncate">
+        <span className="font-display font-bold text-sm text-text-primary leading-tight truncate">
           {achievement.name}
         </span>
       </div>

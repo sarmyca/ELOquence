@@ -32,7 +32,10 @@ export default function EntropyWaterfall({ moves }: Props) {
 
   if (!moves || moves.length === 0) {
     return (
-      <div className="flex items-center justify-center text-sm text-text-ghost py-8">
+      <div
+        className="flex items-center justify-center text-sm py-8"
+        style={{ color: 'var(--text-ghost)' }}
+      >
         No move data available.
       </div>
     );
@@ -46,7 +49,7 @@ export default function EntropyWaterfall({ moves }: Props) {
     const after = m.remaining_after ?? m.remaining_words ?? 0;
     const color = m.classification
       ? CLASSIFICATION_CONFIG[m.classification].color
-      : '#538d4e';
+      : 'var(--tile-correct)';
     return {
       word: m.guess_word,
       before,
@@ -88,7 +91,7 @@ export default function EntropyWaterfall({ moves }: Props) {
         ))}
       </defs>
 
-      {/* Grid lines */}
+      {/* Grid lines — use rgba referencing theme surface for subtlety */}
       {yTicks.map((v) => {
         const y = yScale(v);
         return (
@@ -98,7 +101,8 @@ export default function EntropyWaterfall({ moves }: Props) {
               y1={y}
               x2={PAD.left + PLOT_W}
               y2={y}
-              stroke="rgba(255,255,255,0.06)"
+              stroke="var(--border-subtle)"
+              strokeOpacity={0.5}
               strokeWidth={1}
             />
             <text
@@ -106,7 +110,7 @@ export default function EntropyWaterfall({ moves }: Props) {
               y={y + 4}
               fontSize={9}
               fontFamily="monospace"
-              fill="#4b5563"
+              fill="var(--text-tertiary)"
               textAnchor="end"
             >
               {v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
@@ -170,7 +174,7 @@ export default function EntropyWaterfall({ moves }: Props) {
                 y={topY - 4}
                 fontSize={9}
                 fontFamily="monospace"
-                fill="#4b5563"
+                fill="var(--text-tertiary)"
                 textAnchor="middle"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -186,7 +190,7 @@ export default function EntropyWaterfall({ moves }: Props) {
               y={VIEW_H - 6}
               fontSize={9}
               fontFamily="monospace"
-              fill={isHovered ? '#f0f0f3' : '#4b5563'}
+              fill={isHovered ? 'var(--text-primary)' : 'var(--text-tertiary)'}
               textAnchor="middle"
             >
               {bar.word.toUpperCase()}
@@ -210,20 +214,24 @@ export default function EntropyWaterfall({ moves }: Props) {
         return (
           <foreignObject x={bx} y={by} width={bw} height={bh} style={{ overflow: 'visible' }}>
             <div
-              className="rounded-lg border border-[#4a4a4c] bg-[#2a2a2c] shadow-xl px-3 py-2 pointer-events-none"
-              style={{ fontSize: 11 }}
+              className="rounded-lg shadow-xl px-3 py-2 pointer-events-none"
+              style={{
+                fontSize: 11,
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border-subtle)',
+              }}
             >
-              <div className="font-mono font-bold text-text-primary">
+              <div className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>
                 {bar.word.toUpperCase()}
               </div>
-              <div className="font-mono tabular-nums text-text-secondary" style={{ fontSize: 10 }}>
+              <div className="font-mono tabular-nums" style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
                 {bar.after} remaining
               </div>
-              <div className="font-mono tabular-nums text-[#538d4e]" style={{ fontSize: 10 }}>
+              <div className="font-mono tabular-nums" style={{ fontSize: 10, color: 'var(--tile-correct)' }}>
                 -{eliminated} eliminated
               </div>
               {bar.info !== null && (
-                <div className="font-mono tabular-nums text-text-ghost" style={{ fontSize: 10 }}>
+                <div className="font-mono tabular-nums" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
                   {bar.info.toFixed(2)} bits gained
                 </div>
               )}

@@ -15,8 +15,8 @@ import {
 import '@xyflow/react/dist/style.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X } from 'lucide-react';
-import GameStateNode, { type GameStateNodeData } from './GameStateNode';
-import GuessEdge, { type GuessEdgeData } from './GuessEdge';
+import GameStateNode, { type GameStateNodeData, type GameStateRfNode } from './GameStateNode';
+import GuessEdge, { type GuessEdgeData, type GuessRfEdge } from './GuessEdge';
 import { useElkLayout } from '@/lib/hooks/useElkLayout';
 import api from '@/lib/api';
 
@@ -58,8 +58,8 @@ function GraphInner({ gameId }: Props) {
   const { fitView } = useReactFlow();
   const { computeLayout } = useElkLayout();
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node<GameStateNodeData>>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<GuessEdgeData>>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<GameStateRfNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<GuessRfEdge>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAlternatives, setShowAlternatives] = useState(true);
@@ -103,7 +103,7 @@ function GraphInner({ gameId }: Props) {
       posMap[child.id] = { x: child.x ?? 0, y: child.y ?? 0 };
     }
 
-    const rfNodes: Node<GameStateNodeData>[] = graphData.nodes
+    const rfNodes: GameStateRfNode[] = graphData.nodes
       .filter(n => {
         // If alternatives hidden, only show nodes on player/optimal path
         if (!showAlternatives && !playerSet.has(n.id) && !optimalSet.has(n.id)) return false;
@@ -121,7 +121,7 @@ function GraphInner({ gameId }: Props) {
         },
       }));
 
-    const rfEdges: Edge<GuessEdgeData>[] = visibleEdges.map((e) => ({
+    const rfEdges: GuessRfEdge[] = visibleEdges.map((e) => ({
       id: e.id,
       source: e.source,
       target: e.target,
@@ -205,7 +205,10 @@ function GraphInner({ gameId }: Props) {
     return (
       <div className="flex items-center justify-center h-[500px]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+          <div
+            className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }}
+          />
           <span className="text-xs text-text-secondary">Building game graph...</span>
         </div>
       </div>
@@ -228,8 +231,8 @@ function GraphInner({ gameId }: Props) {
           onClick={() => setShowAlternatives(!showAlternatives)}
           className={`text-[10px] font-medium px-2.5 py-1 rounded-md border transition-colors ${
             showAlternatives
-              ? 'bg-bg-elevated border-white/[0.15] text-text-primary'
-              : 'bg-bg-tertiary border-white/[0.08] text-text-secondary'
+              ? 'bg-bg-elevated border-border-default text-text-primary'
+              : 'bg-bg-base border-border-subtle text-text-secondary'
           }`}
         >
           {showAlternatives ? 'Hide' : 'Show'} Alternatives
@@ -237,18 +240,18 @@ function GraphInner({ gameId }: Props) {
       </div>
 
       {/* Legend */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-3 bg-bg-primary/80 backdrop-blur-sm rounded-md px-2.5 py-1.5 border border-white/[0.06]">
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-3 bg-bg-base/90 backdrop-blur-sm rounded-md px-2.5 py-1.5 border border-border-subtle">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.5)' }} />
-          <span className="text-[9px] text-text-ghost">Player</span>
+          <div className="w-3 h-0.5 rounded-full" style={{ backgroundColor: 'var(--text-secondary)' }} />
+          <span className="text-[9px] text-text-secondary">Player</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-0.5 rounded-full border-t border-dashed border-[#538d4e]" />
-          <span className="text-[9px] text-text-ghost">Optimal</span>
+          <div className="w-3 h-0.5 border-t border-dashed" style={{ borderColor: 'var(--tile-correct)' }} />
+          <span className="text-[9px] text-text-secondary">Optimal</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-0.5 rounded-full bg-white/10" />
-          <span className="text-[9px] text-text-ghost">Alternative</span>
+          <div className="w-3 h-0.5 rounded-full" style={{ backgroundColor: 'var(--border-default)' }} />
+          <span className="text-[9px] text-text-secondary">Alternative</span>
         </div>
       </div>
 
@@ -264,12 +267,12 @@ function GraphInner({ gameId }: Props) {
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        style={{ backgroundColor: '#0f1012' }}
+        style={{ backgroundColor: 'var(--bg-base)' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.04)" />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border-subtle)" />
         <Controls
           showInteractive={false}
-          style={{ backgroundColor: '#16171a', borderColor: 'rgba(255,255,255,0.1)' }}
+          style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-default)' }}
         />
       </ReactFlow>
 
@@ -280,7 +283,7 @@ function GraphInner({ gameId }: Props) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 bg-bg-elevated border border-white/[0.12] rounded-xl shadow-2xl px-4 py-3 flex items-center gap-3"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 bg-bg-base border border-border-default rounded-xl shadow-md px-4 py-3 flex items-center gap-3"
           >
             <Search size={14} className="text-text-ghost shrink-0" />
             <div className="flex flex-col gap-0.5">
@@ -294,14 +297,14 @@ function GraphInner({ gameId }: Props) {
                 onKeyDown={(e) => e.key === 'Enter' && handleExplore()}
                 placeholder="WORD"
                 maxLength={5}
-                className="bg-bg-tertiary border border-white/[0.1] rounded-md px-2 py-1 text-sm font-mono uppercase text-text-primary w-20 focus:outline-none focus:border-[#538d4e]/50"
+                className="bg-bg-elevated border-2 border-border-default rounded-md px-2 py-1 text-sm font-mono uppercase text-text-primary w-20 focus:outline-none focus:border-tile-correct"
                 autoFocus
               />
             </div>
             <button
               onClick={handleExplore}
               disabled={exploreGuess.length !== 5 || exploring}
-              className="px-3 py-1.5 rounded-md bg-[#538d4e] hover:bg-[#6aaa64] text-white text-xs font-medium disabled:opacity-40 transition-colors"
+              className="px-3 py-1.5 rounded-md bg-tile-correct text-white text-xs font-medium disabled:opacity-40 transition-[filter] hover:brightness-110"
             >
               {exploring ? '...' : 'Go'}
             </button>

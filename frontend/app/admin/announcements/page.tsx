@@ -111,7 +111,7 @@ export default function AdminAnnouncementsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+        <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -128,46 +128,48 @@ export default function AdminAnnouncementsPage() {
         className="mb-6"
       >
         <div className="flex items-center gap-2 mb-1">
-          <Link href="/admin" className="text-text-secondary hover:text-text-primary text-sm transition-colors">
+          <Link href="/admin" className="font-sans text-text-secondary hover:text-text-primary text-sm transition-colors">
             Admin
           </Link>
-          <span className="text-text-ghost text-sm">/</span>
-          <span className="text-sm text-text-primary">Announcements</span>
+          <span className="text-text-tertiary text-sm">/</span>
+          <span className="font-sans text-sm text-text-primary">Announcements</span>
         </div>
-        <h1 className="text-2xl font-bold text-text-primary">Announcements</h1>
-        <p className="text-sm text-text-secondary mt-0.5">
+        <h1 className="font-display font-black text-3xl text-text-primary">Admin · Announcements</h1>
+        <p className="font-sans text-text-secondary mt-0.5">
           Manage banners shown to all users.
         </p>
       </motion.div>
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400 flex items-center justify-between">
+        <div className="mb-4 px-4 py-3 rounded-card border text-sm flex items-center justify-between font-sans" style={{ background: 'rgba(231,76,60,0.08)', borderColor: 'rgba(231,76,60,0.25)', color: 'var(--red)' }}>
           <span>{error}</span>
-          <button className="text-xs underline" onClick={() => setError('')}>Dismiss</button>
+          <button className="text-xs underline ml-2" onClick={() => setError('')}>Dismiss</button>
         </div>
       )}
 
-      {/* Create form */}
+      {/* Create form card */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.3 }}
-        className="bg-bg-secondary border border-white/[0.08] rounded-2xl px-5 py-5 mb-6"
+        className="bg-bg-base border border-border-default rounded-card-lg p-6 mb-6"
       >
-        <h2 className="text-sm font-semibold text-text-primary mb-4">New Announcement</h2>
+        <h2 className="font-sans font-semibold text-text-primary text-sm mb-4">New Announcement</h2>
         <form onSubmit={handleCreate} className="flex flex-col gap-3">
           <textarea
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             rows={3}
             placeholder="Enter announcement text..."
-            className="px-3 py-2.5 bg-bg-tertiary border border-white/[0.08] rounded-xl text-sm text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-white/[0.2] transition-colors resize-none"
+            className="bg-transparent border-2 border-border-default rounded-md px-3 py-2 focus:border-tile-correct outline-none text-text-primary font-sans text-sm placeholder:text-text-tertiary transition-colors resize-none"
           />
-          {createError && <p className="text-xs text-red-400">{createError}</p>}
+          {createError && (
+            <p className="text-xs font-sans" style={{ color: 'var(--red)' }}>{createError}</p>
+          )}
           <button
             type="submit"
             disabled={creating}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#538d4e] hover:bg-[#6aaa64] disabled:opacity-60 text-white text-sm font-medium rounded-xl transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-tile-correct text-white font-bold uppercase tracking-wider rounded-md hover:brightness-110 active:scale-[0.98] transition-[filter,transform] disabled:opacity-60 font-sans text-sm"
           >
             {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             Post Announcement
@@ -175,27 +177,27 @@ export default function AdminAnnouncementsPage() {
         </form>
       </motion.div>
 
-      {/* Announcements list */}
+      {/* Announcements list card */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.3 }}
-        className="bg-bg-secondary border border-white/[0.08] rounded-2xl overflow-hidden"
+        className="bg-bg-base border border-border-default rounded-card-lg overflow-hidden"
       >
-        <div className="px-5 py-3 border-b border-white/[0.06]">
-          <h2 className="text-sm font-semibold text-text-primary">All Announcements</h2>
+        <div className="px-6 py-3 border-b border-border-default">
+          <h2 className="font-sans font-semibold text-text-primary text-sm">All Announcements</h2>
         </div>
 
         {fetching ? (
           <div className="flex items-center justify-center py-12">
-            <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+            <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }} />
           </div>
         ) : announcements.length === 0 ? (
-          <div className="text-center py-12 text-text-secondary text-sm">
+          <div className="text-center py-12 text-text-secondary font-sans text-sm">
             No announcements yet.
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.04]">
+          <ul className="divide-y divide-border-subtle">
             <AnimatePresence initial={false}>
               {announcements.map((a) => (
                 <motion.li
@@ -205,21 +207,20 @@ export default function AdminAnnouncementsPage() {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="px-5 py-4 flex items-start gap-3"
+                  className="px-6 py-4 flex items-start gap-3 hover:bg-bg-elevated/50 transition-colors"
                 >
                   {/* Status dot */}
                   <div className="mt-1 flex-shrink-0">
                     <div
-                      className={`w-2 h-2 rounded-full ${
-                        a.active ? 'bg-[#6aaa64]' : 'bg-bg-tertiary'
-                      }`}
+                      className="w-2 h-2 rounded-full"
+                      style={{ background: a.active ? 'var(--tile-correct)' : 'var(--border-default)' }}
                     />
                   </div>
 
                   {/* Text + meta */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-text-primary leading-relaxed">{a.text}</p>
-                    <p className="text-[10px] text-text-ghost mt-1">{formatDate(a.created_at)}</p>
+                    <p className="font-sans text-sm text-text-primary leading-relaxed">{a.text}</p>
+                    <p className="font-sans text-[10px] text-text-tertiary mt-1">{formatDate(a.created_at)}</p>
                   </div>
 
                   {/* Actions */}
@@ -229,9 +230,10 @@ export default function AdminAnnouncementsPage() {
                       onClick={() => handleToggle(a.id, a.active)}
                       disabled={toggling === a.id}
                       aria-label={a.active ? 'Deactivate' : 'Activate'}
-                      className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
-                        a.active ? 'bg-[#538d4e]' : 'bg-bg-tertiary border border-white/[0.08]'
-                      }`}
+                      className="relative w-9 h-5 rounded-full transition-colors flex-shrink-0"
+                      style={{
+                        background: a.active ? 'var(--tile-correct)' : 'var(--border-default)',
+                      }}
                     >
                       {toggling === a.id ? (
                         <Loader2 size={10} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" />
@@ -249,11 +251,22 @@ export default function AdminAnnouncementsPage() {
                       onClick={() => handleDelete(a.id)}
                       disabled={deleting === a.id}
                       aria-label="Delete"
-                      className={`p-1.5 rounded-md transition-colors ${
+                      className="p-1.5 rounded-md transition-colors text-text-tertiary hover:text-text-primary"
+                      style={
                         confirmDelete === a.id
-                          ? 'bg-red-500/20 text-red-400'
-                          : 'text-text-ghost hover:text-red-400 hover:bg-red-500/10'
-                      }`}
+                          ? { background: 'rgba(231,76,60,0.1)', color: 'var(--red)' }
+                          : undefined
+                      }
+                      onMouseEnter={(e) => {
+                        if (confirmDelete !== a.id) {
+                          (e.currentTarget as HTMLButtonElement).style.color = 'var(--red)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (confirmDelete !== a.id) {
+                          (e.currentTarget as HTMLButtonElement).style.color = '';
+                        }
+                      }}
                     >
                       {deleting === a.id ? (
                         <Loader2 size={14} className="animate-spin" />

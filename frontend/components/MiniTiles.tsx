@@ -6,12 +6,20 @@ interface MiniTilesProps {
   size?: number;
 }
 
-const STATE_COLORS: Record<TileState, string> = {
-  correct: '#538d4e',
-  present: '#b59f3b',
-  absent: '#3a3a3c',
-  empty: '#1e1f23',
-  tbd: '#1e1f23',
+const STATE_STYLE: Record<TileState, string> = {
+  correct: 'var(--tile-correct)',
+  present: 'var(--tile-present)',
+  absent:  'var(--tile-absent)',
+  empty:   'var(--tile-empty-bg)',
+  tbd:     'var(--tile-empty-bg)',
+};
+
+const BORDER_STYLE: Record<TileState, string | undefined> = {
+  correct: undefined,
+  present: undefined,
+  absent:  undefined,
+  empty:   'var(--tile-empty-border)',
+  tbd:     'var(--tile-empty-border)',
 };
 
 export default function MiniTiles({ pattern, size = 14 }: MiniTilesProps) {
@@ -25,7 +33,8 @@ export default function MiniTiles({ pattern, size = 14 }: MiniTilesProps) {
           style={{
             width: size,
             height: size,
-            backgroundColor: STATE_COLORS[state],
+            backgroundColor: STATE_STYLE[state],
+            border: BORDER_STYLE[state] ? `1px solid ${BORDER_STYLE[state]}` : undefined,
             borderRadius: 2,
           }}
         />

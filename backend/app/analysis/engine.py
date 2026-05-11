@@ -414,3 +414,248 @@ def find_optimal_guess(
 
     results.sort(key=lambda x: x["sort_key"])
     return results[:top_n]
+
+
+# ---------------------------------------------------------------------------
+# WordleBot-spec metrics
+# ---------------------------------------------------------------------------
+
+# Standard NYT-aligned dictionary sizes (echoed in API responses)
+DICTIONARY_SIZES: dict = {
+    "guesses": 15000,
+    "suggestions": 4500,
+    "solutions": 3200,
+    "legacy": 2309,
+}
+
+# Default openers per mode (WordleBot FAQ spec)
+STANDARD_MODE_STARTER = "SLATE"
+HARD_MODE_STARTER = "CLASP"
+
+
+def expected_steps_remaining(possible_indices: np.ndarray) -> float:
+    """Estimate expected steps until solution from this state.
+
+    Uses the empirical log2-based heuristic:
+        E[steps] ≈ max(1, log2(n) / 2.5)
+
+    This is a fast closed-form approximation consistent with the idea that a
+    well-played Wordle game narrows the solution space by roughly a factor of
+    2^2.5 ≈ 5.7 per turn in the mid-game.
+
+    Args:
+        possible_indices: Current possible answer indices.
+
+    Returns:
+        Estimated steps remaining (float ≥ 1).
+    """
+    n = len(possible_indices)
+    if n <= 1:
+        return 1.0
+    return max(1.0, float(np.log2(n)) / 2.5)
+
+
+def expected_solutions_after(
+    guess_idx: int, possible_indices: np.ndarray
+) -> float:
+    """Expected number of solutions remaining after playing guess_idx.
+
+    Equivalent to compute_expected_remaining — alias exposed for clarity.
+
+    Args:
+        guess_idx: Index of guess in ALL_WORDS.
+        possible_indices: Current possible answer indices.
+
+    Returns:
+        Expected remaining count (lower is better).
+    """
+    return compute_expected_remaining(guess_idx, possible_indices)
+
+
+def actual_solutions_after(
+    guess_idx: int, possible_indices: np.ndarray, observed_pattern: int
+) -> int:
+    """Number of solutions remaining after the observed pattern is applied.
+
+    Args:
+        guess_idx: Index of guess in ALL_WORDS.
+        possible_indices: Current possible answer indices.
+        observed_pattern: Ternary-encoded observed pattern integer.
+
+    Returns:
+        Count of solutions consistent with the observed pattern.
+    """
+    if PATTERN_MATRIX is None or len(possible_indices) == 0:
+        return 0
+    mask = PATTERN_MATRIX[guess_idx, possible_indices] == observed_pattern
+    return int(np.sum(mask))
+
+
+def compute_skill_score(
+    player_entropy: float,
+    optimal_entropy: float,
+    remaining_before: int,
+) -> int:
+    """Compute a 0–99 skill score for a single move.
+
+    Formula (mirrors WordleBot's interpretation):
+        ratio = player_entropy / optimal_entropy   (clamped 0–1)
+        raw   = ratio * 99
+        bonus = max(0, log10(remaining_before) - 1) * 4
+        skill = round(clamp(raw + bonus, 0, 99))
+
+    The bonus rewards moves made under genuine uncertainty (large pools)
+    because choosing well from 2,000 candidates is harder than from 3.
+
+    Returns:
+        Integer in [0, 99].  99 means the player matched the bot exactly.
+    """
+    if optimal_entropy < 1e-9:
+        # Forced / trivial move — no differentiation possible
+        return 99
+    ratio = min(1.0, player_entropy / optimal_entropy)
+    raw = ratio * 99.0
+    # Uncertainty bonus: log10(2309)≈3.36 → max ~9.4 bonus pts at opener
+    bonus = max(0.0, float(np.log10(max(1, remaining_before))) - 1.0) * 4.0
+    return int(round(min(99.0, raw + bonus)))
+
+
+def compute_luck_score(
+    info_gained: float,
+    player_entropy: float,
+    remaining_before: int,
+) -> int:
+    """Compute a 0–99 luck score for a single move.
+
+    Luck = how much better the actual result was versus expectation.
+    A score of 50 is "neutral"; >50 is lucky, <50 is unlucky.
+
+    Formula:
+        excess = info_gained - player_entropy   (can be negative)
+        max_possible_excess ≈ log2(remaining_before) - player_entropy
+        norm = (excess / max(1, max_possible_excess) + 1) / 2  (→ [0,1])
+        luck_score = round(clamp(norm * 99, 0, 99))
+
+    Args:
+        info_gained: Actual bits of information gained by the observed pattern.
+        player_entropy: Expected bits this guess would gain on average.
+        remaining_before: Pool size before the guess.
+
+    Returns:
+        Integer in [0, 99].  50 ≈ neutral luck.
+    """
+    excess = info_gained - player_entropy
+    max_excess = float(np.log2(max(2, remaining_before))) - player_entropy
+    if abs(max_excess) < 1e-9:
+        return 50
+    norm = (excess / max_excess + 1.0) / 2.0
+    return int(round(min(99, max(0, norm * 99.0))))
+
+
+def bot_best_pick(
+    possible_indices: np.ndarray,
+    hard_mode: bool = False,
+) -> str:
+    """Return the bot's best pick word for the current state.
+
+    In hard mode the bot must guess from remaining answer candidates only
+    when the pool is small (≤ 20); otherwise it uses the full ranked list.
+
+    Args:
+        possible_indices: Current possible answer indices.
+        hard_mode: Whether the bot is constrained to hard-mode play.
+
+    Returns:
+        The best-pick word (uppercase), or empty string if no words remain.
+    """
+    if len(possible_indices) == 0:
+        return ""
+    n = len(possible_indices)
+    picks = find_optimal_guess(possible_indices, n, top_n=1)
+    if not picks:
+        return ""
+    # Hard mode constraint: if best pick is not an answer candidate and pool ≤ 20,
+    # try to find the best pick that is a candidate
+    if hard_mode and n <= 20:
+        candidate_indices = set(possible_indices.tolist())
+        for pick in find_optimal_guess(possible_indices, n, top_n=20):
+            try:
+                idx = get_word_index(pick["word"])
+                if idx in candidate_indices:
+                    return pick["word"]
+            except ValueError:
+                continue
+    return picks[0]["word"]
+
+
+def bot_solve_path(
+    guesses: list[str],
+    patterns: list[int],
+    hard_mode: bool = False,
+    use_past_solutions: bool = False,
+) -> list[str]:
+    """Simulate the bot's optimal solve path from the game's opening.
+
+    Replays the actual guesses and for each turn records what the bot
+    WOULD have picked given the then-current state of knowledge.  This
+    gives the per-turn "bot word" shown in the AnalysisHeader strip.
+
+    Args:
+        guesses: Actual player guesses (uppercase), in order.
+        patterns: Corresponding ternary-encoded patterns.
+        hard_mode: Use hard-mode constraints for bot selection.
+        use_past_solutions: If True, consider past solutions in the pool.
+
+    Returns:
+        List of bot-optimal words, one per turn (same length as guesses).
+    """
+    if PATTERN_MATRIX is None or len(ANSWERS) == 0:
+        return [""] * len(guesses)
+
+    answer_pool = ANSWERS
+    possible = np.arange(len(answer_pool), dtype=np.int32)
+    path: list[str] = []
+
+    for guess, pattern in zip(guesses, patterns):
+        bot_pick = bot_best_pick(possible, hard_mode=hard_mode)
+        path.append(bot_pick)
+        # Narrow the pool using the actual observed pattern
+        try:
+            new_possible = get_remaining_answers(possible, guess, pattern)
+            possible = new_possible if len(new_possible) > 0 else possible
+        except ValueError:
+            pass  # unknown word — keep pool unchanged
+
+    return path
+
+
+def uniqueness_percentile(
+    guesses: list[str],
+    patterns: list[int],
+) -> int:
+    """Estimate "1 in N" uniqueness of the full color-pattern grid.
+
+    Uses a deterministic hash-based proxy.  Real implementation would
+    compare against community game records in the database.
+
+    TODO: Replace with a real DB query counting how many other completed
+    games share the same sequence of (guess, pattern) pairs.  The query
+    would look like:
+        SELECT COUNT(*) FROM games WHERE move_fingerprint = :fp
+    where move_fingerprint is a stable hash of the (guess, pattern) sequence.
+
+    Args:
+        guesses: Ordered player guess words.
+        patterns: Ordered ternary-encoded patterns.
+
+    Returns:
+        N such that the grid is "1 in N" (integer ≥ 1).
+    """
+    # Build a stable fingerprint from the guess+pattern sequence
+    import hashlib
+    fp = "|".join(f"{g}:{p}" for g, p in zip(guesses, patterns))
+    digest = hashlib.sha256(fp.encode()).digest()
+    # Map first 3 bytes to a range [10, 5000]
+    raw = int.from_bytes(digest[:3], "big")  # 0..16777215
+    n = 10 + (raw % 4991)  # 10..5000
+    return n

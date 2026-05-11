@@ -15,29 +15,32 @@ interface TabSystemProps {
 
 export default function TabSystem({ tabs, activeTab, onChange }: TabSystemProps) {
   return (
-    <div className="flex gap-1 p-1 rounded-lg bg-bg-tertiary">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={clsx(
-            'relative flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-150 z-10',
-            activeTab === tab.id
-              ? 'text-text-primary'
-              : 'text-text-secondary hover:text-text-primary'
-          )}
-        >
-          {activeTab === tab.id && (
-            <motion.div
-              layoutId="tab-pill"
-              className="absolute inset-0 rounded-md bg-bg-elevated"
-              style={{ zIndex: -1 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300, mass: 1 }}
-            />
-          )}
-          {tab.label}
-        </button>
-      ))}
+    <div className="flex border-b border-border-subtle">
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={clsx(
+              'relative px-4 py-2.5 text-sm font-medium transition-colors duration-150 shrink-0',
+              isActive
+                ? 'text-text-primary'
+                : 'text-text-secondary hover:text-text-primary'
+            )}
+          >
+            {tab.label}
+            {isActive && (
+              <motion.div
+                layoutId="tab-underline"
+                className="absolute bottom-0 left-0 right-0 h-0.5"
+                style={{ backgroundColor: 'var(--tile-correct)' }}
+                transition={{ type: 'spring', damping: 28, stiffness: 350, mass: 0.8 }}
+              />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

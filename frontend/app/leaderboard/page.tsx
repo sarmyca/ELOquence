@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { leaderboardApi } from '@/lib/api';
@@ -18,7 +19,6 @@ interface LeaderboardEntry {
 }
 
 // ─── Tier dot ────────────────────────────────────────────────────────────────
-
 function TierDot({ elo }: { elo: number }) {
   const tier = getRatingTier(elo);
   return (
@@ -30,20 +30,20 @@ function TierDot({ elo }: { elo: number }) {
   );
 }
 
-// ─── Rank badge ──────────────────────────────────────────────────────────────
-
-const MEDAL_COLORS: Record<number, string> = {
-  1: '#c9a227',
-  2: '#9aa0a6',
-  3: '#9e5c2d',
+// ─── Rank badge — no medal fill, accent border approach ──────────────────────
+// Top 3 use accent color text; rest use muted text
+const TOP3_COLORS: Record<number, string> = {
+  1: 'var(--gold)',
+  2: 'var(--text-secondary)',
+  3: 'var(--yellow)',
 };
 
 function RankBadge({ rank }: { rank: number }) {
   if (rank <= 3) {
     return (
       <span
-        className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold text-white shrink-0"
-        style={{ backgroundColor: MEDAL_COLORS[rank] }}
+        className="font-display text-sm font-bold w-7 text-right tabular-nums shrink-0"
+        style={{ color: TOP3_COLORS[rank] }}
         aria-label={`Rank ${rank}`}
       >
         {rank}
@@ -52,7 +52,7 @@ function RankBadge({ rank }: { rank: number }) {
   }
   return (
     <span
-      className="font-mono text-sm font-bold text-[#5c5c66] w-7 text-right tabular-nums"
+      className="font-display text-sm font-bold w-7 text-right tabular-nums text-text-ghost shrink-0"
       aria-label={`Rank ${rank}`}
     >
       {rank}
@@ -60,30 +60,80 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-// ─── Skeleton row ─────────────────────────────────────────────────────────────
+// ─── Top-3 podium cards ───────────────────────────────────────────────────────
+function PodiumCard({ entry, isCurrentUser }: { entry: LeaderboardEntry; isCurrentUser: boolean }) {
+  const rank = entry.rank as 1 | 2 | 3;
+  const accentColor = TOP3_COLORS[rank];
+  const winRate =
+    entry.games_played > 0
+      ? Math.round((entry.wins / entry.games_played) * 100)
+      : 0;
 
+  return (
+    <div
+      className={clsx(
+        'flex flex-col gap-1.5 p-4 rounded-card border transition-colors',
+        rank === 1 ? 'bg-bg-elevated' : 'bg-bg-base'
+      )}
+      style={{
+        borderColor: accentColor,
+        borderLeftWidth: rank === 1 ? '3px' : '1px',
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <TierDot elo={Math.round(entry.elo_rating)} />
+          <span
+            className={clsx(
+              'font-display font-bold text-sm truncate',
+              isCurrentUser ? 'text-tile-correct' : 'text-text-primary'
+            )}
+          >
+            {entry.username}
+          </span>
+          {isCurrentUser && (
+            <span className="font-sans text-[10px] text-text-ghost shrink-0">(you)</span>
+          )}
+        </div>
+        <RankBadge rank={entry.rank} />
+      </div>
+      <div className="flex items-baseline gap-3">
+        <span
+          className="font-display text-2xl font-bold tabular-nums leading-none"
+          style={{ color: accentColor }}
+        >
+          {Math.round(entry.elo_rating)}
+        </span>
+        <span className="font-sans text-xs text-text-ghost tabular-nums">
+          {winRate}% WR
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Skeleton row ─────────────────────────────────────────────────────────────
 function SkeletonRow({ index }: { index: number }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: index * 0.04, duration: 0.3 }}
-      className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.04] last:border-0"
+      className="flex items-center gap-3 px-4 py-3 border-b border-border-subtle last:border-0"
     >
-      <div className="w-7 h-7 rounded-full bg-white/[0.06] shrink-0 animate-pulse" />
+      <div className="w-7 h-4 rounded bg-bg-muted shrink-0 animate-pulse" />
       <div className="flex-1 min-w-0 flex items-center gap-2">
-        <div className="h-3.5 w-28 rounded bg-white/[0.06] animate-pulse" />
-        <div className="h-3 w-14 rounded-full bg-white/[0.04] animate-pulse" />
+        <div className="w-2 h-2 rounded-full bg-bg-muted animate-pulse" />
+        <div className="h-3.5 w-28 rounded bg-bg-muted animate-pulse" />
       </div>
-      <div className="h-3.5 w-10 rounded bg-white/[0.06] animate-pulse ml-auto" />
-      <div className="h-3 w-8 rounded bg-white/[0.04] animate-pulse" />
-      <div className="h-3 w-7 rounded bg-white/[0.04] animate-pulse" />
+      <div className="h-3.5 w-10 rounded bg-bg-muted animate-pulse ml-auto" />
+      <div className="h-3 w-8 rounded bg-bg-muted animate-pulse" />
+      <div className="h-3 w-7 rounded bg-bg-muted animate-pulse" />
     </motion.div>
   );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function LeaderboardPage() {
   const { user } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
@@ -105,10 +155,18 @@ export default function LeaderboardPage() {
       .finally(() => setLoading(false));
   }, [page]);
 
-  const rowVariants = {
-    hidden: { opacity: 0, y: 6 },
+  const rowVariants: Variants = {
+    hidden:  { opacity: 0, y: 6 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } },
   };
+
+  const containerVariants: Variants = {
+    hidden:  {},
+    visible: { transition: stagger.fast },
+  };
+
+  const topThree = entries.filter((e) => e.rank <= 3);
+  const rest     = entries.filter((e) => e.rank > 3);
 
   const renderRow = (entry: LeaderboardEntry, isCurrentUser: boolean) => {
     const winRate =
@@ -123,10 +181,10 @@ export default function LeaderboardPage() {
         variants={rowVariants}
         layout
         className={clsx(
-          'flex items-center gap-3 px-4 py-[11px] border-b border-white/[0.04] last:border-0 transition-colors duration-150',
+          'flex items-center gap-3 px-4 py-3.5 border-b border-border-subtle last:border-0 transition-colors duration-150',
           isCurrentUser
-            ? 'bg-[#538d4e]/[0.07] border-l-2 border-[#538d4e]'
-            : 'hover:bg-white/[0.02]'
+            ? 'bg-bg-elevated border-l-4 border-l-tile-correct'
+            : 'hover:bg-bg-elevated/50'
         )}
       >
         {/* Rank */}
@@ -139,14 +197,14 @@ export default function LeaderboardPage() {
           <TierDot elo={Math.round(entry.elo_rating)} />
           <span
             className={clsx(
-              'text-sm font-semibold truncate',
-              isCurrentUser ? 'text-[#6aaa64]' : 'text-[#ededf0]'
+              'font-sans text-sm font-semibold truncate',
+              isCurrentUser ? 'text-tile-correct' : 'text-text-primary'
             )}
           >
             {entry.username}
           </span>
           {isCurrentUser && (
-            <span className="text-[10px] text-[#5c5c66] font-normal shrink-0">
+            <span className="font-sans text-[10px] text-text-ghost font-normal shrink-0">
               (you)
             </span>
           )}
@@ -154,19 +212,19 @@ export default function LeaderboardPage() {
 
         {/* ELO */}
         <span
-          className="text-sm font-mono font-bold w-14 text-right shrink-0 tabular-nums"
+          className="font-mono text-sm font-bold w-14 text-right shrink-0 tabular-nums"
           style={{ color: tierColor }}
         >
           {Math.round(entry.elo_rating)}
         </span>
 
         {/* Games */}
-        <span className="text-xs font-mono text-[#9898a0] w-12 text-right shrink-0 tabular-nums">
+        <span className="font-mono text-xs text-text-secondary w-12 text-right shrink-0 tabular-nums">
           {entry.games_played}
         </span>
 
         {/* Win rate */}
-        <span className="text-xs font-mono text-[#9898a0] w-10 text-right shrink-0 tabular-nums">
+        <span className="font-mono text-xs text-text-secondary w-10 text-right shrink-0 tabular-nums">
           {winRate}%
         </span>
       </motion.div>
@@ -175,12 +233,13 @@ export default function LeaderboardPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+
       {/* Page title */}
       <motion.h1
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springs.slide}
-        className="text-2xl font-bold text-[#ededf0] mb-1"
+        className="font-display font-black text-4xl text-text-primary mb-1"
       >
         Leaderboard
       </motion.h1>
@@ -188,62 +247,82 @@ export default function LeaderboardPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ ...springs.slide, delay: 0.08 }}
-        className="text-sm text-[#9898a0] mb-7"
+        className="font-sans text-sm text-text-secondary mb-7"
       >
         Top players ranked by ELO rating
       </motion.p>
 
-      {/* Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springs.slide, delay: 0.14 }}
-        className="bg-[#171719] border border-white/[0.06] rounded-[12px] overflow-hidden"
-      >
-        {/* Column headers */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/[0.06]">
-          <span className="w-7 text-right text-[10px] font-semibold text-[#5c5c66] uppercase tracking-wider shrink-0">
-            #
-          </span>
-          <span className="flex-1 text-[10px] font-semibold text-[#5c5c66] uppercase tracking-wider">
-            Player
-          </span>
-          <span className="w-14 text-right text-[10px] font-semibold text-[#5c5c66] uppercase tracking-wider shrink-0">
-            ELO
-          </span>
-          <span className="w-12 text-right text-[10px] font-semibold text-[#5c5c66] uppercase tracking-wider shrink-0">
-            Games
-          </span>
-          <span className="w-10 text-right text-[10px] font-semibold text-[#5c5c66] uppercase tracking-wider shrink-0">
-            W%
-          </span>
-        </div>
+      {/* Top-3 podium — simple cards with accent borders */}
+      {!loading && topThree.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...springs.slide, delay: 0.1 }}
+          className="grid grid-cols-3 gap-2 mb-4"
+        >
+          {topThree.map((entry) => (
+            <PodiumCard
+              key={entry.user_id}
+              entry={entry}
+              isCurrentUser={!!user && entry.user_id === user.id}
+            />
+          ))}
+        </motion.div>
+      )}
 
-        {/* Body */}
-        {loading ? (
-          <div>
-            {Array.from({ length: 10 }).map((_, i) => (
-              <SkeletonRow key={i} index={i} />
-            ))}
+      {/* Main list card */}
+      {(loading || rest.length > 0 || (page === 1 && !loading && entries.length === 0)) && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...springs.slide, delay: 0.14 }}
+          className="bg-bg-base border border-border-default rounded-card-lg overflow-hidden"
+        >
+          {/* Column headers */}
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle">
+            <span className="w-7 text-right font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider shrink-0">
+              #
+            </span>
+            <span className="flex-1 font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider">
+              Player
+            </span>
+            <span className="w-14 text-right font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider shrink-0">
+              ELO
+            </span>
+            <span className="w-12 text-right font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider shrink-0">
+              Games
+            </span>
+            <span className="w-10 text-right font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider shrink-0">
+              W%
+            </span>
           </div>
-        ) : entries.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-sm text-[#9898a0]">No players yet. Be the first!</p>
-          </div>
-        ) : (
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={{ hidden: {}, visible: { transition: stagger.fast } }}
-          >
-            {entries.map((entry) =>
-              renderRow(entry, !!user && entry.user_id === user.id)
-            )}
-          </motion.div>
-        )}
-      </motion.div>
 
-      {/* Pagination */}
+          {/* Body */}
+          {loading ? (
+            <div>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <SkeletonRow key={i} index={i} />
+              ))}
+            </div>
+          ) : rest.length === 0 && page === 1 && entries.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="font-sans text-sm text-text-secondary">No players yet. Be the first!</p>
+            </div>
+          ) : rest.length > 0 ? (
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={containerVariants}
+            >
+              {rest.map((entry) =>
+                renderRow(entry, !!user && entry.user_id === user.id)
+              )}
+            </motion.div>
+          ) : null}
+        </motion.div>
+      )}
+
+      {/* Pagination — ghost buttons matching play-page style */}
       {!loading && (entries.length > 0 || page > 1) && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -254,20 +333,22 @@ export default function LeaderboardPage() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#171719] border border-white/[0.06] text-sm text-[#9898a0] hover:text-[#ededf0] hover:border-white/[0.10] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-card bg-bg-base border border-border-default font-sans text-sm text-text-secondary hover:text-text-primary hover:border-border-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2"
+            style={{ outlineColor: 'var(--tile-correct)' }}
           >
             <ChevronLeft size={14} />
             Previous
           </button>
 
-          <span className="text-xs text-[#5c5c66] font-mono tabular-nums">
+          <span className="font-sans text-xs text-text-ghost font-mono tabular-nums">
             Page {page}
           </span>
 
           <button
             onClick={() => setPage((p) => p + 1)}
             disabled={!hasMore}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#171719] border border-white/[0.06] text-sm text-[#9898a0] hover:text-[#ededf0] hover:border-white/[0.10] disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-card bg-bg-base border border-border-default font-sans text-sm text-text-secondary hover:text-text-primary hover:border-border-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2"
+            style={{ outlineColor: 'var(--tile-correct)' }}
           >
             Next
             <ChevronRight size={14} />

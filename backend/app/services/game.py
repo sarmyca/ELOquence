@@ -191,6 +191,7 @@ async def create_game(
     mode: str,
     word_pool: str = "standard",
     daily_rated: bool = False,
+    hard_mode: bool = False,
 ) -> Game:
     """Instantiate a new game and persist it.
 
@@ -253,6 +254,7 @@ async def create_game(
         status="in_progress",
         num_guesses=0,
         rated=rated,
+        hard_mode=hard_mode,
         is_placement=user.is_placement,
         elo_before=user.elo_rating if rated else None,
         constraint_violations=0,
@@ -313,6 +315,28 @@ async def submit_guess(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Game is already {game.status}.",
         )
+
+    # Hard mode: validate revealed hints are reused in subsequent guesses
+    if game.hard_mode and game.moves:
+        sorted_moves = sorted(game.moves, key=lambda m: m.move_number)
+        for prev_move in sorted_moves:
+            prev_guess = prev_move.guess_word
+            p = prev_move.pattern
+            # Decode ternary pattern: digit i = (p // 3**i) % 3
+            # 2 = correct (green), 1 = present (yellow), 0 = absent
+            for pos in range(5):
+                val = (p // (3 ** pos)) % 3
+                letter = prev_guess[pos]
+                if val == 2 and guess[pos] != letter:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Hard mode: must reuse {letter}",
+                    )
+                if val == 1 and letter not in guess:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Hard mode: must reuse {letter}",
+                    )
 
     pattern = compute_pattern(guess, game.target_word)
     move_number = game.num_guesses + 1

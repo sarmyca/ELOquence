@@ -40,15 +40,15 @@ function StatCard({
           transition: { type: 'spring', damping: 22, stiffness: 350, delay: index * 0.05 },
         },
       }}
-      className="bg-bg-secondary border border-white/[0.08] rounded-2xl px-4 py-4 flex flex-col gap-3"
+      className="bg-bg-base border border-border-default rounded-card-lg px-4 py-4 flex flex-col gap-3"
     >
       <div className="flex items-center gap-2">
         <Icon size={14} className="text-text-secondary" />
-        <span className="text-[10px] uppercase tracking-wider text-text-secondary font-medium">
+        <span className="text-xs uppercase tracking-wider text-text-secondary font-semibold font-sans">
           {label}
         </span>
       </div>
-      <span className="font-mono text-2xl font-bold text-text-primary">{value}</span>
+      <span className="font-display text-2xl font-bold text-text-primary tabular-nums">{value}</span>
     </motion.div>
   );
 }
@@ -76,7 +76,7 @@ export default function AdminPage() {
   if (loading || fetching) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+        <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -119,12 +119,12 @@ export default function AdminPage() {
         transition={{ duration: 0.3 }}
         className="mb-8"
       >
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Admin Dashboard</h1>
-        <p className="text-sm text-text-secondary">Platform overview and management tools.</p>
+        <h1 className="font-display font-black text-3xl text-text-primary mb-1">Admin · Dashboard</h1>
+        <p className="font-sans text-text-secondary">Platform overview and management tools.</p>
       </motion.div>
 
       {error && (
-        <div className="mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+        <div className="mb-6 px-4 py-3 rounded-card border text-sm" style={{ background: 'rgba(231,76,60,0.08)', borderColor: 'rgba(231,76,60,0.25)', color: 'var(--red)' }}>
           {error}
         </div>
       )}
@@ -154,11 +154,11 @@ export default function AdminPage() {
           >
             <Link
               href={page.href}
-              className="flex flex-col gap-2 bg-bg-secondary border border-white/[0.08] rounded-2xl px-4 py-4 hover:border-white/[0.16] hover:bg-bg-elevated transition-colors"
+              className="flex flex-col gap-2 bg-bg-base border border-border-default rounded-card-lg px-4 py-4 hover:bg-bg-elevated hover:border-border-strong transition-colors"
             >
-              <page.icon size={18} className="text-[#6aaa64]" />
-              <span className="font-semibold text-text-primary text-sm">{page.label}</span>
-              <span className="text-xs text-text-secondary">{page.description}</span>
+              <page.icon size={18} className="text-tile-correct" />
+              <span className="font-sans font-semibold text-text-primary text-sm">{page.label}</span>
+              <span className="font-sans text-xs text-text-secondary">{page.description}</span>
             </Link>
           </motion.div>
         ))}

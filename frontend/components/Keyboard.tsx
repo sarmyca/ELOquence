@@ -9,6 +9,7 @@ interface KeyboardProps {
   onEnter: () => void;
   onBackspace: () => void;
   letterStates: Record<string, TileState>;
+  disablePhysicalKeyboard?: boolean;
 }
 
 const ROWS = [
@@ -17,20 +18,15 @@ const ROWS = [
   ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'BACK'],
 ];
 
-const KEY_STATE_STYLES: Record<string, string> = {
-  correct: 'bg-[#538d4e] text-white',
-  present: 'bg-[#b59f3b] text-white',
-  absent:  'bg-[#25252a] text-[#5c5c66]',
-  unused:  'bg-[#3c3c44] text-white',
-};
-
 export default function Keyboard({
   onKey,
   onEnter,
   onBackspace,
   letterStates,
+  disablePhysicalKeyboard = false,
 }: KeyboardProps) {
   useEffect(() => {
+    if (disablePhysicalKeyboard) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toUpperCase();
@@ -44,13 +40,24 @@ export default function Keyboard({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onKey, onEnter, onBackspace]);
+  }, [onKey, onEnter, onBackspace, disablePhysicalKeyboard]);
 
-  const getKeyStyle = (key: string): string => {
-    if (key === 'ENTER' || key === 'BACK') return KEY_STATE_STYLES.unused;
+  function getKeyStyle(key: string): React.CSSProperties {
+    if (key === 'ENTER' || key === 'BACK') {
+      return {
+        backgroundColor: 'var(--key-default-bg)',
+        color: 'var(--key-default-text)',
+      };
+    }
     const state = letterStates[key];
-    return KEY_STATE_STYLES[state] ?? KEY_STATE_STYLES.unused;
-  };
+    if (state === 'correct') return { backgroundColor: 'var(--tile-correct)', color: '#ffffff' };
+    if (state === 'present') return { backgroundColor: 'var(--tile-present)', color: '#ffffff' };
+    if (state === 'absent')  return { backgroundColor: 'var(--tile-absent)',  color: '#ffffff' };
+    return {
+      backgroundColor: 'var(--key-default-bg)',
+      color: 'var(--key-default-text)',
+    };
+  }
 
   return (
     <div className="flex flex-col items-center w-full max-w-[500px]" style={{ gap: '5px' }}>
@@ -61,22 +68,22 @@ export default function Keyboard({
             return (
               <motion.button
                 key={key}
-                whileHover={{ filter: 'brightness(1.10)' }}
+                whileHover={{ filter: 'brightness(0.92)', y: -1 }}
                 whileTap={{ scale: 0.95 }}
-                transition={{ type: 'spring', damping: 30, stiffness: 700, mass: 0.3 }}
+                transition={{ type: 'spring', damping: 28, stiffness: 800, mass: 0.3 }}
                 onClick={() => {
                   if (key === 'ENTER') onEnter();
                   else if (key === 'BACK') onBackspace();
                   else onKey(key);
                 }}
                 className={clsx(
-                  'flex items-center justify-center rounded-[6px] font-bold text-sm select-none cursor-pointer transition-colors duration-100',
-                  isSpecial ? 'flex-[1.5] text-xs' : 'flex-1',
-                  getKeyStyle(key)
+                  'flex items-center justify-center rounded-key font-bold text-sm select-none cursor-pointer transition-colors duration-fast font-sans',
+                  isSpecial ? 'flex-[1.5] text-xs' : 'flex-1'
                 )}
                 style={{
                   height: 'var(--key-height)',
                   minWidth: isSpecial ? '54px' : '30px',
+                  ...getKeyStyle(key),
                 }}
                 aria-label={key === 'BACK' ? 'Backspace' : key}
               >

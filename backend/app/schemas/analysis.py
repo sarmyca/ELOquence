@@ -8,6 +8,7 @@ class TopPick(BaseModel):
     word: str
     entropy: float
     expected_remaining: float
+    probability: float = 0.0
 
 
 class PatternBucket(BaseModel):
@@ -56,6 +57,19 @@ class MoveAnalysis(BaseModel):
     pattern_distribution: list[PatternBucket] = []
     letter_frequencies: dict[str, dict[str, float]] = {}
 
+    # --- WordleBot-spec per-turn fields ---
+    skill_score: int = 0
+    luck_score: int = 50
+    remaining_before: int = 0
+    expected_solutions_after: float = 0.0
+    actual_solutions_after: int = 0
+    expected_steps_until_solution: float = 1.0
+    bot_pick: str = ""
+    bot_pick_rationale: str = ""
+    scenario_count: int = 0
+    candidates_top_n: list[TopPick] = []
+    tip_case: str = ""
+
 
 class StrategicPattern(BaseModel):
     """A detected strategic pattern from a game.
@@ -75,6 +89,15 @@ class StrategicPattern(BaseModel):
     details: dict | None = None
 
 
+class DictionaryInfo(BaseModel):
+    """WordleBot-spec dictionary size information."""
+
+    guesses: int = 15000
+    suggestions: int = 4500
+    solutions: int = 3200
+    legacy: int = 2309
+
+
 class AnalysisResponse(BaseModel):
     """Full analysis result for a completed game."""
 
@@ -85,3 +108,13 @@ class AnalysisResponse(BaseModel):
     traps_encountered: int
     moves: list[MoveAnalysis]
     patterns: list[StrategicPattern] = []
+
+    # --- WordleBot-spec aggregate fields ---
+    skill_avg_excluding_opener: float = 0.0
+    luck_avg: float = 0.0
+    uniqueness_percentile: int = 1
+    bot_solve_path: list[str] = []
+    failure_score: float | None = None
+    standard_mode_starter: str = "SLATE"
+    hard_mode_starter: str = "CLASP"
+    dictionary_sizes: DictionaryInfo = DictionaryInfo()

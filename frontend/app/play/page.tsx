@@ -51,7 +51,7 @@ function DailyCountdown({ onMidnight }: { onMidnight?: () => void }) {
   }, [onMidnight]);
 
   return (
-    <span className="text-xs font-mono tabular-nums" style={{ color: '#5c5c66' }}>
+    <span className="text-xs font-mono tabular-nums text-text-secondary">
       Next puzzle in {timeLeft}
     </span>
   );
@@ -64,25 +64,26 @@ interface ModeCard {
   subtitle: string;
   desc: string;
   accentColor: string;
-  borderColor: string;
   requiresAuth: boolean;
   tag?: string;
 }
 
-// Decorative mini wordle tile row used in the daily card
+// Decorative mini wordle tile row — uses CSS vars via inline style
 function MiniTileRow({ pattern }: { pattern: ('correct' | 'present' | 'absent')[] }) {
-  const colorMap = {
-    correct: '#538d4e',
-    present: '#b59f3b',
-    absent: '#3a3a3c',
-  };
   return (
     <div className="flex gap-1">
       {pattern.map((state, i) => (
         <div
           key={i}
-          className="w-7 h-7 rounded-md flex items-center justify-center"
-          style={{ backgroundColor: colorMap[state] }}
+          className="w-6 h-6 rounded-sm"
+          style={{
+            backgroundColor:
+              state === 'correct'
+                ? 'var(--tile-correct)'
+                : state === 'present'
+                ? 'var(--tile-present)'
+                : 'var(--tile-absent)',
+          }}
         />
       ))}
     </div>
@@ -111,7 +112,6 @@ export default function PlayPage() {
     setDailyGameId(null);
     setDailyPatterns(null);
     setDailyRated(false);
-    // Bump key to re-run the daily status check effect
     setDailyRefreshKey((k) => k + 1);
   }, []);
 
@@ -140,12 +140,10 @@ export default function PlayPage() {
 
   // Check if daily was already completed (as guest via localStorage, or as user via API)
   useEffect(() => {
-    // Use local date string to match server TZ (Europe/Zagreb)
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     if (user) {
-      // Authenticated user: check daily status via GET (read-only, doesn't create a game)
       dailyApi.get().then(async (res) => {
         if (res.data.already_played) {
           setDailyAlreadyPlayed(true);
@@ -154,7 +152,6 @@ export default function PlayPage() {
             setDailyGameId(gameId);
           }
 
-          // Try localStorage first, then fall back to fetching the game
           const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
           if (savedPatterns) {
             try {
@@ -164,7 +161,6 @@ export default function PlayPage() {
             } catch { /* ignore, fall through to API */ }
           }
 
-          // No localStorage patterns — fetch from API
           if (gameId) {
             try {
               const gameRes = await gamesApi.get(gameId);
@@ -173,7 +169,6 @@ export default function PlayPage() {
                 const sorted = [...moves].sort((a: { move_number: number }, b: { move_number: number }) => a.move_number - b.move_number);
                 const pats = sorted.map((m: { pattern: number }) => patternToTiles(m.pattern));
                 setDailyPatterns(pats);
-                // Cache for next visit
                 localStorage.setItem(`eloquence_daily_patterns_${today}`, JSON.stringify(sorted.map((m: { pattern: number }) => m.pattern)));
               }
             } catch { /* ignore */ }
@@ -187,7 +182,6 @@ export default function PlayPage() {
         // Ignore
       });
     } else {
-      // Guest: use localStorage only
       const guestPlayed = localStorage.getItem(`eloquence_daily_played_${today}`) === 'true';
       const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
       const savedGameId = localStorage.getItem(`eloquence_daily_game_id_${today}`);
@@ -210,12 +204,11 @@ export default function PlayPage() {
   const modes: ModeCard[] = [
     {
       id: 'daily',
-      icon: <Sun size={22} />,
+      icon: <Sun size={20} />,
       title: 'Daily',
       subtitle: "Today's Puzzle",
       desc: 'One word per day. Play against the community.',
-      accentColor: '#6aaa64',
-      borderColor: 'rgba(106,170,100,0.25)',
+      accentColor: 'var(--tile-correct)',
       requiresAuth: false,
       tag: user?.current_streak
         ? `${user.current_streak} day streak`
@@ -223,23 +216,21 @@ export default function PlayPage() {
     },
     {
       id: 'competitive',
-      icon: <Swords size={22} />,
+      icon: <Swords size={20} />,
       title: 'Competitive',
       subtitle: user ? `${Math.round(user.elo_rating)} ELO` : 'Rated',
       desc: 'Random words from the full pool. ELO stakes.',
-      accentColor: tier?.color || '#818384',
-      borderColor: `${tier?.color || '#818384'}40`,
+      accentColor: tier?.color || 'var(--text-secondary)',
       requiresAuth: true,
       tag: user?.is_placement ? `Placement ${user.games_played + 1}/5` : undefined,
     },
     {
       id: 'practice',
-      icon: <FlaskConical size={22} />,
+      icon: <FlaskConical size={20} />,
       title: 'Practice',
       subtitle: 'Unrated',
       desc: 'Hone your skills with no ELO consequences.',
-      accentColor: '#9898a0',
-      borderColor: 'rgba(152,152,160,0.2)',
+      accentColor: 'var(--text-secondary)',
       requiresAuth: true,
     },
   ];
@@ -253,10 +244,8 @@ export default function PlayPage() {
       return;
     }
 
-    // If daily already played or in-progress, navigate to the saved game
     if (modeId === 'daily' && (dailyAlreadyPlayed || dailyGameId)) {
       if (user) {
-        // For authenticated users, call play() which returns the existing game
         setCreating(modeId);
         try {
           const res = await dailyApi.play();
@@ -280,7 +269,6 @@ export default function PlayPage() {
           ? await dailyApi.play(dailyRated && !user.is_placement)
           : await dailyApi.guest();
         gameId = res.data.id || res.data.game_id;
-        // If daily returns existing game, go to review; else go to game
         if (res.data.status && res.data.status !== 'in_progress') {
           router.push(`/review/${gameId}`);
           return;
@@ -332,15 +320,12 @@ export default function PlayPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div
-          className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: 'rgba(83,141,78,0.3)', borderTopColor: '#538d4e' }}
-        />
+        <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin border-tile-correct" />
       </div>
     );
   }
 
-  // ── Shared challenge modal ────────────────────────────────────────────────────
+  // ── Challenge modal ───────────────────────────────────────────────────────────
   const challengeModal = (
     <AnimatePresence>
       {challengeCode && (
@@ -350,53 +335,38 @@ export default function PlayPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]"
             onClick={() => setChallengeCode(null)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.88, y: 24 }}
+              initial={{ opacity: 0, scale: 0.92, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
               transition={springs.modal}
-              className="w-full max-w-sm rounded-2xl border border-white/[0.10] shadow-2xl overflow-hidden"
-              style={{ backgroundColor: '#1d1d21' }}
+              className="w-full max-w-sm rounded-card-lg border border-border-default bg-bg-base shadow-modal overflow-hidden"
             >
-              <div className="h-1.5 w-full bg-gradient-to-r from-[#538d4e] to-[#6aaa64]" />
+              {/* Wordle-green top rule */}
+              <div className="h-[3px] w-full bg-tile-correct" />
               <div className="p-6 flex flex-col gap-5">
                 {/* Header */}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-xl border flex items-center justify-center"
-                      style={{
-                        backgroundColor: 'rgba(83,141,78,0.10)',
-                        borderColor: 'rgba(83,141,78,0.20)',
-                      }}
-                    >
-                      <Swords size={20} style={{ color: '#6aaa64' }} />
+                    <div className="w-10 h-10 rounded-card border border-border-subtle bg-bg-elevated flex items-center justify-center">
+                      <Swords size={18} className="text-tile-correct" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold" style={{ color: '#ededf0' }}>
+                      <h2 className="text-base font-bold font-display text-text-primary">
                         Challenge Created!
                       </h2>
-                      <p className="text-xs mt-0.5" style={{ color: '#9898a0' }}>
+                      <p className="text-xs mt-0.5 text-text-secondary">
                         Share the link with a friend
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setChallengeCode(null)}
-                    className="p-1.5 rounded-md transition-colors"
-                    style={{ color: '#5c5c66' }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.color = '#ededf0';
-                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(255,255,255,0.06)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.color = '#5c5c66';
-                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent';
-                    }}
+                    className="p-1.5 rounded-md text-text-secondary hover:text-text-primary hover:bg-bg-muted transition-colors"
                     aria-label="Close challenge modal"
                   >
                     <X size={16} />
@@ -405,14 +375,7 @@ export default function PlayPage() {
 
                 {/* Share link */}
                 <div className="flex gap-2">
-                  <div
-                    className="flex-1 min-w-0 py-2 px-3 rounded-lg border text-xs font-mono truncate"
-                    style={{
-                      backgroundColor: '#25252a',
-                      borderColor: 'rgba(255,255,255,0.08)',
-                      color: '#5c5c66',
-                    }}
-                  >
+                  <div className="flex-1 min-w-0 py-2 px-3 rounded-md border border-border-subtle bg-bg-elevated text-xs font-mono text-text-secondary truncate">
                     {typeof window !== 'undefined'
                       ? `${window.location.origin}/challenge/${challengeCode}`
                       : `/challenge/${challengeCode}`}
@@ -421,16 +384,11 @@ export default function PlayPage() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={handleCopyChallengeLink}
-                    className="shrink-0 px-3 py-2 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1.5"
-                    style={{
-                      backgroundColor: '#25252a',
-                      borderColor: 'rgba(255,255,255,0.08)',
-                      color: '#ededf0',
-                    }}
+                    className="shrink-0 px-3 py-2 rounded-md border border-border-default bg-bg-elevated text-xs font-medium text-text-primary hover:border-border-strong transition-colors flex items-center gap-1.5"
                   >
                     {challengeCopied ? (
                       <>
-                        <Check size={13} style={{ color: '#6aaa64' }} />
+                        <Check size={13} className="text-tile-correct" />
                         Copied!
                       </>
                     ) : (
@@ -448,28 +406,14 @@ export default function PlayPage() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={() => router.push(`/challenge/${challengeCode}`)}
-                    className="w-full py-2.5 rounded-xl text-white font-medium text-sm transition-colors flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#538d4e' }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6aaa64';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#538d4e';
-                    }}
+                    className="w-full py-2.5 rounded-card bg-tile-correct text-white font-semibold text-sm uppercase tracking-wider hover:brightness-110 transition-[filter,transform] active:scale-[0.98] flex items-center justify-center gap-2"
                   >
                     <ArrowRight size={15} />
                     Play it yourself first
                   </motion.button>
                   <button
                     onClick={() => setChallengeCode(null)}
-                    className="text-xs text-center py-1 transition-colors"
-                    style={{ color: '#5c5c66' }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.color = '#9898a0';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.color = '#5c5c66';
-                    }}
+                    className="text-xs text-center py-1 text-text-secondary hover:text-text-primary transition-colors"
                   >
                     Dismiss
                   </button>
@@ -493,6 +437,21 @@ export default function PlayPage() {
         className="flex flex-col items-center justify-center min-h-[calc(100dvh-56px)] px-4"
         style={{ paddingTop: '2.5rem', paddingBottom: '5rem' }}
       >
+        {/* Page header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="w-full max-w-md mb-8"
+        >
+          <h1 className="font-display font-black text-4xl tracking-tight text-text-primary">
+            Play
+          </h1>
+          <p className="font-sans text-base text-text-secondary mt-2">
+            One word per day — or practice anytime.
+          </p>
+        </motion.div>
+
         {/* Error */}
         <AnimatePresence>
           {error && (
@@ -500,11 +459,11 @@ export default function PlayPage() {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mb-6 text-sm rounded-lg px-4 py-2"
+              className="mb-6 text-sm rounded-card px-4 py-2 w-full max-w-md"
               style={{
-                color: '#e74c3c',
-                backgroundColor: 'rgba(231,76,60,0.10)',
-                border: '1px solid rgba(231,76,60,0.20)',
+                color: 'var(--red)',
+                backgroundColor: 'rgba(231,76,60,0.08)',
+                border: '1px solid rgba(231,76,60,0.18)',
               }}
             >
               {error}
@@ -524,83 +483,43 @@ export default function PlayPage() {
           {/* ── Hero daily card ── */}
           <motion.button
             variants={{
-              hidden: { opacity: 0, y: 28 },
+              hidden: { opacity: 0, y: 24 },
               visible: { opacity: 1, y: 0, transition: springs.slide },
             }}
-            whileHover={isDailyLoading || !!creating ? {} : { scale: 1.01 }}
-            whileTap={isDailyLoading || !!creating ? {} : { scale: 0.98 }}
+            whileHover={isDailyLoading || !!creating ? {} : { y: -1.5 }}
+            whileTap={isDailyLoading || !!creating ? {} : { scale: 0.99 }}
             onClick={() => handleModeSelect('daily')}
             disabled={!!creating}
-            className="group relative w-full flex flex-col gap-4 text-left rounded-[12px] border transition-all duration-200 cursor-pointer"
-            style={{
-              backgroundColor: '#171719',
-              borderColor: 'rgba(255,255,255,0.06)',
-              padding: '1.25rem',
-            }}
-            onMouseEnter={(e) => {
-              if (!creating) {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.09)';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 24px rgba(83,141,78,0.08)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.06)';
-              (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
-            }}
+            className="group relative w-full flex flex-col gap-4 text-left rounded-card-lg border-2 border-border-default bg-bg-base p-6 hover:border-tile-correct transition-colors shadow-card hover:shadow-card-hover cursor-pointer"
           >
             {/* Top row: icon + title + free badge */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                {/* Icon container */}
-                <div
-                  className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-                  style={{
-                    backgroundColor: 'rgba(83,141,78,0.10)',
-                    color: '#6aaa64',
-                  }}
-                >
+                <div className="flex-shrink-0 w-10 h-10 rounded-card border border-border-subtle bg-bg-elevated flex items-center justify-center text-tile-correct">
                   {isDailyLoading ? (
-                    <div
-                      className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
-                      style={{
-                        borderColor: 'rgba(106,170,100,0.30)',
-                        borderTopColor: '#6aaa64',
-                      }}
-                    />
+                    <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-tile-correct" />
                   ) : (
                     <Sun size={20} />
                   )}
                 </div>
-                {/* Title block */}
                 <div>
-                  <h2
-                    className="text-lg font-bold leading-tight"
-                    style={{ color: '#ededf0' }}
-                  >
+                  <h2 className="font-display font-bold text-xl text-text-primary leading-tight">
                     Daily Puzzle
                   </h2>
-                  <p className="text-xs font-mono" style={{ color: '#6aaa64' }}>
+                  <p className="font-sans text-sm text-tile-correct">
                     Today&apos;s Word
                   </p>
                 </div>
               </div>
 
-              {/* Free badge — only when not yet played */}
               {!dailyAlreadyPlayed && (
-                <span
-                  className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold tracking-wide border"
-                  style={{
-                    color: '#6aaa64',
-                    backgroundColor: 'rgba(83,141,78,0.10)',
-                    borderColor: 'rgba(83,141,78,0.20)',
-                  }}
-                >
+                <span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-pill font-semibold tracking-wide border border-tile-correct/30 text-tile-correct bg-tile-correct/8">
                   Free
                 </span>
               )}
             </div>
 
-            {/* Mini tile patterns — only shown when the user has already played */}
+            {/* Mini tile patterns */}
             {dailyPatterns && (
               <div className="flex flex-col gap-1.5 py-0.5">
                 {dailyPatterns.map((row, i) => (
@@ -610,7 +529,7 @@ export default function PlayPage() {
             )}
 
             {/* Description */}
-            <p className="text-sm leading-relaxed" style={{ color: '#9898a0' }}>
+            <p className="font-sans text-sm leading-relaxed text-text-secondary">
               One word per day, shared across the community. No account needed.
             </p>
 
@@ -618,19 +537,13 @@ export default function PlayPage() {
             {dailyAlreadyPlayed ? (
               <div className="flex items-center justify-between">
                 <DailyCountdown onMidnight={handleMidnight} />
-                <div
-                  className="flex items-center gap-1.5 text-xs font-semibold"
-                  style={{ color: '#6aaa64' }}
-                >
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-tile-correct">
                   View your game
                   <ArrowRight size={13} />
                 </div>
               </div>
             ) : (
-              <div
-                className="flex items-center gap-1.5 text-sm font-semibold"
-                style={{ color: '#6aaa64' }}
-              >
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-tile-correct">
                 {dailyPatterns ? 'Continue' : 'Play now'}
                 <ArrowRight size={14} />
               </div>
@@ -640,7 +553,7 @@ export default function PlayPage() {
           {/* ── Locked secondary cards ── */}
           <motion.div
             variants={{
-              hidden: { opacity: 0, y: 20 },
+              hidden: { opacity: 0, y: 16 },
               visible: { opacity: 1, y: 0, transition: springs.slide },
             }}
             className="grid grid-cols-2 gap-3"
@@ -648,43 +561,31 @@ export default function PlayPage() {
             {lockedModes.map((mode) => (
               <motion.button
                 key={mode.id}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.99 }}
                 onClick={() => router.push('/login')}
-                className="relative flex flex-col gap-3 p-4 rounded-[12px] border text-left transition-all duration-200 cursor-pointer"
-                style={{
-                  backgroundColor: '#171719',
-                  borderColor: 'rgba(255,255,255,0.06)',
-                  opacity: 0.55,
-                }}
+                className="relative flex flex-col gap-3 p-4 rounded-card-lg border border-border-subtle bg-bg-base text-left transition-colors opacity-50 cursor-pointer"
               >
-                {/* Icon row + lock indicator */}
                 <div className="flex items-center justify-between">
                   <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{
-                      color: mode.accentColor,
-                      backgroundColor: `${mode.accentColor}18`,
-                    }}
+                    className="w-9 h-9 rounded-card border border-border-subtle bg-bg-elevated flex items-center justify-center"
+                    style={{ color: mode.accentColor }}
                   >
                     {mode.icon}
                   </div>
-                  <Lock size={12} style={{ color: '#5c5c66' }} />
+                  <Lock size={12} className="text-text-secondary" />
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-bold" style={{ color: '#ededf0' }}>
+                  <h3 className="font-display font-bold text-sm text-text-primary">
                     {mode.title}
                   </h3>
-                  <p
-                    className="text-[11px] font-mono mt-0.5"
-                    style={{ color: mode.accentColor }}
-                  >
+                  <p className="font-mono text-[11px] mt-0.5" style={{ color: mode.accentColor }}>
                     {mode.subtitle}
                   </p>
                 </div>
 
-                <p className="text-xs leading-relaxed" style={{ color: '#5c5c66' }}>
+                <p className="font-sans text-xs leading-relaxed text-text-secondary">
                   {mode.desc}
                 </p>
               </motion.button>
@@ -694,26 +595,19 @@ export default function PlayPage() {
           {/* ── Sign-in nudge ── */}
           <motion.div
             variants={{
-              hidden: { opacity: 0, y: 12 },
+              hidden: { opacity: 0, y: 10 },
               visible: { opacity: 1, y: 0, transition: springs.slide },
             }}
             className="flex flex-col items-center gap-3 pt-1"
           >
-            <p className="text-xs text-center" style={{ color: '#5c5c66' }}>
+            <p className="text-xs text-center text-text-secondary">
               Sign in to unlock all modes and track your ELO rating
             </p>
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => router.push('/login')}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-medium transition-colors"
-              style={{ backgroundColor: '#538d4e' }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#6aaa64';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#538d4e';
-              }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-card bg-tile-correct text-white text-sm font-bold uppercase tracking-wider hover:brightness-110 transition-[filter,transform] active:scale-[0.98]"
             >
               <LogIn size={14} />
               Sign in
@@ -743,11 +637,11 @@ export default function PlayPage() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mb-6 text-sm rounded-lg px-4 py-2"
+            className="mb-6 text-sm rounded-card px-4 py-2 w-full max-w-md"
             style={{
-              color: '#e74c3c',
-              backgroundColor: 'rgba(231,76,60,0.10)',
-              border: '1px solid rgba(231,76,60,0.20)',
+              color: 'var(--red)',
+              backgroundColor: 'rgba(231,76,60,0.08)',
+              border: '1px solid rgba(231,76,60,0.18)',
             }}
           >
             {error}
@@ -764,137 +658,101 @@ export default function PlayPage() {
         }}
         className="w-full max-w-md flex flex-col gap-4"
       >
-        {/* ── User stats bar ── */}
+        {/* ── Page header + user stats ── */}
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 16 },
+            hidden: { opacity: 0, y: 12 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
-          className="flex items-center gap-3 justify-center"
         >
-          <span
-            className="text-2xl font-bold font-mono tabular-nums"
-            style={{ color: tier?.color }}
-          >
-            {Math.round(user.elo_rating)}
-          </span>
-          <span
-            className="text-xs px-2 py-0.5 rounded-full font-medium"
-            style={{
-              color: tier?.color,
-              backgroundColor: `${tier?.color}1a`,
-            }}
-          >
-            {tier?.name}
-          </span>
-          <span className="text-xs" style={{ color: '#5c5c66' }}>
-            {user.username}
-          </span>
-          {user.current_streak > 0 && (
+          <h1 className="font-display font-black text-4xl tracking-tight text-text-primary">
+            Play
+          </h1>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
             <span
-              className="inline-flex items-center gap-1 text-xs font-medium"
-              style={{ color: '#e67e22' }}
+              className="font-display font-bold text-2xl tabular-nums"
+              style={{ color: tier?.color }}
             >
-              <Flame size={11} />
-              {user.current_streak}
+              {Math.round(user.elo_rating)}
             </span>
-          )}
+            <span
+              className="text-xs px-2 py-0.5 rounded-pill font-semibold border"
+              style={{
+                color: tier?.color,
+                backgroundColor: `${tier?.color}18`,
+                borderColor: `${tier?.color}30`,
+              }}
+            >
+              {tier?.name}
+            </span>
+            <span className="text-xs text-text-secondary font-sans">
+              {user.username}
+            </span>
+            {user.current_streak > 0 && (
+              <span
+                className="inline-flex items-center gap-1 text-xs font-semibold"
+                style={{ color: 'var(--yellow)' }}
+              >
+                <Flame size={11} />
+                {user.current_streak}
+              </span>
+            )}
+          </div>
         </motion.div>
 
         {/* ── Hero daily card ── */}
         <motion.button
           variants={{
-            hidden: { opacity: 0, y: 28 },
+            hidden: { opacity: 0, y: 24 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
-          whileHover={isDailyLoading || !!creating ? {} : { scale: 1.01 }}
-          whileTap={isDailyLoading || !!creating ? {} : { scale: 0.98 }}
+          whileHover={isDailyLoading || !!creating ? {} : { y: -1.5 }}
+          whileTap={isDailyLoading || !!creating ? {} : { scale: 0.99 }}
           onClick={() => handleModeSelect('daily')}
           disabled={!!creating}
-          className="group relative w-full flex flex-col gap-4 text-left rounded-[12px] border transition-all duration-200 cursor-pointer"
-          style={{
-            backgroundColor: '#171719',
-            borderColor: 'rgba(255,255,255,0.06)',
-            padding: '1.25rem',
-          }}
-          onMouseEnter={(e) => {
-            if (!creating) {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.09)';
-              (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 24px rgba(83,141,78,0.08)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.06)';
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none';
-          }}
+          className="group relative w-full flex flex-col gap-4 text-left rounded-card-lg border-2 border-border-default bg-bg-base p-6 hover:border-tile-correct transition-colors shadow-card hover:shadow-card-hover cursor-pointer"
         >
-          {/* Top row: icon + title + streak tag */}
+          {/* Top row: icon + title + streak/free tag */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              {/* Icon container */}
-              <div
-                className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
-                style={{
-                  backgroundColor: 'rgba(83,141,78,0.10)',
-                  color: '#6aaa64',
-                }}
-              >
+              <div className="flex-shrink-0 w-10 h-10 rounded-card border border-border-subtle bg-bg-elevated flex items-center justify-center text-tile-correct">
                 {isDailyLoading ? (
-                  <div
-                    className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
-                    style={{
-                      borderColor: 'rgba(106,170,100,0.30)',
-                      borderTopColor: '#6aaa64',
-                    }}
-                  />
+                  <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-tile-correct" />
                 ) : (
                   <Sun size={20} />
                 )}
               </div>
-              {/* Title block */}
               <div>
-                <h2
-                  className="text-lg font-bold leading-tight"
-                  style={{ color: '#ededf0' }}
-                >
+                <h2 className="font-display font-bold text-xl text-text-primary leading-tight">
                   Daily Puzzle
                 </h2>
-                <p className="text-xs font-mono" style={{ color: '#6aaa64' }}>
+                <p className="font-sans text-sm text-tile-correct">
                   Today&apos;s Word
                 </p>
               </div>
             </div>
 
-            {/* Streak tag — shown when the user has a streak */}
             {dailyMode.tag && (
               <span
-                className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold border"
+                className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-pill font-semibold border"
                 style={{
-                  color: '#e67e22',
-                  backgroundColor: 'rgba(230,126,34,0.10)',
-                  borderColor: 'rgba(230,126,34,0.20)',
+                  color: 'var(--yellow)',
+                  backgroundColor: 'rgba(201,180,88,0.12)',
+                  borderColor: 'rgba(201,180,88,0.25)',
                 }}
               >
                 {dailyMode.tag}
               </span>
             )}
 
-            {/* Free badge when no streak tag and not played */}
             {!dailyMode.tag && !dailyAlreadyPlayed && (
-              <span
-                className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold border"
-                style={{
-                  color: '#6aaa64',
-                  backgroundColor: 'rgba(83,141,78,0.10)',
-                  borderColor: 'rgba(83,141,78,0.20)',
-                }}
-              >
+              <span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-pill font-semibold border border-tile-correct/30 text-tile-correct">
                 Free
               </span>
             )}
           </div>
 
-          {/* Mini tile patterns — only shown when the user has actually played */}
+          {/* Mini tile patterns */}
           {dailyPatterns && (
             <div className="flex flex-col gap-1.5 py-0.5">
               {dailyPatterns.map((row, i) => (
@@ -904,11 +762,11 @@ export default function PlayPage() {
           )}
 
           {/* Description */}
-          <p className="text-sm leading-relaxed" style={{ color: '#9898a0' }}>
+          <p className="font-sans text-sm leading-relaxed text-text-secondary">
             One word per day. Play against the community.
           </p>
 
-          {/* Rated toggle — only visible after placements are done */}
+          {/* Rated toggle */}
           {!dailyAlreadyPlayed && user && !user.is_placement && (
             <div
               className="flex items-center gap-2"
@@ -924,7 +782,7 @@ export default function PlayPage() {
                 }}
                 className={clsx(
                   'relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200',
-                  dailyRated ? 'bg-[#538d4e]' : 'bg-white/[0.12]'
+                  dailyRated ? 'bg-tile-correct' : 'bg-border-default'
                 )}
               >
                 <span
@@ -934,7 +792,7 @@ export default function PlayPage() {
                   )}
                 />
               </button>
-              <span className="text-xs" style={{ color: '#9898a0' }}>
+              <span className="text-xs text-text-secondary">
                 {dailyRated ? 'Rated — ELO at stake' : 'Unrated'}
               </span>
             </div>
@@ -944,19 +802,13 @@ export default function PlayPage() {
           {dailyAlreadyPlayed ? (
             <div className="flex items-center justify-between">
               <DailyCountdown onMidnight={handleMidnight} />
-              <div
-                className="flex items-center gap-1.5 text-xs font-semibold"
-                style={{ color: '#6aaa64' }}
-              >
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-tile-correct">
                 View your game
                 <ArrowRight size={13} />
               </div>
             </div>
           ) : (
-            <div
-              className="flex items-center gap-1.5 text-sm font-semibold"
-              style={{ color: '#6aaa64' }}
-            >
+            <div className="flex items-center gap-1.5 text-sm font-semibold text-tile-correct">
               Play now
               <ArrowRight size={14} />
             </div>
@@ -966,7 +818,7 @@ export default function PlayPage() {
         {/* ── Competitive & Practice cards ── */}
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 20 },
+            hidden: { opacity: 0, y: 16 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
           className="grid grid-cols-2 gap-3"
@@ -976,31 +828,20 @@ export default function PlayPage() {
             return (
               <motion.button
                 key={mode.id}
-                whileHover={isLoading || !!creating ? {} : { scale: 1.01 }}
-                whileTap={isLoading || !!creating ? {} : { scale: 0.98 }}
+                whileHover={isLoading || !!creating ? {} : { y: -1 }}
+                whileTap={isLoading || !!creating ? {} : { scale: 0.99 }}
                 onClick={() => handleModeSelect(mode.id)}
                 disabled={!!creating}
-                className="relative flex flex-col gap-3 p-4 rounded-[12px] border text-left transition-all duration-200 cursor-pointer disabled:opacity-70"
-                style={{
-                  backgroundColor: '#171719',
-                  borderColor: 'rgba(255,255,255,0.06)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!creating) {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.09)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.06)';
-                }}
+                className="relative flex flex-col gap-3 p-4 rounded-card-lg border border-border-subtle bg-bg-base text-left transition-colors hover:border-border-default hover:shadow-card cursor-pointer disabled:opacity-60"
               >
-                {/* Placement / mode tag */}
+                {/* Mode tag */}
                 {mode.tag && (
                   <span
-                    className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full font-medium"
+                    className="absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-pill font-semibold border"
                     style={{
                       color: mode.accentColor,
-                      backgroundColor: `${mode.accentColor}22`,
+                      backgroundColor: `${mode.accentColor}18`,
+                      borderColor: `${mode.accentColor}30`,
                     }}
                   >
                     {mode.tag}
@@ -1009,11 +850,8 @@ export default function PlayPage() {
 
                 {/* Icon */}
                 <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center"
-                  style={{
-                    color: mode.accentColor,
-                    backgroundColor: `${mode.accentColor}18`,
-                  }}
+                  className="w-9 h-9 rounded-card border border-border-subtle bg-bg-elevated flex items-center justify-center"
+                  style={{ color: mode.accentColor }}
                 >
                   {isLoading ? (
                     <div
@@ -1028,21 +866,16 @@ export default function PlayPage() {
                   )}
                 </div>
 
-                {/* Title + subtitle */}
                 <div>
-                  <h3 className="text-sm font-bold" style={{ color: '#ededf0' }}>
+                  <h3 className="font-display font-bold text-sm text-text-primary">
                     {mode.title}
                   </h3>
-                  <p
-                    className="text-[11px] font-mono mt-0.5"
-                    style={{ color: mode.accentColor }}
-                  >
+                  <p className="font-mono text-[11px] mt-0.5" style={{ color: mode.accentColor }}>
                     {mode.subtitle}
                   </p>
                 </div>
 
-                {/* Description */}
-                <p className="text-xs leading-relaxed" style={{ color: '#9898a0' }}>
+                <p className="font-sans text-xs leading-relaxed text-text-secondary">
                   {mode.desc}
                 </p>
               </motion.button>
@@ -1053,39 +886,18 @@ export default function PlayPage() {
         {/* ── Challenge a Friend ── */}
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 12 },
+            hidden: { opacity: 0, y: 10 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
         >
           <button
             onClick={handleCreateChallenge}
             disabled={creatingChallenge || !!creating}
-            className="w-full py-2.5 rounded-[12px] border text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{
-              backgroundColor: '#171719',
-              borderColor: 'rgba(255,255,255,0.06)',
-              color: '#9898a0',
-            }}
-            onMouseEnter={(e) => {
-              if (!creatingChallenge && !creating) {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.10)';
-                (e.currentTarget as HTMLButtonElement).style.color = '#ededf0';
-              }
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.06)';
-              (e.currentTarget as HTMLButtonElement).style.color = '#9898a0';
-            }}
+            className="w-full py-2.5 rounded-card-lg border border-border-subtle bg-bg-base text-sm font-semibold text-text-secondary hover:border-border-default hover:text-text-primary transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {creatingChallenge ? (
               <>
-                <div
-                  className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
-                  style={{
-                    borderColor: 'rgba(152,152,160,0.30)',
-                    borderTopColor: '#9898a0',
-                  }}
-                />
+                <div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-text-secondary" />
                 Creating...
               </>
             ) : (
@@ -1104,7 +916,7 @@ export default function PlayPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
+        transition={{ delay: 0.5 }}
         className="mt-12 flex items-center gap-3 flex-wrap justify-center"
       >
         {[

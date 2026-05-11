@@ -15,6 +15,7 @@ from app.models.user import User
 from app.analysis.patterns import detect_strategic_patterns
 from app.schemas.analysis import (
     AnalysisResponse,
+    DictionaryInfo,
     MoveAnalysis,
     PatternBucket,
     StrategicPattern,
@@ -96,12 +97,27 @@ async def analyze_game_endpoint(
 
     raw_patterns = detect_strategic_patterns(analysis["moves"], current_user.elo_rating)
 
+    ds = analysis.get("dictionary_sizes", {})
     return AnalysisResponse(
         game_id=str(game_id),
         accuracy_score=analysis["accuracy_score"],
         luck_factor=analysis["luck_factor"],
         constraint_violations=analysis["constraint_violations"],
         traps_encountered=analysis["traps_encountered"],
+        # WordleBot-spec aggregates
+        skill_avg_excluding_opener=analysis.get("skill_avg_excluding_opener", 0.0),
+        luck_avg=analysis.get("luck_avg", 0.0),
+        uniqueness_percentile=analysis.get("uniqueness_percentile", 1),
+        bot_solve_path=analysis.get("bot_solve_path", []),
+        failure_score=analysis.get("failure_score"),
+        standard_mode_starter=analysis.get("standard_mode_starter", "SLATE"),
+        hard_mode_starter=analysis.get("hard_mode_starter", "CLASP"),
+        dictionary_sizes=DictionaryInfo(
+            guesses=ds.get("guesses", 15000),
+            suggestions=ds.get("suggestions", 4500),
+            solutions=ds.get("solutions", 3200),
+            legacy=ds.get("legacy", 2309),
+        ),
         patterns=[
             StrategicPattern(
                 pattern_type=p["pattern_type"],
@@ -141,6 +157,7 @@ async def analyze_game_endpoint(
                         word=tp["word"],
                         entropy=tp["entropy"],
                         expected_remaining=tp["expected_remaining"],
+                        probability=tp.get("probability", 0.0),
                     )
                     for tp in m["top_picks"]
                 ],
@@ -155,6 +172,26 @@ async def analyze_game_endpoint(
                     for pb in m.get("pattern_distribution", [])
                 ],
                 letter_frequencies=m.get("letter_frequencies", {}),
+                # WordleBot-spec per-turn fields
+                skill_score=m.get("skill_score", 0),
+                luck_score=m.get("luck_score", 50),
+                remaining_before=m.get("remaining_before", m["remaining_words"]),
+                expected_solutions_after=m.get("expected_solutions_after", 0.0),
+                actual_solutions_after=m.get("actual_solutions_after", m["remaining_after"]),
+                expected_steps_until_solution=m.get("expected_steps_until_solution", 1.0),
+                bot_pick=m.get("bot_pick", ""),
+                bot_pick_rationale=m.get("bot_pick_rationale", ""),
+                scenario_count=m.get("scenario_count", 0),
+                candidates_top_n=[
+                    TopPick(
+                        word=c["word"],
+                        entropy=c["entropy"],
+                        expected_remaining=c["expected_remaining"],
+                        probability=c.get("probability", 0.0),
+                    )
+                    for c in m.get("candidates_top_n", [])
+                ],
+                tip_case=m.get("tip_case", ""),
             )
             for m in analysis["moves"]
         ],

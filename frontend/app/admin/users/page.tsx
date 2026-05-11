@@ -108,7 +108,7 @@ export default function AdminUsersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+        <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -126,21 +126,21 @@ export default function AdminUsersPage() {
       >
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Link href="/admin" className="text-text-secondary hover:text-text-primary text-sm transition-colors">
+            <Link href="/admin" className="font-sans text-text-secondary hover:text-text-primary text-sm transition-colors">
               Admin
             </Link>
-            <span className="text-text-ghost text-sm">/</span>
-            <span className="text-sm text-text-primary">Users</span>
+            <span className="text-text-tertiary text-sm">/</span>
+            <span className="font-sans text-sm text-text-primary">Users</span>
           </div>
-          <h1 className="text-2xl font-bold text-text-primary">User Management</h1>
-          <p className="text-sm text-text-secondary mt-0.5">{total.toLocaleString()} total users</p>
+          <h1 className="font-display font-black text-3xl text-text-primary">Admin · Users</h1>
+          <p className="font-sans text-text-secondary mt-0.5">{total.toLocaleString()} total users</p>
         </div>
       </motion.div>
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-400">
-          {error}
-          <button className="ml-2 underline" onClick={() => setError('')}>Dismiss</button>
+        <div className="mb-4 px-4 py-3 rounded-card border text-sm flex items-center justify-between" style={{ background: 'rgba(231,76,60,0.08)', borderColor: 'rgba(231,76,60,0.25)', color: 'var(--red)' }}>
+          <span>{error}</span>
+          <button className="ml-2 underline text-xs" onClick={() => setError('')}>Dismiss</button>
         </div>
       )}
 
@@ -152,38 +152,38 @@ export default function AdminUsersPage() {
           value={search}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="Search by username or email..."
-          className="w-full pl-9 pr-4 py-2.5 bg-bg-secondary border border-white/[0.08] rounded-xl text-sm text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-white/[0.2] transition-colors"
+          className="w-full pl-9 pr-4 bg-transparent border-2 border-border-default rounded-md px-3 py-2 focus:border-tile-correct outline-none text-text-primary font-sans text-sm placeholder:text-text-tertiary transition-colors"
         />
       </div>
 
-      {/* Table */}
-      <div className="bg-bg-secondary border border-white/[0.08] rounded-2xl overflow-hidden">
+      {/* Table card */}
+      <div className="bg-bg-base border border-border-default rounded-card-lg overflow-hidden">
         {fetching ? (
           <div className="flex items-center justify-center py-16">
-            <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+            <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }} />
           </div>
         ) : users.length === 0 ? (
-          <div className="text-center py-16 text-text-secondary text-sm">No users found.</div>
+          <div className="text-center py-16 text-text-secondary font-sans text-sm">No users found.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm font-sans">
               <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium">Username</th>
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium hidden sm:table-cell">Email</th>
-                  <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium">ELO</th>
-                  <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium hidden sm:table-cell">Games</th>
-                  <th className="text-center px-4 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium">Role</th>
-                  <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-text-secondary font-medium">Actions</th>
+                <tr className="border-b-2 border-border-default">
+                  <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold">Username</th>
+                  <th className="text-left px-4 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold hidden sm:table-cell">Email</th>
+                  <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold">ELO</th>
+                  <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold hidden sm:table-cell">Games</th>
+                  <th className="text-center px-4 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold">Role</th>
+                  <th className="text-right px-4 py-2 text-xs uppercase tracking-wider text-text-secondary font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.04]">
+              <tbody>
                 {users.map((u) => {
                   const tier = getRatingTier(u.elo_rating);
                   return (
                     <tr
                       key={u.id}
-                      className="hover:bg-white/[0.02] transition-colors"
+                      className="border-b border-border-subtle hover:bg-bg-elevated/50 transition-colors"
                     >
                       <td className="px-4 py-3 font-medium text-text-primary">
                         {u.username}
@@ -191,20 +191,20 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-3 text-text-secondary hidden sm:table-cell truncate max-w-[200px]">
                         {u.email}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: tier.color }}>
+                      <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums" style={{ color: tier.color }}>
                         {Math.round(u.elo_rating)}
                       </td>
-                      <td className="px-4 py-3 text-right text-text-secondary hidden sm:table-cell">
+                      <td className="px-4 py-3 text-right text-text-secondary tabular-nums hidden sm:table-cell">
                         {u.games_played}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {u.is_admin ? (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#c9a227]/15 text-[#c9a227]">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: 'rgba(201,162,39,0.12)', color: 'var(--gold)' }}>
                             <ShieldCheck size={10} />
                             Admin
                           </span>
                         ) : (
-                          <span className="text-[10px] text-text-ghost">User</span>
+                          <span className="text-[10px] text-text-tertiary">User</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -212,11 +212,12 @@ export default function AdminUsersPage() {
                           <button
                             onClick={() => handleResetElo(u.id)}
                             disabled={actionLoading === u.id + '-reset'}
-                            className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
+                            className={`text-[11px] px-2 py-1 rounded-md border-2 transition-colors font-sans ${
                               confirmReset === u.id
-                                ? 'border-red-500/50 text-red-400 bg-red-500/10 hover:bg-red-500/20'
-                                : 'border-white/[0.08] text-text-secondary hover:text-text-primary hover:border-white/[0.16]'
+                                ? 'bg-transparent text-text-primary'
+                                : 'bg-transparent border-border-default text-text-secondary hover:text-text-primary hover:border-border-strong'
                             }`}
+                            style={confirmReset === u.id ? { borderColor: 'var(--red)', color: 'var(--red)' } : undefined}
                           >
                             {actionLoading === u.id + '-reset' ? (
                               <RefreshCw size={10} className="animate-spin" />
@@ -229,7 +230,7 @@ export default function AdminUsersPage() {
                           <button
                             onClick={() => handleToggleAdmin(u.id)}
                             disabled={actionLoading === u.id + '-admin'}
-                            className="text-[11px] px-2 py-1 rounded-md border border-white/[0.08] text-text-secondary hover:text-text-primary hover:border-white/[0.16] transition-colors"
+                            className="text-[11px] px-2 py-1 rounded-md border-2 border-border-default text-text-secondary hover:text-text-primary hover:border-border-strong transition-colors font-sans"
                           >
                             {actionLoading === u.id + '-admin' ? (
                               <RefreshCw size={10} className="animate-spin" />
@@ -252,7 +253,7 @@ export default function AdminUsersPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-text-secondary">
+        <div className="mt-4 flex items-center justify-between text-sm text-text-secondary font-sans">
           <span>
             Page {page} of {totalPages}
           </span>
@@ -260,14 +261,14 @@ export default function AdminUsersPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="p-1.5 rounded-md border border-white/[0.08] hover:border-white/[0.16] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-md border-2 border-border-default hover:border-border-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft size={14} />
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="p-1.5 rounded-md border border-white/[0.08] hover:border-white/[0.16] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-1.5 rounded-md border-2 border-border-default hover:border-border-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight size={14} />
             </button>

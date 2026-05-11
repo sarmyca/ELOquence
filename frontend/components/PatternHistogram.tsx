@@ -13,27 +13,28 @@ const PAD = { top: 20, right: 20, bottom: 40, left: 40 };
 const PLOT_W = VIEW_W - PAD.left - PAD.right;
 const PLOT_H = VIEW_H - PAD.top - PAD.bottom;
 
-const TILE_STATE_COLORS: Record<string, string> = {
-  correct: '#538d4e',
-  present: '#b59f3b',
-  absent: '#3a3a3c',
-};
-
 function MiniPatternTiles({ pattern, size = 10 }: { pattern: number; size?: number }) {
   const tiles = patternToTiles(pattern);
   return (
     <div className="flex gap-0.5">
-      {tiles.map((state, i) => (
-        <div
-          key={i}
-          style={{
-            width: size,
-            height: size,
-            backgroundColor: TILE_STATE_COLORS[state] ?? '#3a3a3c',
-            borderRadius: 1,
-          }}
-        />
-      ))}
+      {tiles.map((state, i) => {
+        const colorMap: Record<string, string> = {
+          correct: 'var(--tile-correct)',
+          present: 'var(--tile-present)',
+          absent: 'var(--tile-absent)',
+        };
+        return (
+          <div
+            key={i}
+            style={{
+              width: size,
+              height: size,
+              backgroundColor: colorMap[state] ?? 'var(--tile-absent)',
+              borderRadius: 1,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -49,13 +50,12 @@ export default function PatternHistogram({
 
   if (!distribution || distribution.length === 0) {
     return (
-      <div className="flex items-center justify-center text-sm text-text-ghost py-8">
+      <div className="flex items-center justify-center text-sm text-text-secondary py-8">
         No pattern distribution data available.
       </div>
     );
   }
 
-  // Sort by count descending, show all
   const sorted = [...distribution].sort((a, b) => b.count - a.count);
 
   const maxProb = Math.max(...sorted.map((b) => b.probability), 0.001);
@@ -67,7 +67,6 @@ export default function PatternHistogram({
 
   const Y_LABELS = [0, 0.25, 0.5, 0.75, 1.0];
 
-  /** Convert mouse clientX to SVG x coordinate */
   const toSvgX = (clientX: number): number | null => {
     if (!svgRef.current) return null;
     const rect = svgRef.current.getBoundingClientRect();
@@ -113,7 +112,7 @@ export default function PatternHistogram({
                 y1={y}
                 x2={PAD.left + PLOT_W}
                 y2={y}
-                stroke="rgba(255,255,255,0.06)"
+                stroke="var(--border-subtle)"
                 strokeWidth={1}
               />
             );
@@ -126,7 +125,7 @@ export default function PatternHistogram({
               y1={PAD.top}
               x2={mouseX}
               y2={PAD.top + PLOT_H}
-              stroke="rgba(255,255,255,0.25)"
+              stroke="var(--border-default)"
               strokeWidth={1}
               strokeDasharray="3 3"
               pointerEvents="none"
@@ -140,8 +139,15 @@ export default function PatternHistogram({
             const h = Math.max(2, barHeight(bucket.probability));
             const cx = xPos(i);
             const y = PAD.top + PLOT_H - h;
-            const fill = isActual ? '#b59f3b' : isSelected ? '#6aaa64' : '#538d4e';
             const hitW = Math.max(barW, PLOT_W / n);
+
+            // actual = yellow/present, selected = green/correct, default = muted green
+            const fillVar = isActual
+              ? 'var(--tile-present)'
+              : isSelected
+              ? 'var(--tile-correct)'
+              : 'var(--tile-correct)';
+            const opacity = isActual || isSelected ? 1 : 0.45;
 
             return (
               <g
@@ -156,23 +162,15 @@ export default function PatternHistogram({
                   width={barW}
                   height={h}
                   rx={barW > 3 ? 1 : 0}
-                  fill={fill}
-                  opacity={isActual || isSelected ? 1 : 0.5}
-                  style={
-                    isActual
-                      ? { filter: 'drop-shadow(0 0 8px #b59f3b80)' }
-                      : isSelected
-                        ? { filter: 'drop-shadow(0 0 6px #6aaa6480)' }
-                        : undefined
-                  }
+                  fill={fillVar}
+                  opacity={opacity}
                 />
-                {/* Selected indicator dot */}
                 {isSelected && (
                   <circle
                     cx={cx}
                     cy={PAD.top + PLOT_H + 6}
                     r={2.5}
-                    fill="#6aaa64"
+                    fill="var(--tile-correct)"
                   />
                 )}
                 {/* Invisible wider hit area */}
@@ -192,8 +190,8 @@ export default function PatternHistogram({
             x={PAD.left + PLOT_W / 2}
             y={VIEW_H - 4}
             fontSize={9}
-            fontFamily="monospace"
-            fill="#4b5563"
+            fontFamily="sans-serif"
+            fill="var(--text-secondary)"
             textAnchor="middle"
           >
             {n} pattern{n !== 1 ? 's' : ''} sorted by frequency
@@ -204,8 +202,8 @@ export default function PatternHistogram({
             x={8}
             y={PAD.top + PLOT_H / 2}
             fontSize={9}
-            fontFamily="monospace"
-            fill="#4b5563"
+            fontFamily="sans-serif"
+            fill="var(--text-secondary)"
             textAnchor="middle"
             transform={`rotate(-90, 8, ${PAD.top + PLOT_H / 2})`}
           >
@@ -222,8 +220,8 @@ export default function PatternHistogram({
                 x={PAD.left - 4}
                 y={y + 4}
                 fontSize={9}
-                fontFamily="monospace"
-                fill="#4b5563"
+                fontFamily="sans-serif"
+                fill="var(--text-secondary)"
                 textAnchor="end"
               >
                 {(prob * 100).toFixed(1)}%
@@ -246,19 +244,19 @@ export default function PatternHistogram({
             return (
               <foreignObject x={bx} y={by} width={bw} height={bh} style={{ overflow: 'visible' }}>
                 <div
-                  className="rounded-lg border border-[#4a4a4c] bg-[#2a2a2c] shadow-xl px-3 py-2 pointer-events-none"
+                  className="rounded-md border border-border-default bg-bg-base shadow-md px-3 py-2 pointer-events-none"
                   style={{ fontSize: 11 }}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
                     <MiniPatternTiles pattern={bucket.pattern} />
                     {bucket.pattern === actualPattern && (
-                      <span className="text-[#b59f3b] text-[9px] font-semibold">actual</span>
+                      <span className="text-[10px] font-semibold" style={{ color: 'var(--tile-present)' }}>actual</span>
                     )}
                   </div>
                   <div className="font-mono tabular-nums text-text-primary font-bold">
                     {(bucket.probability * 100).toFixed(2)}%
                   </div>
-                  <div className="font-mono tabular-nums text-text-ghost" style={{ fontSize: 10 }}>
+                  <div className="font-mono tabular-nums text-text-secondary" style={{ fontSize: 10 }}>
                     {bucket.count} word{bucket.count !== 1 ? 's' : ''}
                   </div>
                 </div>
@@ -270,18 +268,18 @@ export default function PatternHistogram({
 
       {/* Selected pattern detail panel */}
       {selectedBucket && (
-        <div className="rounded-lg border border-border-primary bg-bg-elevated px-3 py-2.5">
+        <div className="rounded-lg border border-border-subtle bg-bg-elevated px-3 py-2.5">
           <div className="flex items-center gap-2 mb-2">
             <MiniPatternTiles pattern={selectedBucket.pattern} size={14} />
-            <span className="text-xs font-mono text-text-secondary">
+            <span className="text-xs font-sans text-text-secondary">
               {selectedBucket.count} word{selectedBucket.count !== 1 ? 's' : ''}
             </span>
             {selectedBucket.pattern === actualPattern && (
-              <span className="text-[#b59f3b] text-[10px] font-semibold">actual result</span>
+              <span className="text-[10px] font-semibold" style={{ color: 'var(--tile-present)' }}>actual result</span>
             )}
             <button
               onClick={() => setSelectedIdx(null)}
-              className="ml-auto text-text-ghost hover:text-text-secondary text-xs"
+              className="ml-auto text-text-secondary hover:text-text-primary text-xs transition-colors"
             >
               close
             </button>
@@ -291,14 +289,14 @@ export default function PatternHistogram({
               {selectedWords.map((word) => (
                 <span
                   key={word}
-                  className="px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-white/[0.06] text-text-primary"
+                  className="px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-bg-muted text-text-primary"
                 >
                   {word}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-text-ghost">
+            <p className="text-xs text-text-secondary">
               No word data available.
             </p>
           )}

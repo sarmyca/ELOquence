@@ -2,51 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light theme (default) ── */
 :root {
-  /* ── Backgrounds — true OLED blacks ── */
-  --bg-base: #111113;
-  --bg-primary: #171719;
-  --bg-secondary: #1d1d21;
-  --bg-tertiary: #25252a;
-  --bg-elevated: #2e2e35;
-  --bg-hover: rgba(255, 255, 255, 0.035);
-  --bg-active: rgba(255, 255, 255, 0.06);
+  /* Surfaces */
+  --bg-base:     #ffffff;
+  --bg-elevated: #f6f7f8;
+  --bg-muted:    #edeff1;
 
-  /* ── Text — clean hierarchy ── */
-  --text-primary: #ededf0;
-  --text-secondary: #9898a0;
-  --text-tertiary: #5c5c66;
-  --text-ghost: #3c3c44;
+  /* Text */
+  --text-primary:   #1a1a1b;
+  --text-secondary: #787c7e;
+  --text-tertiary:  #a4aec4;
+  --text-ghost:     #c4c8d4;
 
-  /* ── Borders ── */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --border-focus: rgba(106, 170, 100, 0.5);
+  /* Borders */
+  --border-subtle:  #e6e7eb;
+  --border-default: #d3d6da;
+  --border-strong:  #878a8c;
+  --border-focus:   rgba(106, 170, 100, 0.5);
 
-  /* ── Wordle tile colors (authentic) ── */
-  --tile-correct: #538d4e;
-  --tile-present: #b59f3b;
-  --tile-absent: #3a3a3c;
-  --tile-empty: #1d1d21;
-  --tile-border: rgba(255, 255, 255, 0.10);
+  /* Wordle tiles */
+  --tile-correct:      #6aaa64;
+  --tile-present:      #c9b458;
+  --tile-absent:       #787c7e;
+  --tile-empty-bg:     transparent;
+  --tile-empty-border: #d3d6da;
+  --tile-tbd-border:   #878a8c;
 
-  /* ── Brand accents (derived from Wordle) ── */
-  --green: #538d4e;
+  /* Keyboard */
+  --key-default-bg:   #d3d6da;
+  --key-default-text: #1a1a1b;
+  --key-pressed-bg:   #c3c6ca;
+
+  /* Semantic brand */
+  --green:       #6aaa64;
   --green-light: #6aaa64;
-  --green-bright: #7ec878;
-  --yellow: #b59f3b;
-  --yellow-light: #c9b458;
-  --gray: #3a3a3c;
-  --red: #e74c3c;
+  --yellow:      #c9b458;
+  --red:         #e74c3c;
+  --gold:        #c9a227;
 
-  /* ── Layout ── */
-  --tile-size: clamp(50px, calc((100dvh - 300px) / 7), 62px);
-  --tile-gap: clamp(4px, 0.65vw, 6px);
+  /* Duration tokens (mirrored in tailwind) */
+  --dur-fast: 120ms;
+  --dur-med:  180ms;
+  --dur-slow: 260ms;
+
+  /* Layout */
+  --tile-size:  clamp(50px, calc((100dvh - 300px) / 7), 62px);
+  --tile-gap:   clamp(4px, 0.65vw, 6px);
   --key-height: clamp(44px, 7.5vw, 56px);
-  --nav-height: 52px;
-  --radius: 12px;
-  --radius-lg: 16px;
+}
+
+/* ── Dark theme ── */
+[data-theme="dark"] {
+  --bg-base:     #121213;
+  --bg-elevated: #1a1a1b;
+  --bg-muted:    #272729;
+
+  --text-primary:   #ffffff;
+  --text-secondary: #818384;
+  --text-tertiary:  #565758;
+  --text-ghost:     #3c3c44;
+
+  --border-subtle:  #3a3a3c;
+  --border-default: #565758;
+  --border-strong:  #818384;
+  --border-focus:   rgba(83, 141, 78, 0.5);
+
+  --tile-correct:      #538d4e;
+  --tile-present:      #b59f3b;
+  --tile-absent:       #3a3a3c;
+  --tile-empty-bg:     #121213;
+  --tile-empty-border: #3a3a3c;
+  --tile-tbd-border:   #565758;
+
+  --key-default-bg:   #818384;
+  --key-default-text: #ffffff;
+  --key-pressed-bg:   #6e7072;
+
+  --green:       #538d4e;
+  --green-light: #6aaa64;
+  --yellow:      #b59f3b;
+
+  color-scheme: dark;
 }
 
 /* ── Reset ── */
@@ -54,91 +91,75 @@
 
 html {
   background-color: var(--bg-base);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100dvh;
   overflow-x: hidden;
 }
 
-/* ── Focus — Wordle green ring ── */
+/* ── Focus ring ── */
 *:focus-visible {
   outline: 2px solid var(--green-light);
   outline-offset: 2px;
 }
 
-/* ── Tabular numbers for data ── */
+/* ── Tabular numbers ── */
 .font-mono { font-variant-numeric: tabular-nums; }
 
-/* ── Shimmer loader ── */
+/* ── Shimmer skeleton ── */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
+  0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.04), transparent);
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
 }
-
-/* ── Glow utilities ── */
-.glow-green {
-  box-shadow: 0 0 24px rgba(83, 141, 78, 0.2), 0 0 80px rgba(83, 141, 78, 0.06);
-}
-.glow-green-lg {
-  box-shadow: 0 0 30px rgba(83, 141, 78, 0.3), 0 0 100px rgba(83, 141, 78, 0.08);
-}
-.glow-yellow {
-  box-shadow: 0 0 24px rgba(181, 159, 59, 0.2), 0 0 80px rgba(181, 159, 59, 0.06);
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.03), transparent);
+  background-size: 200% 100%;
 }
 
-/* ── Card primitives ── */
-.card {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
-}
-.card-elevated {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-.card-interactive {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  cursor: pointer;
-}
-.card-interactive:hover {
-  border-color: var(--border-default);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-/* ── React Flow dark overrides ── */
+/* ── React Flow overrides ── */
 .react-flow__controls button {
-  background-color: var(--bg-secondary) !important;
+  background-color: var(--bg-muted) !important;
   border-color: var(--border-default) !important;
   color: var(--text-tertiary) !important;
   fill: var(--text-tertiary) !important;
 }
-.react-flow__controls button:hover { background-color: var(--bg-tertiary) !important; }
+.react-flow__controls button:hover { background-color: var(--bg-elevated) !important; }
 .react-flow__minimap { background-color: var(--bg-base) !important; }
 .react-flow__edge-path { stroke-linecap: round; }
 
-/* ── Color-blind mode ── */
-.colorblind {
+/* ── High-contrast / color-blind palette (orange + sky) ── */
+.colorblind,
+[data-high-contrast="true"] {
   --tile-correct: #f5793a;
   --tile-present: #85c0f9;
-  --green: #f5793a;
-  --green-light: #ff8c4a;
+  --green:        #f5793a;
+  --green-light:  #ff8c4a;
+}
+
+/* ── Win bounce ── */
+@keyframes win-bounce {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-12px); }
+  70%  { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+/* ── Pop-in for typed letters ── */
+@keyframes pop-in {
+  0%   { transform: scale(0.85); }
+  100% { transform: scale(1); }
 }
 
 /* ── Reduced motion ── */
@@ -160,11 +181,13 @@ body {
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.12); }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
 
 /* ── Selection ── */
 ::selection {
-  background: rgba(83, 141, 78, 0.3);
-  color: #fff;
+  background: rgba(106, 170, 100, 0.3);
+  color: var(--text-primary);
 }

@@ -25,8 +25,13 @@ export default function GoogleCompletePage() {
   }, []);
 
   return (
-    <div className="flex items-center justify-center min-h-[80dvh]">
-      <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+    <div className="flex flex-col items-center justify-center min-h-[80dvh] gap-4">
+      <div
+        className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
+        style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }}
+        aria-hidden="true"
+      />
+      <p className="font-sans text-sm text-text-secondary">Signing you in…</p>
     </div>
   );
 }

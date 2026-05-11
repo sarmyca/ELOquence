@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { Lock, Trophy } from 'lucide-react';
 import { achievementsApi } from '@/lib/api';
 import { ACHIEVEMENT_META } from '@/components/AchievementToast';
@@ -26,27 +27,37 @@ interface MergedAchievement {
 }
 
 // ---- Skeleton card ----------------------------------------------------------
-
 function SkeletonCard() {
   return (
-    <div
-      className="flex flex-col items-center gap-2.5 rounded-[12px] px-4 py-5"
-      style={{ background: '#171719', border: '1px solid rgba(255,255,255,0.04)' }}
-    >
-      <div className="w-9 h-9 rounded-full bg-bg-elevated animate-pulse" />
-      <div className="w-16 h-2.5 rounded-full bg-bg-elevated animate-pulse" />
-      <div className="w-20 h-2 rounded-full bg-bg-elevated/60 animate-pulse" />
+    <div className="flex flex-col items-center gap-2.5 rounded-card px-4 py-5 bg-bg-base border border-border-default">
+      <div className="w-9 h-9 rounded-full bg-bg-muted animate-pulse" />
+      <div className="w-16 h-2.5 rounded-full bg-bg-muted animate-pulse" />
+      <div className="w-20 h-2 rounded-full bg-bg-muted/60 animate-pulse" />
     </div>
   );
 }
 
 // ---- Achievement card -------------------------------------------------------
-
 interface AchievementCardProps {
   ach: MergedAchievement;
   index: number;
   unlockedAt: string | undefined;
 }
+
+const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 18, scale: 0.95 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: 'spring',
+      damping: 22,
+      stiffness: 320,
+      delay: i * 0.04,
+    },
+  }),
+};
 
 function AchievementCard({ ach, index, unlockedAt }: AchievementCardProps) {
   const isUnlocked = !!unlockedAt;
@@ -60,30 +71,16 @@ function AchievementCard({ ach, index, unlockedAt }: AchievementCardProps) {
 
   return (
     <motion.div
-      variants={{
-        hidden: { opacity: 0, y: 18, scale: 0.95 },
-        visible: {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          transition: {
-            type: 'spring',
-            damping: 22,
-            stiffness: 320,
-            delay: index * 0.04,
-          },
-        },
-      }}
-      className="relative flex flex-col items-center text-center gap-2 rounded-[12px] px-4 py-5 transition-opacity"
+      custom={index}
+      variants={cardVariants}
+      className="relative flex flex-col items-center text-center gap-2 rounded-card px-4 py-5 bg-bg-base border border-border-default transition-opacity"
       style={{
-        background: '#171719',
-        border: '1px solid rgba(255,255,255,0.06)',
-        opacity: isUnlocked ? 1 : 0.4,
-        filter: isUnlocked ? 'none' : 'grayscale(1)',
+        opacity: isUnlocked ? 1 : 0.6,
+        filter: isUnlocked ? 'none' : 'grayscale(60%)',
         ...(isUnlocked
           ? {
-              boxShadow:
-                'inset 0 2px 0 0 rgba(83,141,78,0.55), 0 1px 4px rgba(0,0,0,0.3)',
+              outline: '1px solid color-mix(in srgb, var(--gold) 30%, transparent)',
+              outlineOffset: '-1px',
             }
           : {}),
       }}
@@ -100,23 +97,27 @@ function AchievementCard({ ach, index, unlockedAt }: AchievementCardProps) {
         className="text-[30px] leading-none"
         role="img"
         aria-label={ach.name}
+        style={{
+          filter: isUnlocked ? 'none' : 'grayscale(1)',
+          color: isUnlocked ? 'var(--gold)' : 'var(--text-tertiary)',
+        }}
       >
         {ach.icon}
       </span>
 
       {/* Name */}
-      <span className="text-xs font-semibold text-text-primary leading-tight">
+      <span className="font-sans text-xs font-semibold text-text-primary leading-tight">
         {ach.name}
       </span>
 
       {/* Description */}
-      <span className="text-[10px] text-text-secondary leading-snug">
+      <span className="font-sans text-[10px] text-text-secondary leading-snug">
         {ach.description}
       </span>
 
       {/* Unlocked date */}
       {isUnlocked && unlockedAt && (
-        <span className="text-[9px] text-text-ghost mt-auto pt-0.5">
+        <span className="font-sans text-[9px] text-text-ghost mt-auto pt-0.5">
           {formatDate(unlockedAt)}
         </span>
       )}
@@ -125,6 +126,10 @@ function AchievementCard({ ach, index, unlockedAt }: AchievementCardProps) {
 }
 
 // ---- Page -------------------------------------------------------------------
+const gridContainerVariants: Variants = {
+  hidden:  {},
+  visible: { transition: stagger.medium },
+};
 
 export default function AchievementsPage() {
   const [allAchievements, setAllAchievements] = useState<AchievementDef[]>([]);
@@ -166,11 +171,11 @@ export default function AchievementsPage() {
         {/* Header skeleton */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-5 h-5 rounded bg-bg-elevated animate-pulse" />
-            <div className="w-32 h-5 rounded bg-bg-elevated animate-pulse" />
+            <div className="w-5 h-5 rounded bg-bg-muted animate-pulse" />
+            <div className="w-32 h-5 rounded bg-bg-muted animate-pulse" />
           </div>
-          <div className="w-20 h-3.5 rounded bg-bg-elevated/60 animate-pulse mt-1 mb-3" />
-          <div className="h-1.5 w-48 rounded-full bg-bg-elevated animate-pulse" />
+          <div className="w-20 h-3.5 rounded bg-bg-muted/60 animate-pulse mt-1 mb-3" />
+          <div className="h-1.5 w-48 rounded-pill bg-bg-muted animate-pulse" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {Array.from({ length: 9 }).map((_, i) => (
@@ -191,22 +196,21 @@ export default function AchievementsPage() {
         className="mb-6"
       >
         <div className="flex items-center gap-2.5 mb-0.5">
-          <Trophy size={20} color="#c9a227" strokeWidth={1.8} aria-hidden="true" />
-          <h1 className="text-xl font-bold text-text-primary tracking-tight">
+          <Trophy size={20} style={{ color: 'var(--gold)' }} strokeWidth={1.8} aria-hidden="true" />
+          <h1 className="font-display font-black text-4xl text-text-primary tracking-tight">
             Achievements
           </h1>
         </div>
 
-        <p className="text-sm text-text-secondary mb-3">
+        <p className="font-sans text-sm text-text-secondary mb-3">
           <span className="text-text-primary font-semibold">{unlockedCount}</span>
           <span className="text-text-ghost"> / {totalCount}</span>
           {' '}unlocked
         </p>
 
-        {/* Progress bar */}
+        {/* Progress bar — solid tokens, no gradient */}
         <div
-          className="relative h-1.5 max-w-[240px] rounded-full overflow-hidden"
-          style={{ background: 'rgba(255,255,255,0.06)' }}
+          className="relative h-1.5 max-w-[240px] rounded-pill overflow-hidden bg-bg-muted"
           role="progressbar"
           aria-valuenow={unlockedCount}
           aria-valuemin={0}
@@ -214,14 +218,11 @@ export default function AchievementsPage() {
           aria-label={`${unlockedCount} of ${totalCount} achievements unlocked`}
         >
           <motion.div
-            className="absolute inset-y-0 left-0 rounded-full"
+            className="absolute inset-y-0 left-0 rounded-pill"
             initial={{ width: '0%' }}
             animate={{ width: `${progressPct}%` }}
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-            style={{
-              background:
-                'linear-gradient(90deg, #a07a18 0%, #c9a227 50%, #e8c84a 100%)',
-            }}
+            style={{ backgroundColor: 'var(--gold)' }}
           />
         </div>
       </motion.div>
@@ -229,11 +230,11 @@ export default function AchievementsPage() {
       {/* Error state */}
       {error && (
         <div
-          className="mb-4 px-4 py-3 rounded-[10px] text-sm"
+          className="mb-4 px-4 py-3 rounded-card font-sans text-sm"
           style={{
-            background: 'rgba(231,76,60,0.08)',
-            border: '1px solid rgba(231,76,60,0.2)',
-            color: '#f87171',
+            backgroundColor: 'color-mix(in srgb, var(--red) 8%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--red) 20%, transparent)',
+            color: 'var(--red)',
           }}
           role="alert"
         >
@@ -244,7 +245,7 @@ export default function AchievementsPage() {
       {/* Grid */}
       {mergedAchievements.length > 0 ? (
         <motion.div
-          variants={{ visible: stagger.medium }}
+          variants={gridContainerVariants}
           initial="hidden"
           animate="visible"
           className="grid grid-cols-2 sm:grid-cols-3 gap-3"
@@ -260,7 +261,7 @@ export default function AchievementsPage() {
         </motion.div>
       ) : (
         !error && (
-          <div className="text-center py-20 text-text-secondary text-sm">
+          <div className="text-center py-20 font-sans text-text-secondary text-sm">
             No achievements found.
           </div>
         )

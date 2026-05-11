@@ -49,53 +49,60 @@ function getCelebrationTier(numGuesses: number): CelebrationTier {
 
 // ---- Stat Pill ---------------------------------------------------------------
 
+const pillItemVariants = {
+  hidden: { scale: 0.7, opacity: 0 },
+  visible: {
+    scale: 1,
+    opacity: 1,
+    transition: { type: 'spring' as const, damping: 14, stiffness: 280 },
+  },
+};
+
 interface StatPillProps {
   label: string;
   value: string;
-  valueClass?: string;
-  animateIn?: boolean;
-  animateDelay?: number;
+  highlight?: 'win' | 'loss' | 'neutral';
 }
 
-function StatPill({
-  label,
-  value,
-  valueClass = 'text-text-primary',
-  animateIn = false,
-  animateDelay = 0,
-}: StatPillProps) {
-  const valueEl = animateIn ? (
-    <motion.span
-      initial={{ scale: 0.7, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{
-        delay: animateDelay,
-        type: 'spring',
-        damping: 14,
-        stiffness: 280,
-      }}
-      className={`text-lg font-mono font-bold leading-none ${valueClass}`}
-    >
-      {value}
-    </motion.span>
-  ) : (
-    <span className={`text-lg font-mono font-bold leading-none ${valueClass}`}>
-      {value}
-    </span>
-  );
+function StatPill({ label, value, highlight = 'neutral' }: StatPillProps) {
+  const valueColor =
+    highlight === 'win'
+      ? 'var(--green)'
+      : highlight === 'loss'
+      ? 'var(--red)'
+      : 'var(--text-primary)';
 
   return (
-    <div
+    <motion.div
+      variants={pillItemVariants}
       className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-[10px]"
-      style={{ background: 'rgba(30,30,35,0.8)', border: '1px solid rgba(255,255,255,0.05)' }}
+      style={{
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-subtle)',
+      }}
     >
-      <span className="text-[9px] uppercase tracking-widest font-semibold text-text-tertiary">
+      <span
+        className="text-[9px] uppercase tracking-widest font-semibold"
+        style={{ color: 'var(--text-tertiary)' }}
+      >
         {label}
       </span>
-      {valueEl}
-    </div>
+      <span
+        className="text-lg font-mono font-bold leading-none"
+        style={{ color: valueColor }}
+      >
+        {value}
+      </span>
+    </motion.div>
   );
 }
+
+const pillContainerVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.06, delayChildren: 0.12 },
+  },
+};
 
 // ---- Secondary button --------------------------------------------------------
 
@@ -113,15 +120,12 @@ function SecondaryBtn({ onClick, icon, label, successIcon, success }: SecondaryB
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.96 }}
       onClick={onClick}
-      className="
-        flex-1 py-2.5 rounded-[10px]
-        bg-bg-tertiary hover:bg-bg-elevated
-        text-text-primary font-medium text-sm
-        transition-colors duration-150
-        flex items-center justify-center gap-1.5
-        border border-white/[0.07]
-        min-w-0
-      "
+      className="flex-1 py-2.5 rounded-[10px] font-medium text-sm transition-colors duration-150 flex items-center justify-center gap-1.5 min-w-0"
+      style={{
+        background: 'var(--bg-muted)',
+        border: '1px solid var(--border-default)',
+        color: 'var(--text-primary)',
+      }}
     >
       {success && successIcon ? successIcon : icon}
       <span className="truncate">{label}</span>
@@ -189,7 +193,7 @@ export default function GameOverModal({
     }
   };
 
-  const stripeColor = won ? '#538d4e' : '#e74c3c';
+  const stripeColor = won ? 'var(--green)' : 'var(--red)';
 
   return (
     <>
@@ -203,14 +207,15 @@ export default function GameOverModal({
       <AnimatePresence>
         {open && (
           <>
-            {/* Backdrop */}
+            {/* Backdrop — light: translucent white blur; dark: dark blur */}
             <motion.div
               key="game-over-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-50 backdrop-blur-sm"
+              style={{ backgroundColor: 'rgba(255,255,255,0.5)' }}
               aria-hidden="true"
             />
 
@@ -227,34 +232,24 @@ export default function GameOverModal({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.92, y: 16 }}
                 transition={springs.modal}
-                className="
-                  w-full max-w-sm
-                  bg-[#1d1d21]
-                  rounded-[16px]
-                  border border-white/[0.08]
-                  shadow-modal
-                  overflow-hidden
-                "
+                className="w-full max-w-sm rounded-card-lg overflow-hidden"
+                style={{
+                  backgroundColor: 'var(--bg-base)',
+                  border: '1px solid var(--border-subtle)',
+                  boxShadow: '0 24px 64px rgba(0,0,0,0.15)',
+                }}
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Top colour stripe */}
-                <div
-                  className="h-[2px] w-full"
-                  style={{ background: stripeColor }}
-                />
+                <div className="h-[2px] w-full" style={{ background: stripeColor }} />
 
                 <div className="relative p-6 flex flex-col gap-5">
                   {/* Close */}
                   <button
                     onClick={() => onClose?.()}
                     aria-label="Close"
-                    className="
-                      absolute top-3 right-3
-                      p-1.5 rounded-md
-                      text-text-ghost hover:text-text-secondary
-                      hover:bg-white/[0.06]
-                      transition-colors duration-150
-                    "
+                    className="absolute top-3 right-3 p-1.5 rounded-md transition-colors duration-150"
+                    style={{ color: 'var(--text-tertiary)' }}
                   >
                     <X size={15} />
                   </button>
@@ -272,30 +267,33 @@ export default function GameOverModal({
                       }}
                     >
                       {won ? (
-                        <CheckCircle size={38} color="#538d4e" strokeWidth={1.8} />
+                        <CheckCircle size={38} style={{ color: 'var(--green)' }} strokeWidth={1.8} />
                       ) : (
-                        <XCircle size={38} color="#e74c3c" strokeWidth={1.8} />
+                        <XCircle size={38} style={{ color: 'var(--red)' }} strokeWidth={1.8} />
                       )}
                     </motion.div>
 
-                    <h2 className="text-xl font-bold text-text-primary leading-none">
+                    <h2
+                      className="text-xl font-bold leading-none"
+                      style={{ color: 'var(--text-primary)' }}
+                    >
                       {won
                         ? (celebrationTier ? WON_MESSAGES[celebrationTier] : 'Solved!')
                         : 'Not this time'}
                     </h2>
 
                     {won ? (
-                      <p className="text-sm text-text-secondary">
+                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         Solved in{' '}
-                        <span className="text-text-primary font-semibold">
+                        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
                           {game.num_guesses}/6
                         </span>{' '}
                         {game.num_guesses === 1 ? 'guess' : 'guesses'}
                       </p>
                     ) : (
-                      <p className="text-sm text-text-secondary">
+                      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         The word was{' '}
-                        <span className="text-text-primary font-semibold uppercase tracking-wider">
+                        <span className="font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                           {game.target_word}
                         </span>
                       </p>
@@ -303,7 +301,10 @@ export default function GameOverModal({
                   </div>
 
                   {/* Stats pills */}
-                  <div
+                  <motion.div
+                    variants={pillContainerVariants}
+                    initial="hidden"
+                    animate="visible"
                     className={`grid gap-2 ${
                       showElo && game.word_difficulty
                         ? 'grid-cols-3'
@@ -321,11 +322,7 @@ export default function GameOverModal({
                       <StatPill
                         label="Rating"
                         value={`${(eloDelta ?? 0) >= 0 ? '+' : ''}${Math.round(eloDelta ?? 0)}`}
-                        valueClass={
-                          (eloDelta ?? 0) >= 0 ? 'text-tile-correct' : 'text-[#e74c3c]'
-                        }
-                        animateIn
-                        animateDelay={0.38}
+                        highlight={(eloDelta ?? 0) >= 0 ? 'win' : 'loss'}
                       />
                     )}
 
@@ -335,11 +332,14 @@ export default function GameOverModal({
                         value={Math.round(game.word_difficulty).toLocaleString()}
                       />
                     )}
-                  </div>
+                  </motion.div>
 
                   {/* Hint text */}
                   {!isGuest && (
-                    <p className="text-[10px] text-text-ghost text-center -mt-1">
+                    <p
+                      className="text-[10px] text-center -mt-1"
+                      style={{ color: 'var(--text-tertiary)' }}
+                    >
                       Challenge a friend to beat your score
                     </p>
                   )}
@@ -349,11 +349,11 @@ export default function GameOverModal({
                     <div
                       className="text-center px-3 py-2 rounded-[10px]"
                       style={{
-                        background: 'rgba(181,159,59,0.08)',
-                        border: '1px solid rgba(181,159,59,0.2)',
+                        background: 'rgba(201,180,88,0.08)',
+                        border: '1px solid rgba(201,180,88,0.25)',
                       }}
                     >
-                      <span className="text-xs font-medium" style={{ color: '#b59f3b' }}>
+                      <span className="text-xs font-medium" style={{ color: 'var(--yellow)' }}>
                         Placement match
                         {gamesPlayed != null ? ` ${gamesPlayed}/5` : ''} — results
                         count toward your initial rating
@@ -370,13 +370,8 @@ export default function GameOverModal({
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.97 }}
                           onClick={() => onClose?.()}
-                          className="
-                            w-full py-3 rounded-[10px]
-                            bg-[#538d4e] hover:bg-[#6aaa64]
-                            text-white font-semibold text-sm
-                            transition-colors duration-150
-                            flex items-center justify-center gap-2
-                          "
+                          className="w-full py-3 rounded-[10px] text-white font-semibold text-sm transition-colors duration-150 flex items-center justify-center gap-2"
+                          style={{ backgroundColor: 'var(--tile-correct)' }}
                         >
                           Admire Puzzle
                         </motion.button>
@@ -387,7 +382,7 @@ export default function GameOverModal({
                             onClick={handleShare}
                             icon={<Share2 size={14} />}
                             label={copied ? 'Copied!' : 'Share'}
-                            successIcon={<Check size={14} className="text-tile-correct" />}
+                            successIcon={<Check size={14} style={{ color: 'var(--green)' }} />}
                             success={copied}
                           />
                           <SecondaryBtn
@@ -404,13 +399,8 @@ export default function GameOverModal({
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.97 }}
                           onClick={() => router.push(`/review/${game.id}`)}
-                          className="
-                            w-full py-3 rounded-[10px]
-                            bg-[#538d4e] hover:bg-[#6aaa64]
-                            text-white font-semibold text-sm
-                            transition-colors duration-150
-                            flex items-center justify-center gap-2
-                          "
+                          className="w-full py-3 rounded-[10px] text-white font-semibold text-sm transition-colors duration-150 flex items-center justify-center gap-2"
+                          style={{ backgroundColor: 'var(--tile-correct)' }}
                         >
                           <BarChart2 size={15} />
                           Review Game
@@ -422,14 +412,14 @@ export default function GameOverModal({
                             onClick={handleShare}
                             icon={<Share2 size={14} />}
                             label={copied ? 'Copied!' : 'Share'}
-                            successIcon={<Check size={14} className="text-tile-correct" />}
+                            successIcon={<Check size={14} style={{ color: 'var(--green)' }} />}
                             success={copied}
                           />
                           <SecondaryBtn
                             onClick={handleChallenge}
                             icon={<Swords size={14} />}
                             label={challengeCopied ? 'Copied!' : 'Challenge'}
-                            successIcon={<Check size={14} className="text-tile-correct" />}
+                            successIcon={<Check size={14} style={{ color: 'var(--green)' }} />}
                             success={challengeCopied}
                           />
                           <SecondaryBtn

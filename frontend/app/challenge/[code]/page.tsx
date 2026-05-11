@@ -40,7 +40,7 @@ interface ChallengeResult {
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-      <div className="w-6 h-6 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+      <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin border-tile-correct" />
     </div>
   );
 }
@@ -54,10 +54,10 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={clsx(
-        'text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide',
+        'text-[10px] px-2 py-0.5 rounded-pill font-semibold uppercase tracking-wide border',
         won
-          ? 'bg-[#538d4e]/10 text-[#538d4e] border border-[#538d4e]/25'
-          : 'bg-[#e74c3c]/10 text-[#e74c3c] border border-[#e74c3c]/20',
+          ? 'bg-tile-correct/10 text-tile-correct border-tile-correct/25'
+          : 'border-border-subtle text-text-secondary bg-bg-elevated',
       )}
     >
       {won ? 'Solved' : 'Failed'}
@@ -71,10 +71,10 @@ function StatusBadge({ status }: { status: string }) {
 
 function RankDisplay({ rank, won }: { rank: number; won: boolean }) {
   if (rank === 1 && won) {
-    return <Trophy size={14} className="text-[#c9a227]" />;
+    return <Trophy size={14} style={{ color: 'var(--gold)' }} />;
   }
   return (
-    <span className="text-xs font-mono font-bold text-text-ghost tabular-nums">{rank}</span>
+    <span className="text-xs font-mono font-bold text-text-secondary tabular-nums">{rank}</span>
   );
 }
 
@@ -160,14 +160,16 @@ export default function ChallengePage() {
           transition={springs.slide}
           className="text-center"
         >
-          <div className="w-16 h-16 rounded-2xl bg-[#171719] border border-white/[0.08] flex items-center justify-center mx-auto mb-5">
-            <Swords size={28} className="text-text-ghost" />
+          <div className="w-16 h-16 rounded-card-lg bg-bg-elevated border border-border-subtle flex items-center justify-center mx-auto mb-5">
+            <Swords size={28} className="text-text-secondary" />
           </div>
-          <h1 className="text-xl font-bold text-text-primary mb-2">Challenge not found</h1>
-          <p className="text-text-secondary text-sm mb-6">{error}</p>
+          <h1 className="font-display font-bold text-xl text-text-primary mb-2">
+            Challenge not found
+          </h1>
+          <p className="font-sans text-text-secondary text-sm mb-6">{error}</p>
           <button
             onClick={() => router.push('/play')}
-            className="px-5 py-2.5 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] text-white font-medium text-sm transition-colors"
+            className="px-5 py-2.5 rounded-card bg-tile-correct text-white font-bold uppercase tracking-wider text-sm hover:brightness-110 transition-[filter,transform] active:scale-[0.98]"
           >
             Play a Game
           </button>
@@ -202,28 +204,29 @@ export default function ChallengePage() {
         {/* Hero card */}
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 24 },
+            hidden: { opacity: 0, y: 20 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
-          className="rounded-2xl bg-[#1d1d21] border border-white/[0.08] overflow-hidden"
+          className="rounded-card-lg bg-bg-base border-2 border-border-default overflow-hidden shadow-card"
         >
-          {/* Gradient accent stripe */}
-          <div className="h-1 w-full bg-gradient-to-r from-[#538d4e] via-[#6aaa64] to-[#538d4e]" />
+          {/* Wordle-green top rule */}
+          <div className="h-[3px] w-full bg-tile-correct" />
 
           <div className="p-6 flex flex-col items-center gap-5 text-center">
             {/* Icon */}
-            <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-[#538d4e]/10 border border-[#538d4e]/20 flex items-center justify-center">
-                <Swords size={28} className="text-[#6aaa64]" />
-              </div>
-              {/* Glow */}
-              <div className="absolute inset-0 rounded-2xl bg-[#538d4e]/10 blur-xl -z-10" />
+            <div className="w-14 h-14 rounded-card-lg bg-bg-elevated border border-border-subtle flex items-center justify-center">
+              <Trophy size={26} style={{ color: 'var(--gold)' }} />
             </div>
 
             {/* Title */}
             <div>
-              <h1 className="text-xl font-bold text-text-primary">You&apos;ve been challenged!</h1>
-              <p className="text-sm text-text-secondary mt-1.5">
+              <p className="font-sans text-sm text-text-secondary mb-1">
+                Challenge from a friend
+              </p>
+              <h1 className="font-display font-bold text-2xl text-text-primary">
+                You&apos;ve been challenged!
+              </h1>
+              <p className="font-sans text-sm text-text-secondary mt-1.5">
                 Can you solve this Wordle in fewer guesses?
               </p>
             </div>
@@ -231,18 +234,25 @@ export default function ChallengePage() {
             {/* Meta chips */}
             <div className="flex items-center gap-2 flex-wrap justify-center">
               {challenge?.word_difficulty && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-[#b59f3b]/10 border border-[#b59f3b]/20 text-[#b59f3b] font-mono">
+                <span
+                  className="text-xs px-2.5 py-1 rounded-pill border font-mono"
+                  style={{
+                    color: 'var(--yellow)',
+                    backgroundColor: 'rgba(201,180,88,0.10)',
+                    borderColor: 'rgba(201,180,88,0.22)',
+                  }}
+                >
                   Word ELO: {challenge.word_difficulty.toLocaleString()}
                 </span>
               )}
               {hasResults && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-text-secondary flex items-center gap-1.5">
+                <span className="text-xs px-2.5 py-1 rounded-pill border border-border-subtle bg-bg-elevated text-text-secondary flex items-center gap-1.5">
                   <Users size={10} />
                   {results.length} {results.length === 1 ? 'player' : 'players'}
                 </span>
               )}
               {allWordsRevealed && challengeWord && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-text-secondary font-mono uppercase tracking-widest">
+                <span className="text-xs px-2.5 py-1 rounded-pill border border-border-subtle bg-bg-elevated text-text-secondary font-mono uppercase tracking-widest">
                   {challengeWord}
                 </span>
               )}
@@ -252,10 +262,10 @@ export default function ChallengePage() {
             {!challenge?.already_played ? (
               <motion.button
                 whileHover={{ scale: starting ? 1 : 1.02 }}
-                whileTap={{ scale: starting ? 1 : 0.97 }}
+                whileTap={{ scale: starting ? 1 : 0.98 }}
                 onClick={handlePlay}
                 disabled={starting}
-                className="w-full py-3.5 rounded-xl bg-[#538d4e] hover:bg-[#6aaa64] disabled:opacity-60 text-white font-semibold text-base transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-card bg-tile-correct disabled:opacity-60 text-white font-bold text-base uppercase tracking-wider hover:brightness-110 transition-[filter,transform] active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 {starting ? (
                   <div className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
@@ -269,14 +279,14 @@ export default function ChallengePage() {
               </motion.button>
             ) : (
               <div className="w-full flex flex-col gap-2">
-                <div className="py-2.5 rounded-xl bg-[#538d4e]/10 border border-[#538d4e]/20 text-[#6aaa64] text-sm font-medium text-center flex items-center justify-center gap-2">
+                <div className="py-2.5 rounded-card bg-tile-correct/10 border border-tile-correct/25 text-tile-correct text-sm font-semibold text-center flex items-center justify-center gap-2">
                   <Check size={15} />
                   You&apos;ve completed this challenge
                 </div>
                 {challenge.game_id && (
                   <button
                     onClick={() => router.push(`/review/${challenge.game_id}`)}
-                    className="w-full py-2.5 rounded-xl bg-bg-tertiary hover:bg-bg-elevated text-text-primary font-medium text-sm transition-colors flex items-center justify-center gap-2 border border-white/[0.08]"
+                    className="w-full py-2.5 rounded-card bg-bg-elevated border border-border-subtle hover:border-border-default text-text-primary font-semibold text-sm transition-colors flex items-center justify-center gap-2"
                   >
                     <ExternalLink size={14} />
                     View Your Game
@@ -294,7 +304,12 @@ export default function ChallengePage() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="text-sm text-[#e74c3c] bg-[#e74c3c]/10 border border-[#e74c3c]/20 rounded-lg px-4 py-2 text-center"
+              className="text-sm rounded-card px-4 py-2 text-center"
+              style={{
+                color: 'var(--red)',
+                backgroundColor: 'rgba(231,76,60,0.08)',
+                border: '1px solid rgba(231,76,60,0.18)',
+              }}
             >
               {error}
             </motion.p>
@@ -305,23 +320,24 @@ export default function ChallengePage() {
         {hasResults && challenge?.already_played && (
           <motion.div
             variants={{
-              hidden: { opacity: 0, y: 24 },
+              hidden: { opacity: 0, y: 20 },
               visible: { opacity: 1, y: 0, transition: springs.slide },
             }}
-            className="rounded-2xl bg-[#1d1d21] border border-white/[0.08] overflow-hidden"
+            className="rounded-card-lg bg-bg-base border border-border-default overflow-hidden shadow-card"
           >
-            <div className="px-4 pt-4 pb-2.5 border-b border-white/[0.06] flex items-center gap-2">
-              <Trophy size={13} className="text-[#c9a227]" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            {/* Header row */}
+            <div className="px-4 pt-4 pb-2.5 border-b border-border-subtle flex items-center gap-2">
+              <Trophy size={13} style={{ color: 'var(--gold)' }} />
+              <span className="text-xs font-bold uppercase tracking-wider text-text-secondary font-display">
                 Leaderboard
               </span>
-              <span className="ml-auto text-[10px] text-text-ghost">
+              <span className="ml-auto text-[10px] text-text-secondary tabular-nums">
                 {results.length} {results.length === 1 ? 'entry' : 'entries'}
               </span>
             </div>
 
             {/* Column headers */}
-            <div className="grid grid-cols-[1.5rem_1fr_5rem_4rem_5rem] gap-2 px-4 py-2 text-[10px] text-text-ghost uppercase tracking-wider border-b border-white/[0.04]">
+            <div className="grid grid-cols-[1.5rem_1fr_5rem_4rem_5rem] gap-2 px-4 py-2 text-[10px] text-text-secondary uppercase tracking-wider border-b border-border-subtle">
               <span>#</span>
               <span>Player</span>
               <span className="text-center">Result</span>
@@ -329,7 +345,7 @@ export default function ChallengePage() {
               <span className="text-right">Accuracy</span>
             </div>
 
-            <div className="flex flex-col divide-y divide-white/[0.04]">
+            <div className="flex flex-col divide-y divide-border-subtle">
               {sortedResults.map((result, idx) => {
                 const isMe = result.username === user?.username;
                 const rank = idx + 1;
@@ -337,12 +353,14 @@ export default function ChallengePage() {
                 return (
                   <motion.div
                     key={result.username}
-                    initial={{ opacity: 0, x: -8 }}
+                    initial={{ opacity: 0, x: -6 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.06, ...springs.slide }}
+                    transition={{ delay: idx * 0.05, ...springs.slide }}
                     className={clsx(
                       'grid grid-cols-[1.5rem_1fr_5rem_4rem_5rem] gap-2 px-4 py-3 items-center transition-colors',
-                      isMe ? 'bg-[#538d4e]/[0.07]' : 'hover:bg-white/[0.02]',
+                      isMe
+                        ? 'bg-tile-correct/[0.05]'
+                        : 'hover:bg-bg-elevated',
                     )}
                   >
                     {/* Rank */}
@@ -353,7 +371,7 @@ export default function ChallengePage() {
                     {/* Username */}
                     <div className="flex items-center gap-1.5 min-w-0">
                       {result.is_creator && (
-                        <Crown size={11} className="text-[#c9a227] shrink-0" />
+                        <Crown size={11} style={{ color: 'var(--gold)' }} className="shrink-0" />
                       )}
                       <span
                         className={clsx(
@@ -363,7 +381,7 @@ export default function ChallengePage() {
                       >
                         {result.username}
                         {isMe && (
-                          <span className="ml-1.5 text-[10px] text-text-ghost font-normal">
+                          <span className="ml-1.5 text-[10px] text-text-secondary font-normal">
                             (you)
                           </span>
                         )}
@@ -379,7 +397,7 @@ export default function ChallengePage() {
                     <span
                       className={clsx(
                         'text-sm font-mono font-bold tabular-nums text-right',
-                        result.status === 'won' ? 'text-text-primary' : 'text-text-ghost',
+                        result.status === 'won' ? 'text-text-primary' : 'text-text-secondary',
                       )}
                     >
                       {result.status === 'won' ? `${result.num_guesses}/6` : 'X/6'}
@@ -401,31 +419,31 @@ export default function ChallengePage() {
         {/* Share section */}
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 24 },
+            hidden: { opacity: 0, y: 20 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
-          className="rounded-2xl bg-[#1d1d21] border border-white/[0.08] p-4"
+          className="rounded-card-lg bg-bg-base border border-border-subtle p-4 shadow-card"
         >
           <div className="flex items-center gap-2 mb-3">
-            <Share2 size={13} className="text-text-ghost" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+            <Share2 size={13} className="text-text-secondary" />
+            <span className="text-xs font-bold uppercase tracking-wider text-text-secondary font-display">
               Share Challenge
             </span>
           </div>
 
           <div className="flex gap-2">
-            <div className="flex-1 min-w-0 py-2 px-3 rounded-lg bg-[#171719] border border-white/[0.08] text-xs text-text-ghost font-mono truncate">
+            <div className="flex-1 min-w-0 py-2 px-3 rounded-md bg-bg-elevated border border-border-subtle text-xs text-text-secondary font-mono truncate">
               {shareUrl}
             </div>
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleCopyLink}
-              className="shrink-0 px-3 py-2 rounded-lg bg-bg-elevated hover:bg-white/[0.1] border border-white/[0.08] text-text-primary text-xs font-medium transition-colors flex items-center gap-1.5"
+              className="shrink-0 px-3 py-2 rounded-md bg-bg-elevated border border-border-default hover:border-border-strong text-text-primary text-xs font-semibold transition-colors flex items-center gap-1.5"
             >
               {copied ? (
                 <>
-                  <Check size={13} className="text-[#538d4e]" />
+                  <Check size={13} className="text-tile-correct" />
                   Copied!
                 </>
               ) : (

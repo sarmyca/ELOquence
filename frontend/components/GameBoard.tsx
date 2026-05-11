@@ -28,6 +28,13 @@ export default function GameBoard({
     isFlippingRow: boolean;
   };
 
+  // Determine if a submitted row is a win row (all 5 tiles correct)
+  const isWinRow = (rowIndex: number): boolean => {
+    if (rowIndex >= guesses.length) return false;
+    const tiles = patternToTiles(patterns[rowIndex]);
+    return tiles.every((t) => t === 'correct');
+  };
+
   const rows: RowData[] = [];
 
   for (let i = 0; i < maxGuesses; i++) {
@@ -80,17 +87,32 @@ export default function GameBoard({
               : { duration: 0 }
           }
         >
-          {row.letters.map((letter, colIndex) => (
-            <div key={colIndex} role="gridcell">
-              <Tile
-                letter={letter}
-                state={row.states[colIndex]}
-                position={colIndex}
-                isFlipping={row.isFlippingRow}
-                flipDelay={row.isFlippingRow ? colIndex * 0.15 : 0}
-              />
-            </div>
-          ))}
+          {row.letters.map((letter, colIndex) => {
+            const winReady = isWinRow(rowIndex) && revealRow < rowIndex;
+            return (
+              <div
+                key={colIndex}
+                role="gridcell"
+                style={
+                  winReady
+                    ? {
+                        animation: 'win-bounce 600ms ease',
+                        animationDelay: `${colIndex * 100}ms`,
+                        animationFillMode: 'both',
+                      }
+                    : undefined
+                }
+              >
+                <Tile
+                  letter={letter}
+                  state={row.states[colIndex]}
+                  position={colIndex}
+                  isFlipping={row.isFlippingRow}
+                  flipDelay={row.isFlippingRow ? colIndex * 0.15 : 0}
+                />
+              </div>
+            );
+          })}
         </motion.div>
       ))}
     </div>

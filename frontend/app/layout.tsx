@@ -1,14 +1,22 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Libre_Franklin, Roboto_Slab, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/lib/hooks/useAuth';
 import Navigation from '@/components/Navigation';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
 
-const inter = Inter({
+const libreFranklin = Libre_Franklin({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
+  weight: ['400', '500', '600', '700', '900'],
+});
+
+const robotoSlab = Roboto_Slab({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+  weight: ['700', '900'],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -35,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#111113',
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -48,11 +56,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${libreFranklin.variable} ${robotoSlab.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-[100dvh] text-text-primary antialiased bg-bg-base">
         <script dangerouslySetInnerHTML={{ __html: `
-          if(localStorage.getItem('eloquence_colorblind')==='true')document.documentElement.classList.add('colorblind');
-          if(localStorage.getItem('eloquence_reduced_motion')==='true')document.documentElement.classList.add('reduce-motion');
+          (function(){
+            if(localStorage.getItem('eloquence_colorblind')==='true')document.documentElement.classList.add('colorblind');
+            if(localStorage.getItem('eloquence_reduced_motion')==='true')document.documentElement.classList.add('reduce-motion');
+            if(localStorage.getItem('eloquence_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');
+            if(localStorage.getItem('eloquence_keyboard_only')==='true')document.documentElement.setAttribute('data-keyboard-only','true');
+          })();
         `}} />
         <AuthProvider>
           <Navigation />

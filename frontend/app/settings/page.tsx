@@ -1,8 +1,9 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Palette, Zap, Trash2, UserX, AlertTriangle, X, Settings } from 'lucide-react';
+import { Palette, Zap, Trash2, UserX, AlertTriangle, X, Settings, Shield, Moon, Keyboard } from 'lucide-react';
 import { usersApi } from '@/lib/api';
+import { useSettings } from '@/lib/useSettings';
 
 /* ------------------------------------------------------------------ */
 /*  Shared modal shell                                                  */
@@ -64,10 +65,10 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#538d4e]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1d1d21] shrink-0 ${
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--green)]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-elevated)] shrink-0 ${
         checked
-          ? 'bg-[#538d4e]'
-          : 'bg-[#25252a] border border-white/[0.1]'
+          ? 'bg-[var(--green)]'
+          : 'bg-[var(--bg-muted)] border border-[var(--border-default)]'
       }`}
     >
       <span
@@ -335,9 +336,9 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 p-4 rounded-[12px] bg-[#1d1d21] border border-white/[0.08]">
+    <div className="flex items-center justify-between gap-4 p-4 rounded-[12px] bg-bg-elevated border border-border-subtle">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-9 h-9 rounded-lg bg-bg-tertiary flex items-center justify-center shrink-0 text-text-secondary">
+        <div className="w-9 h-9 rounded-lg bg-bg-muted flex items-center justify-center shrink-0 text-text-secondary">
           {icon}
         </div>
         <div className="min-w-0">
@@ -355,31 +356,11 @@ function SettingRow({
 /* ------------------------------------------------------------------ */
 
 export default function SettingsPage() {
-  const [colorBlind, setColorBlind] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [settings, setSetting] = useSettings();
 
   const [showDeleteGamesModal, setShowDeleteGamesModal] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [gamesDeletedBanner, setGamesDeletedBanner] = useState(false);
-
-  useEffect(() => {
-    setColorBlind(localStorage.getItem('eloquence_colorblind') === 'true');
-    setReducedMotion(localStorage.getItem('eloquence_reduced_motion') === 'true');
-  }, []);
-
-  const toggleColorBlind = () => {
-    const next = !colorBlind;
-    setColorBlind(next);
-    localStorage.setItem('eloquence_colorblind', String(next));
-    document.documentElement.classList.toggle('colorblind', next);
-  };
-
-  const toggleReducedMotion = () => {
-    const next = !reducedMotion;
-    setReducedMotion(next);
-    localStorage.setItem('eloquence_reduced_motion', String(next));
-    document.documentElement.classList.toggle('reduce-motion', next);
-  };
 
   const handleGamesDeleted = () => {
     setGamesDeletedBanner(true);
@@ -391,7 +372,7 @@ export default function SettingsPage() {
       <div className="max-w-xl mx-auto px-4 py-8">
         {/* Page header */}
         <div className="flex items-center gap-2.5 mb-7">
-          <div className="p-2 rounded-lg bg-[#171719] border border-white/[0.08] text-text-secondary">
+          <div className="p-2 rounded-lg bg-bg-elevated border border-border-subtle text-text-secondary">
             <Settings size={18} />
           </div>
           <div>
@@ -401,20 +382,72 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex flex-col gap-6">
+          {/* Game section */}
+          <section>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary mb-2 px-1">
+              Game
+            </p>
+            <div className="flex flex-col gap-2">
+              <SettingRow
+                icon={<Shield size={17} />}
+                title="Hard Mode"
+                description="Any revealed hints must be used in subsequent guesses"
+              >
+                <Toggle
+                  checked={settings.hardMode}
+                  onChange={() => setSetting('hardMode', !settings.hardMode)}
+                  label="Toggle hard mode"
+                />
+              </SettingRow>
+
+              <SettingRow
+                icon={<Keyboard size={17} />}
+                title="Onscreen Keyboard Only"
+                description="Ignore physical keyboard input. Helpful for users with assistive devices."
+              >
+                <Toggle
+                  checked={settings.keyboardOnly}
+                  onChange={() => setSetting('keyboardOnly', !settings.keyboardOnly)}
+                  label="Toggle onscreen keyboard only"
+                />
+              </SettingRow>
+            </div>
+          </section>
+
+          {/* Appearance section */}
+          <section>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary mb-2 px-1">
+              Appearance
+            </p>
+            <div className="flex flex-col gap-2">
+              <SettingRow
+                icon={<Moon size={17} />}
+                title="Dark Theme"
+                description="Switch to OLED dark mode"
+              >
+                <Toggle
+                  checked={settings.theme === 'dark'}
+                  onChange={() => setSetting('theme', settings.theme === 'dark' ? 'light' : 'dark')}
+                  label="Toggle dark theme"
+                />
+              </SettingRow>
+            </div>
+          </section>
+
           {/* Accessibility section */}
           <section>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost mb-2 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary mb-2 px-1">
               Accessibility
             </p>
             <div className="flex flex-col gap-2">
               <SettingRow
                 icon={<Palette size={17} />}
                 title="High Contrast Mode"
-                description="Orange/blue tiles for color vision deficiency"
+                description="Contrast and colorblindness improvements"
               >
                 <Toggle
-                  checked={colorBlind}
-                  onChange={toggleColorBlind}
+                  checked={settings.highContrast}
+                  onChange={() => setSetting('highContrast', !settings.highContrast)}
                   label="Toggle high contrast mode"
                 />
               </SettingRow>
@@ -425,15 +458,15 @@ export default function SettingsPage() {
                 description="Minimize animations throughout the app"
               >
                 <Toggle
-                  checked={reducedMotion}
-                  onChange={toggleReducedMotion}
+                  checked={settings.reducedMotion}
+                  onChange={() => setSetting('reducedMotion', !settings.reducedMotion)}
                   label="Toggle reduced motion"
                 />
               </SettingRow>
 
-              {colorBlind && (
-                <div className="p-4 rounded-[12px] bg-[#1d1d21] border border-white/[0.08]">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost mb-3">
+              {settings.highContrast && (
+                <div className="p-4 rounded-[12px] bg-bg-elevated border border-border-subtle">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary mb-3">
                     Color Preview
                   </p>
                   <div className="flex gap-2">
@@ -459,7 +492,7 @@ export default function SettingsPage() {
                       C
                     </div>
                   </div>
-                  <p className="text-[10px] text-text-ghost mt-2.5">
+                  <p className="text-[10px] text-text-secondary mt-2.5">
                     Orange = correct position · Blue = wrong position · Gray = not in word
                   </p>
                 </div>
@@ -469,11 +502,11 @@ export default function SettingsPage() {
 
           {/* Danger zone section */}
           <section>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-ghost mb-2 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary mb-2 px-1">
               Danger Zone
             </p>
 
-            <div className="rounded-[12px] bg-[#1d1d21] border border-[#e74c3c]/30 overflow-hidden">
+            <div className="rounded-[12px] bg-bg-elevated border border-[#e74c3c]/30 overflow-hidden">
               {/* Header strip */}
               <div className="flex items-center gap-2.5 px-4 py-3 border-b border-[#e74c3c]/20 bg-[#e74c3c]/[0.05]">
                 <AlertTriangle size={14} className="text-[#e74c3c]" />

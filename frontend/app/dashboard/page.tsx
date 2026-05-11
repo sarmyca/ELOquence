@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import {
   TrendingUp,
   BarChart2,
@@ -35,12 +36,12 @@ function ModeIcon({ mode, size = 14 }: { mode: string; size?: number }) {
   return <Gamepad2 size={size} className={cls} />;
 }
 
-// ─── Status config ────────────────────────────────────────────────────────────
+// ─── Status config — token-driven colors ─────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  won:         { label: 'Won',        color: '#538d4e' },
-  lost:        { label: 'Lost',       color: '#e74c3c' },
-  in_progress: { label: 'In Progress', color: '#b59f3b' },
-  abandoned:   { label: 'Abandoned',  color: '#3c3c44' },
+  won:         { label: 'Won',         color: 'var(--tile-correct)' },
+  lost:        { label: 'Lost',        color: 'var(--red)' },
+  in_progress: { label: 'In Progress', color: 'var(--tile-present)' },
+  abandoned:   { label: 'Abandoned',   color: 'var(--border-strong)' },
 };
 
 // ─── Date helper ─────────────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ interface UserStats {
 function Shimmer({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
-      className={clsx('skeleton rounded-md bg-bg-tertiary', className)}
+      className={clsx('skeleton rounded-md bg-bg-muted', className)}
       style={style}
     />
   );
@@ -76,21 +77,21 @@ interface StatCardProps {
   label: string;
   value: string | number;
   icon: React.ReactNode;
-  variants: object;
+  variants: Variants;
 }
 function StatCard({ label, value, icon, variants }: StatCardProps) {
   return (
     <motion.div
       variants={variants}
-      className="flex flex-col gap-3 p-4 rounded-[12px] bg-bg-primary border border-white/[0.06]"
+      className="flex flex-col gap-3 p-5 rounded-card bg-bg-base border border-border-default"
     >
       <div className="flex items-center gap-1.5 text-text-ghost">
         {icon}
-        <span className="text-[11px] uppercase tracking-widest font-medium">
+        <span className="font-sans text-xs uppercase tracking-wider text-text-secondary">
           {label}
         </span>
       </div>
-      <span className="text-2xl font-mono font-bold tabular-nums text-text-primary leading-none">
+      <span className="font-display text-3xl font-bold tabular-nums text-text-primary leading-none">
         {value}
       </span>
     </motion.div>
@@ -100,7 +101,7 @@ function StatCard({ label, value, icon, variants }: StatCardProps) {
 // ─── Section label ────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[11px] uppercase tracking-widest font-semibold text-text-ghost">
+    <span className="font-sans text-xs uppercase tracking-wider font-semibold text-text-secondary">
       {children}
     </span>
   );
@@ -111,13 +112,13 @@ export default function DashboardPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const [games,         setGames]         = useState<Game[]>([]);
-  const [loadingGames,  setLoadingGames]   = useState(true);
-  const [deletingId,    setDeletingId]     = useState<string | null>(null);
-  const [eloHistory,    setEloHistory]     = useState<EloHistoryEntry[]>([]);
-  const [userStats,     setUserStats]      = useState<UserStats | null>(null);
-  const [loadingHistory,setLoadingHistory] = useState(false);
-  const [loadingStats,  setLoadingStats]   = useState(false);
+  const [games,          setGames]         = useState<Game[]>([]);
+  const [loadingGames,   setLoadingGames]   = useState(true);
+  const [deletingId,     setDeletingId]     = useState<string | null>(null);
+  const [eloHistory,     setEloHistory]     = useState<EloHistoryEntry[]>([]);
+  const [userStats,      setUserStats]      = useState<UserStats | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingStats,   setLoadingStats]   = useState(false);
 
   // Auth guard
   useEffect(() => {
@@ -180,7 +181,10 @@ export default function DashboardPage() {
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+        <div
+          className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
+          style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }}
+        />
       </div>
     );
   }
@@ -197,6 +201,15 @@ export default function DashboardPage() {
       ? Math.max(0, Math.min(100, ((user.elo_rating - tierMin) / tierRange) * 100))
       : 100;
   const toNextTier = nextTier ? Math.max(0, nextTier.min - user.elo_rating) : 0;
+
+  // Tier color tokens: master uses gold, veteran uses green, others use their tier color
+  const isMaster  = tier.name === 'Master';
+  const isVeteran = tier.name === 'Veteran';
+  const tierBadgeColor = isMaster
+    ? 'var(--gold)'
+    : isVeteran
+      ? 'var(--green)'
+      : tier.color;
 
   const completedGames = games.filter((g) => g.status === 'won' || g.status === 'lost');
   const wonGames       = games.filter((g) => g.status === 'won');
@@ -230,9 +243,14 @@ export default function DashboardPage() {
     transition: { ...springs.slide, delay },
   });
 
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden:  { opacity: 0, y: 14 },
     visible: { opacity: 1, y: 0, transition: springs.slide },
+  };
+
+  const containerVariants: Variants = {
+    hidden:  {},
+    visible: { transition: stagger.fast },
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -248,19 +266,19 @@ export default function DashboardPage() {
             <div className="flex items-baseline gap-3 flex-wrap">
               {/* Big ELO number */}
               <span
-                className="text-5xl font-mono font-bold tabular-nums leading-none"
+                className="font-display text-5xl font-black tabular-nums leading-none"
                 style={{ color: tier.color }}
               >
                 {Math.round(user.elo_rating)}
               </span>
 
-              {/* Tier pill */}
+              {/* Tier pill — token-driven color */}
               <span
-                className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-semibold leading-none"
+                className="inline-flex items-center px-2.5 py-1 rounded-pill text-sm font-semibold leading-none border"
                 style={{
-                  color: tier.color,
-                  backgroundColor: `${tier.color}1a`,
-                  border: `1px solid ${tier.color}33`,
+                  color: tierBadgeColor,
+                  backgroundColor: `color-mix(in srgb, ${tierBadgeColor} 12%, transparent)`,
+                  borderColor: `color-mix(in srgb, ${tierBadgeColor} 25%, transparent)`,
                 }}
               >
                 {tier.name}
@@ -268,25 +286,38 @@ export default function DashboardPage() {
 
               {/* Placement badge */}
               {user.is_placement && (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium leading-none bg-[#b59f3b]/10 border border-[#b59f3b]/25 text-[#b59f3b]">
+                <span
+                  className="inline-flex items-center px-2.5 py-1 rounded-pill text-xs font-medium leading-none border"
+                  style={{
+                    color: 'var(--gold)',
+                    backgroundColor: 'color-mix(in srgb, var(--gold) 10%, transparent)',
+                    borderColor: 'color-mix(in srgb, var(--gold) 25%, transparent)',
+                  }}
+                >
                   Placement {user.games_played}/5
                 </span>
               )}
             </div>
 
-            <p className="text-sm text-text-secondary font-medium">{user.username}</p>
+            {/* Username */}
+            <p className="font-display text-3xl font-black text-text-primary tracking-tight">
+              {user.username}
+            </p>
           </div>
 
           {/* Right: streak pills */}
           <div className="flex items-center gap-2 flex-wrap">
             {user.current_streak > 0 && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs font-medium text-[#e67e22]">
+              <div
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-pill border border-border-subtle text-xs font-medium"
+                style={{ color: 'var(--red)' }}
+              >
                 <Flame size={12} />
                 {user.current_streak} streak
               </div>
             )}
             {user.longest_streak > 0 && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-text-secondary">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-pill border border-border-subtle text-xs text-text-secondary">
                 <Star size={11} />
                 Best&nbsp;
                 <span className="font-mono tabular-nums text-text-primary font-semibold">
@@ -297,12 +328,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Tier progress bar */}
+        {/* Tier progress bar — solid tokens, no gradient */}
         <div className="mt-5">
           <div className="flex items-center justify-between mb-2">
             <SectionLabel>{tier.name} Progress</SectionLabel>
             {nextTier ? (
-              <span className="text-[10px] font-mono tabular-nums text-text-ghost">
+              <span className="font-sans text-[10px] font-mono tabular-nums text-text-secondary">
                 <span style={{ color: tier.color }}>{Math.round(user.elo_rating)}</span>
                 {' → '}
                 <span style={{ color: nextTier.color }}>{nextTier.name}</span>
@@ -310,13 +341,21 @@ export default function DashboardPage() {
                 <span className="text-text-secondary">{toNextTier} pts to go</span>
               </span>
             ) : (
-              <span className="text-[10px] font-mono text-text-ghost">Max rank reached</span>
+              <span className="font-sans text-[10px] font-mono text-text-secondary">Max rank reached</span>
             )}
           </div>
-          <div className="h-1.5 rounded-full bg-bg-tertiary border border-white/[0.06] overflow-hidden">
+          {/* Solid bg-bg-muted track, fill with tier-correct or gold for master */}
+          <div
+            className="h-1.5 rounded-pill bg-bg-muted border border-border-subtle overflow-hidden"
+            role="progressbar"
+            aria-valuenow={Math.round(tierProgress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${tier.name} tier progress`}
+          >
             <motion.div
-              className="h-full rounded-full"
-              style={{ backgroundColor: tier.color }}
+              className="h-full rounded-pill"
+              style={{ backgroundColor: isMaster ? 'var(--gold)' : 'var(--tile-correct)' }}
               initial={{ width: 0 }}
               animate={{ width: `${tierProgress}%` }}
               transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
@@ -330,7 +369,7 @@ export default function DashboardPage() {
         className="grid grid-cols-2 sm:grid-cols-4 gap-3"
         initial="hidden"
         animate="visible"
-        variants={{ hidden: {}, visible: { transition: stagger.fast } }}
+        variants={containerVariants}
         aria-label="Player statistics"
       >
         <StatCard
@@ -362,16 +401,16 @@ export default function DashboardPage() {
       {/* ── ELO SPARKLINE ──────────────────────────────────────────────── */}
       <motion.section
         {...fadeUp(0.2)}
-        className="rounded-[14px] bg-bg-primary border border-white/[0.06] p-5"
+        className="rounded-card-lg bg-bg-elevated border border-border-subtle p-5"
         aria-label="Rating history chart"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <TrendingUp size={14} className="text-text-ghost" />
-            <SectionLabel>Rating History</SectionLabel>
+            <span className="font-sans font-semibold text-sm text-text-primary">Rating History</span>
           </div>
           {eloHistory.length > 0 && (
-            <span className="text-[10px] font-mono tabular-nums text-text-ghost">
+            <span className="font-sans text-[10px] font-mono tabular-nums text-text-secondary">
               Last {eloHistory.length} game{eloHistory.length !== 1 ? 's' : ''}
             </span>
           )}
@@ -392,12 +431,12 @@ export default function DashboardPage() {
       {/* ── GUESS DISTRIBUTION ─────────────────────────────────────────── */}
       <motion.section
         {...fadeUp(0.25)}
-        className="rounded-[14px] bg-bg-primary border border-white/[0.06] p-5"
+        className="rounded-card-lg bg-bg-elevated border border-border-subtle p-5"
         aria-label="Guess distribution"
       >
         <div className="flex items-center gap-2 mb-4">
           <BarChart2 size={14} className="text-text-ghost" />
-          <SectionLabel>Guess Distribution</SectionLabel>
+          <span className="font-sans font-semibold text-sm text-text-primary">Guess Distribution</span>
         </div>
 
         {loadingStats ? (
@@ -421,7 +460,8 @@ export default function DashboardPage() {
           <SectionLabel>Recent Games</SectionLabel>
           <Link
             href="/play"
-            className="text-xs font-semibold text-[#6aaa64] hover:text-[#538d4e] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6aaa64] rounded"
+            className="font-sans text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 rounded"
+            style={{ color: 'var(--tile-correct)' }}
             aria-label="Play a new game"
           >
             Play New
@@ -429,10 +469,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Games container */}
-        <div className="rounded-[14px] bg-bg-primary border border-white/[0.06] overflow-hidden">
+        <div className="rounded-card-lg bg-bg-base border border-border-default overflow-hidden">
           {loadingGames ? (
             /* Shimmer rows */
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-border-subtle">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-3.5">
                   <Shimmer className="h-4 w-4 rounded-sm" />
@@ -446,25 +486,29 @@ export default function DashboardPage() {
           ) : games.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center gap-4 py-16 px-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-bg-tertiary border border-white/[0.06] flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-bg-muted border border-border-subtle flex items-center justify-center">
                 <Gamepad2 size={22} className="text-text-ghost" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-medium text-text-secondary">No games yet</p>
-                <p className="text-xs text-text-ghost">
+                <p className="font-sans text-sm font-medium text-text-secondary">No games yet</p>
+                <p className="font-sans text-xs text-text-ghost">
                   Play a game to start building your history.
                 </p>
               </div>
               <Link
                 href="/play"
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#538d4e] hover:bg-[#6aaa64] text-white text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6aaa64]"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-card text-white text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2"
+                style={{
+                  backgroundColor: 'var(--tile-correct)',
+                  outlineColor: 'var(--tile-correct)',
+                }}
               >
                 Play Your First Game
               </Link>
             </div>
           ) : (
             /* Game rows */
-            <div className="divide-y divide-white/[0.04]" role="list">
+            <div className="divide-y divide-border-subtle" role="list">
               {games.map((game, i) => {
                 const statusInfo  = STATUS_CONFIG[game.status] ?? STATUS_CONFIG.abandoned;
                 const isClickable = game.status === 'won' || game.status === 'lost';
@@ -483,9 +527,9 @@ export default function DashboardPage() {
                   >
                     <div
                       className={clsx(
-                        'flex items-center gap-3 px-4 py-3.5 transition-colors',
+                        'flex items-center gap-3 px-4 py-3 border-b border-border-subtle last:border-0 transition-colors',
                         isClickable
-                          ? 'cursor-pointer hover:bg-white/[0.02] active:bg-white/[0.04]'
+                          ? 'cursor-pointer hover:bg-bg-elevated/50 active:bg-bg-muted'
                           : 'cursor-default'
                       )}
                       onClick={() => isClickable && router.push(`/review/${game.id}`)}
@@ -502,10 +546,10 @@ export default function DashboardPage() {
 
                       {/* Word + mode label */}
                       <div className="flex flex-col min-w-0 flex-1 gap-0.5">
-                        <span className="text-sm font-mono font-semibold uppercase text-text-primary tracking-wide truncate">
+                        <span className="font-mono text-sm font-semibold uppercase text-text-primary tracking-wide truncate">
                           {showWord ? (game.target_word ?? '—') : '?????'}
                         </span>
-                        <span className="text-[10px] text-text-ghost capitalize leading-none">
+                        <span className="font-sans text-[10px] text-text-ghost capitalize leading-none">
                           {game.mode}
                           {game.is_placement && game.mode === 'competitive' && ' · Placement'}
                         </span>
@@ -514,7 +558,7 @@ export default function DashboardPage() {
                       {/* Status + ELO delta */}
                       <div className="flex flex-col items-end gap-0.5 shrink-0">
                         <span
-                          className="text-xs font-semibold"
+                          className="font-sans text-xs font-semibold"
                           style={{ color: statusInfo.color }}
                         >
                           {statusInfo.label}
@@ -526,10 +570,10 @@ export default function DashboardPage() {
                         </span>
                         {eloDelta !== null && game.rated && (
                           <span
-                            className={clsx(
-                              'text-[10px] font-mono tabular-nums font-semibold',
-                              (eloDelta ?? 0) >= 0 ? 'text-[#538d4e]' : 'text-[#e74c3c]'
-                            )}
+                            className="font-mono text-[10px] tabular-nums font-semibold"
+                            style={{
+                              color: (eloDelta ?? 0) >= 0 ? 'var(--tile-correct)' : 'var(--red)',
+                            }}
                           >
                             {(eloDelta ?? 0) >= 0 ? '+' : ''}
                             {Math.round(eloDelta ?? 0)}
@@ -539,11 +583,11 @@ export default function DashboardPage() {
 
                       {/* Date + time */}
                       <div className="flex flex-col items-end shrink-0 min-w-[52px] gap-0.5">
-                        <span className="text-[10px] text-text-ghost tabular-nums">
+                        <span className="font-sans text-[10px] text-text-ghost tabular-nums">
                           {formatDate(game.created_at)}
                         </span>
                         {game.time_seconds != null && (
-                          <span className="text-[10px] text-text-ghost flex items-center gap-0.5 tabular-nums font-mono">
+                          <span className="font-sans text-[10px] text-text-ghost flex items-center gap-0.5 tabular-nums font-mono">
                             <Clock size={8} className="shrink-0" />
                             {Math.floor(game.time_seconds / 60)}:
                             {String(game.time_seconds % 60).padStart(2, '0')}
@@ -555,7 +599,20 @@ export default function DashboardPage() {
                       <button
                         onClick={(e) => handleDelete(game.id, e)}
                         disabled={deletingId === game.id}
-                        className="p-1.5 ml-1 rounded-md text-text-ghost hover:text-[#e74c3c] hover:bg-[#e74c3c]/10 transition-colors shrink-0 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e74c3c]/50"
+                        className="p-1.5 ml-1 rounded-md text-text-ghost transition-colors shrink-0 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2"
+                        style={
+                          {
+                            '--hover-color': 'var(--red)',
+                          } as React.CSSProperties
+                        }
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = 'var(--red)';
+                          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--red) 10%, transparent)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = '';
+                          e.currentTarget.style.backgroundColor = '';
+                        }}
                         aria-label={`Delete game — ${showWord ? game.target_word : '?????'}`}
                       >
                         {deletingId === game.id ? (

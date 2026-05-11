@@ -18,17 +18,14 @@ const CELL_GAP = 1;
 const ROW_LABEL_W = 22;
 const COL_LABEL_H = 20;
 
-function getHeatmapColor(value: number): string {
-  if (value <= 0) return 'transparent';
-  if (value < 3) return '#1a2332';
-  if (value < 8) return '#1b3a4a';
-  if (value < 15) return '#1b6b93';
-  if (value < 25) return '#2ba4c7';
-  return '#6ee7b7';
-}
-
-function getTextColor(value: number): string {
-  return value >= 15 ? '#0a1628' : '#f0f0f3';
+/**
+ * Returns a green-scale fill using var(--tile-correct) at variable alpha.
+ * value is 0–100 (percentage). Returns 'transparent' for zero.
+ */
+function getHeatAlpha(value: number): number {
+  if (value <= 0) return 0;
+  // Map 0–100 onto 0.08–0.9 alpha
+  return Math.min(0.9, 0.08 + (value / 100) * 0.82);
 }
 
 export default function LetterHeatmap({ frequencies, knownPositions, knownPresent }: Props) {
@@ -42,7 +39,6 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
     return posData[letter] ?? posData[letter.toLowerCase()] ?? 0;
   };
 
-  // Only show letters that have >0 frequency in at least one position
   const LETTERS = ALL_LETTERS.filter((letter) =>
     POSITIONS.some((pos) => getFreq(pos, letter) > 0)
   );
@@ -75,8 +71,8 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
               x={x}
               y={14}
               fontSize={11}
-              fontFamily="monospace"
-              fill={hoveredCol === pos ? '#f0f0f3' : '#4b5563'}
+              fontFamily="sans-serif"
+              fill="var(--text-secondary)"
               textAnchor="middle"
               fontWeight={hoveredCol === pos ? 'bold' : 'normal'}
             >
@@ -97,8 +93,14 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
                 x={ROW_LABEL_W - 4}
                 y={y + CELL_H / 2 + 4}
                 fontSize={11}
-                fontFamily="monospace"
-                fill={hoveredRow === letter ? '#f0f0f3' : isKnownPresent ? '#b59f3b' : '#4b5563'}
+                fontFamily="sans-serif"
+                fill={
+                  hoveredRow === letter
+                    ? 'var(--text-primary)'
+                    : isKnownPresent
+                    ? 'var(--tile-present)'
+                    : 'var(--text-secondary)'
+                }
                 textAnchor="end"
                 fontWeight={hoveredRow === letter ? 'bold' : 'normal'}
               >
@@ -112,7 +114,7 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
                   y={y}
                   width={POSITIONS.length * (CELL_W + CELL_GAP) - CELL_GAP}
                   height={CELL_H}
-                  fill="rgba(255,255,255,0.04)"
+                  fill="var(--bg-muted)"
                   rx={2}
                 />
               )}
@@ -124,7 +126,7 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
                   y={y + 2}
                   width={3}
                   height={CELL_H - 4}
-                  fill="#b59f3b"
+                  fill="var(--tile-present)"
                   rx={1}
                 />
               )}
@@ -132,15 +134,13 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
               {/* Cells per position */}
               {POSITIONS.map((pos) => {
                 const freq = getFreq(pos, letter);
+                const alpha = getHeatAlpha(freq);
                 const cellX = ROW_LABEL_W + pos * (CELL_W + CELL_GAP);
-                const bg = getHeatmapColor(freq);
-                const textColor = getTextColor(freq);
-                const isKnownGreen =
-                  knownPositions?.[pos]?.toUpperCase() === letter;
-                const isHoveredCell =
-                  hovered?.letter === letter && hovered?.pos === pos;
-                const isHighlighted =
-                  hoveredRow === letter || hoveredCol === pos;
+                const isKnownGreen = knownPositions?.[pos]?.toUpperCase() === letter;
+                const isHoveredCell = hovered?.letter === letter && hovered?.pos === pos;
+                const isHighlighted = hoveredRow === letter || hoveredCol === pos;
+                // For high-alpha cells, use light text for readability
+                const textFill = alpha > 0.55 ? 'var(--bg-base)' : 'var(--text-primary)';
 
                 return (
                   <motion.g
@@ -155,31 +155,50 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
                     }}
                     style={{ cursor: 'default' }}
                   >
+                    {/* Base cell */}
                     <rect
                       x={cellX}
                       y={y}
                       width={CELL_W}
                       height={CELL_H}
                       rx={2}
-                      fill={bg === 'transparent' ? '#1e1f23' : bg}
-                      stroke={
-                        isKnownGreen
-                          ? '#538d4e'
-                          : isHighlighted && !isHoveredCell
-                          ? 'rgba(255,255,255,0.08)'
-                          : 'transparent'
-                      }
-                      strokeWidth={isKnownGreen ? 1.5 : 1}
-                      opacity={isHighlighted ? 1 : 0.85}
+                      fill="var(--bg-elevated)"
+                      stroke="var(--border-subtle)"
+                      strokeWidth={0.5}
+                      opacity={isHighlighted && !isHoveredCell ? 0.7 : 1}
                     />
+                    {/* Heat overlay */}
+                    {alpha > 0 && (
+                      <rect
+                        x={cellX}
+                        y={y}
+                        width={CELL_W}
+                        height={CELL_H}
+                        rx={2}
+                        style={{ fill: `rgb(from var(--tile-correct) r g b / ${alpha})` }}
+                      />
+                    )}
+                    {/* Known-green outline */}
+                    {isKnownGreen && (
+                      <rect
+                        x={cellX}
+                        y={y}
+                        width={CELL_W}
+                        height={CELL_H}
+                        rx={2}
+                        fill="none"
+                        stroke="var(--tile-correct)"
+                        strokeWidth={1.5}
+                      />
+                    )}
 
                     {freq >= 5 && (
                       <text
                         x={cellX + CELL_W / 2}
                         y={y + CELL_H / 2 + 4}
                         fontSize={9}
-                        fontFamily="monospace"
-                        fill={textColor}
+                        fontFamily="sans-serif"
+                        fill={textFill}
                         textAnchor="middle"
                         fontWeight="600"
                       >
@@ -192,7 +211,7 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
                         x={cellX + CELL_W - 4}
                         y={y + 8}
                         fontSize={8}
-                        fill="#6aaa64"
+                        fill="var(--tile-correct)"
                         textAnchor="end"
                       >
                         ✓
@@ -212,8 +231,9 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
             y={COL_LABEL_H}
             width={CELL_W}
             height={LETTERS.length * (CELL_H + CELL_GAP) - CELL_GAP}
-            fill="rgba(255,255,255,0.03)"
+            fill="var(--bg-muted)"
             rx={2}
+            opacity={0.25}
             pointerEvents="none"
           />
         )}
@@ -234,13 +254,16 @@ export default function LetterHeatmap({ frequencies, knownPositions, knownPresen
           return (
             <foreignObject x={bx} y={by} width={bw} height={bh} style={{ overflow: 'visible' }}>
               <div
-                className="rounded-lg border border-[#4a4a4c] bg-[#2a2a2c] shadow-xl px-3 py-2 pointer-events-none"
+                className="rounded-md border border-border-default bg-bg-base shadow-md px-3 py-2 pointer-events-none"
                 style={{ fontSize: 11 }}
               >
-                <div className="font-mono font-bold text-text-primary">
+                <div className="font-sans font-bold text-text-primary">
                   {hovered.letter} at pos {hovered.pos + 1}
                 </div>
-                <div className="font-mono tabular-nums" style={{ color: getHeatmapColor(freq) === 'transparent' ? '#4b5563' : '#6ee7b7', fontSize: 13 }}>
+                <div
+                  className="font-mono tabular-nums"
+                  style={{ color: 'var(--tile-correct)', fontSize: 13 }}
+                >
                   {freq.toFixed(1)}%
                 </div>
               </div>

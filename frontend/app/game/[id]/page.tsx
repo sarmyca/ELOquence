@@ -13,6 +13,7 @@ import { gamesApi, dailyApi } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Game, GameStatus, TileState, patternToTiles } from '@/lib/types';
 import { springs } from '@/lib/animations';
+import { useSettings } from '@/lib/useSettings';
 
 /** Local date string (YYYY-MM-DD) matching the server's TZ. */
 function localDateStr(): string {
@@ -27,6 +28,7 @@ export default function GamePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const [settings] = useSettings();
 
   const [game, setGame] = useState<Game | null>(null);
   const [currentGuess, setCurrentGuess] = useState('');
@@ -140,6 +142,32 @@ export default function GamePage() {
       return;
     }
 
+    // Hard mode: validate revealed hints are reused
+    if (settings.hardMode && guesses.length > 0) {
+      for (let gi = 0; gi < guesses.length; gi++) {
+        const prevGuess = guesses[gi];
+        const tiles = patternToTiles(patterns[gi]);
+        // Check greens: same letter must appear at same position
+        for (let pos = 0; pos < 5; pos++) {
+          if (tiles[pos] === 'correct' && currentGuess[pos] !== prevGuess[pos]) {
+            setShakeRow(guesses.length);
+            setTimeout(() => setShakeRow(-1), 500);
+            showToast(`Hard mode: must reuse ${prevGuess[pos]}`);
+            return;
+          }
+        }
+        // Check yellows: letter must appear somewhere in guess
+        for (let pos = 0; pos < 5; pos++) {
+          if (tiles[pos] === 'present' && !currentGuess.includes(prevGuess[pos])) {
+            setShakeRow(guesses.length);
+            setTimeout(() => setShakeRow(-1), 500);
+            showToast(`Hard mode: must reuse ${prevGuess[pos]}`);
+            return;
+          }
+        }
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -225,9 +253,11 @@ export default function GamePage() {
     gameStatus,
     isSubmitting,
     currentGuess,
-    guesses.length,
+    guesses,
+    patterns,
     id,
     showToast,
+    settings.hardMode,
   ]);
 
   const formatTime = (secs: number) => {
@@ -344,6 +374,7 @@ export default function GamePage() {
           onEnter={handleEnter}
           onBackspace={handleBackspace}
           letterStates={letterStates}
+          disablePhysicalKeyboard={settings.keyboardOnly}
         />
       </div>
 
