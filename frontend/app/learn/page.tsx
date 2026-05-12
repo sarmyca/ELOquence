@@ -260,7 +260,7 @@ const SECTIONS: SectionDef[] = [
       {
         q: 'What modes can I play?',
         plain:
-          'Three modes: Daily is one puzzle per day, same word for everyone, and it affects your ELO rating. Competitive is unlimited rated games from an extended word pool. Practice is unlimited unrated games from the standard pool — no ELO impact, experiment freely.',
+          'Three modes: Daily is one puzzle per day, same word for everyone — unrated, just for fun and streaks. Competitive is unlimited rated games from an extended word pool, and it is the only mode that moves your ELO. Practice is unlimited unrated games from the standard pool — experiment freely.',
         a: (
           <div className="space-y-3">
             <p className="font-sans text-sm text-text-secondary leading-relaxed">
@@ -271,7 +271,7 @@ const SECTIONS: SectionDef[] = [
                 {
                   icon: <Sun size={15} style={{ color: 'var(--tile-present)' }} className="shrink-0 mt-0.5" />,
                   name: 'Daily',
-                  desc: 'One puzzle per day, shared by all players. Your result counts toward your ELO rating. Miss a day and your streak resets — come back tomorrow.',
+                  desc: 'One puzzle per day, shared by all players. Unrated — daily results do not change your ELO; they only feed your streak and stats. Miss a day and your streak resets, so come back tomorrow.',
                 },
                 {
                   icon: <Swords size={15} style={{ color: 'var(--tile-absent)' }} className="shrink-0 mt-0.5" />,
@@ -529,7 +529,7 @@ const SECTIONS: SectionDef[] = [
                 { label: 'Inaccuracy', color: '#b59f3b', pct: '50–70%', w: 60, note: 'Noticeably suboptimal.' },
                 { label: 'Mistake', color: '#e67e22', pct: '30–50%', w: 40, note: 'A meaningful miss.' },
                 { label: 'Blunder', color: '#e74c3c', pct: '< 30%', w: 20, note: 'Significant information left on the table.' },
-                { label: 'Miss', color: '#9c27b0', pct: '—', w: 10, note: 'Violated a known constraint.' },
+                { label: 'Miss', color: '#e74c3c', pct: '—', w: 10, note: 'Violated a known constraint.' },
                 { label: 'Forced', color: '#565758', pct: '—', w: 5, note: 'Only one valid guess remained. No credit, no penalty.' },
               ].map((c) => (
                 <div key={c.label} className="flex items-center gap-2">

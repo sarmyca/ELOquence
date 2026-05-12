@@ -190,7 +190,6 @@ async def create_game(
     user: User,
     mode: str,
     word_pool: str = "standard",
-    daily_rated: bool = False,
     hard_mode: bool = False,
 ) -> Game:
     """Instantiate a new game and persist it.
@@ -200,7 +199,6 @@ async def create_game(
         user: Authenticated player.
         mode: One of daily / competitive / practice.
         word_pool: 'standard' or 'competitive' (used for practice).
-        daily_rated: If True and mode is daily, make the game rated.
 
     Returns:
         Newly created Game ORM object.
@@ -222,16 +220,19 @@ async def create_game(
 
     if mode == "daily":
         target_word, difficulty = await _get_or_create_daily_word(db)
-        # Only one non-abandoned daily game per user per day
+        # Only one non-abandoned daily game per user per puzzle. Match on
+        # target_word so archive-replay games (which have created_at=today but
+        # represent a past puzzle) don't block creation of today's real daily.
         existing = await db.execute(
             select(Game).where(
                 Game.user_id == user.id,
                 Game.mode == "daily",
+                Game.target_word == target_word,
                 func.date(Game.created_at) == date.today(),
                 Game.status != "abandoned",
             )
         )
-        if existing.scalar_one_or_none():
+        if existing.scalars().first():
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="You have already played today's daily word.",
@@ -243,7 +244,7 @@ async def create_game(
         target_word = random.choice(pool).upper()
         difficulty = word_to_elo(target_word)
 
-    rated = mode in ("competitive",) or (mode == "daily" and daily_rated)
+    rated = mode == "competitive"
 
     game = Game(
         id=uuid.uuid4(),
@@ -288,7 +289,7 @@ async def submit_guess(
         (updated Game, new Move) tuple.
     """
     from app.analysis.engine import ALL_WORDS, compute_pattern, is_valid_word
-    from app.services.elo import apply_elo_update
+    from app.services.elo import apply_elo_update, update_daily_streak
 
     # Validate word before touching the DB to avoid poisoning the session
     if not is_valid_word(guess):
@@ -362,8 +363,11 @@ async def submit_guess(
 
     await db.flush()
 
-    # Trigger ELO update on completion for rated games
-    if game.status in ("won", "lost") and game.rated:
+    # Run completion side-effects for every finished game (won|lost).
+    # Only the ELO update inside this block is gated on `game.rated` —
+    # analysis, streaks, word stats, achievements and profile refresh
+    # run for every completion (so unrated daily games still update streaks).
+    if game.status in ("won", "lost"):
         # Run quick analysis for accuracy calculation
         all_moves_data = [
             {"guess_word": m.guess_word, "pattern": m.pattern, "move_number": m.move_number}
@@ -408,12 +412,18 @@ async def submit_guess(
             # Analysis failure must not block game completion
             accuracy = 50.0
 
-        await apply_elo_update(
-            db=db,
-            user=user,
-            game=game,
-            accuracy=accuracy,
-        )
+        # Update daily streak BEFORE ELO update — streak applies to every
+        # completed daily game (won extends, lost resets), regardless of rated.
+        if game.mode == "daily":
+            update_daily_streak(user, won=won)
+
+        if game.rated:
+            await apply_elo_update(
+                db=db,
+                user=user,
+                game=game,
+                accuracy=accuracy,
+            )
 
         # Recalculate player profile — must not block game completion
         try:

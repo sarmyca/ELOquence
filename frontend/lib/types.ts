@@ -102,6 +102,7 @@ export interface MoveAnalysis extends Move {
   expected_solutions_after?: number;
   actual_solutions_after?: number;
   expected_steps_until_solution?: number;
+  optimal_expected_remaining?: number;
   bot_pick?: string;
   bot_pick_rationale?: string;
   scenario_count?: number;

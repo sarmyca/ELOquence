@@ -19,7 +19,6 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { gamesApi, dailyApi, challengesApi } from '@/lib/api';
 import { getRatingTier, patternToTiles, TileState } from '@/lib/types';
 import { springs, stagger } from '@/lib/animations';
-import clsx from 'clsx';
 
 /** Returns ms until local midnight (server TZ matches client TZ). */
 function msUntilMidnight(): number {
@@ -99,9 +98,9 @@ export default function PlayPage() {
   const [challengeCode, setChallengeCode] = useState<string | null>(null);
   const [challengeCopied, setChallengeCopied] = useState(false);
   const [dailyAlreadyPlayed, setDailyAlreadyPlayed] = useState(false);
+  // Daily is always unrated — only competitive affects ELO
   const [dailyGameId, setDailyGameId] = useState<string | null>(null);
   const [dailyPatterns, setDailyPatterns] = useState<TileState[][] | null>(null);
-  const [dailyRated, setDailyRated] = useState(false);
   const [dailyRefreshKey, setDailyRefreshKey] = useState(0);
 
   const tier = user ? getRatingTier(user.elo_rating) : null;
@@ -111,7 +110,6 @@ export default function PlayPage() {
     setDailyAlreadyPlayed(false);
     setDailyGameId(null);
     setDailyPatterns(null);
-    setDailyRated(false);
     setDailyRefreshKey((k) => k + 1);
   }, []);
 
@@ -177,6 +175,8 @@ export default function PlayPage() {
           setDailyAlreadyPlayed(false);
           setDailyGameId(null);
           setDailyPatterns(null);
+          // Clear any stale per-date cache so old patterns don't bleed through
+          localStorage.removeItem(`eloquence_daily_patterns_${today}`);
         }
       }).catch(() => {
         // Ignore
@@ -222,7 +222,7 @@ export default function PlayPage() {
       desc: 'Random words from the full pool. ELO stakes.',
       accentColor: tier?.color || 'var(--text-secondary)',
       requiresAuth: true,
-      tag: user?.is_placement ? `Placement ${user.games_played + 1}/5` : undefined,
+      tag: user?.is_placement ? `Placement ${user.games_played}/5` : undefined,
     },
     {
       id: 'practice',
@@ -266,7 +266,7 @@ export default function PlayPage() {
 
       if (modeId === 'daily') {
         const res = user
-          ? await dailyApi.play(dailyRated && !user.is_placement)
+          ? await dailyApi.play()
           : await dailyApi.guest();
         gameId = res.data.id || res.data.game_id;
         if (res.data.status && res.data.status !== 'in_progress') {
@@ -765,38 +765,6 @@ export default function PlayPage() {
           <p className="font-sans text-sm leading-relaxed text-text-secondary">
             One word per day. Play against the community.
           </p>
-
-          {/* Rated toggle */}
-          {!dailyAlreadyPlayed && user && !user.is_placement && (
-            <div
-              className="flex items-center gap-2"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                role="switch"
-                aria-checked={dailyRated}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDailyRated(!dailyRated);
-                }}
-                className={clsx(
-                  'relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200',
-                  dailyRated ? 'bg-tile-correct' : 'bg-border-default'
-                )}
-              >
-                <span
-                  className={clsx(
-                    'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200',
-                    dailyRated ? 'translate-x-4' : 'translate-x-0'
-                  )}
-                />
-              </button>
-              <span className="text-xs text-text-secondary">
-                {dailyRated ? 'Rated — ELO at stake' : 'Unrated'}
-              </span>
-            </div>
-          )}
 
           {/* CTA row */}
           {dailyAlreadyPlayed ? (

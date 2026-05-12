@@ -17,6 +17,30 @@ PLACEMENT_GAMES = 5
 TIME_PAR = 60.0
 
 
+def update_daily_streak(user: User, won: bool) -> None:
+    """Update a user's daily streak fields after a completed daily game.
+
+    Called from the game-completion flow for any daily game (won OR lost),
+    regardless of whether the game is rated. A loss resets `current_streak`
+    to 0; a win extends or starts a streak. Multiple completions on the same
+    day are idempotent.
+    """
+    today = date.today()
+    if user.last_played_date == today:
+        return  # already counted today
+    if not won:
+        user.current_streak = 0
+        user.last_played_date = today
+        return
+    if user.last_played_date is not None:
+        delta_days = (today - user.last_played_date).days
+        user.current_streak = (user.current_streak + 1) if delta_days == 1 else 1
+    else:
+        user.current_streak = 1
+    user.max_streak = max(user.max_streak, user.current_streak)
+    user.last_played_date = today
+
+
 def _time_score(seconds: float | None) -> float:
     """Convert solve time into a 0-1 score.
 
@@ -146,17 +170,8 @@ async def apply_elo_update(
     if user.games_played >= PLACEMENT_GAMES and user.is_placement:
         user.is_placement = False
 
-    # Update streaks for daily games
-    if game.mode == "daily":
-        today = date.today()
-        if user.last_played_date is None or user.last_played_date < today:
-            if user.last_played_date is not None:
-                delta_days = (today - user.last_played_date).days
-                user.current_streak = (user.current_streak + 1) if delta_days == 1 else 1
-            else:
-                user.current_streak = 1
-            user.max_streak = max(user.max_streak, user.current_streak)
-            user.last_played_date = today
+    # Daily-streak updates moved to update_daily_streak() so they fire for
+    # unrated daily games too (daily is unrated; only competitive moves ELO).
 
     # Write EloHistory record
     history_entry = EloHistory(

@@ -8,7 +8,7 @@ import Keyboard from '@/components/Keyboard';
 import GameOverModal from '@/components/GameOverModal';
 import Toast from '@/components/Toast';
 import AchievementToast, { ACHIEVEMENT_META } from '@/components/AchievementToast';
-import GuessWaveEffect from '@/components/GuessWaveEffect';
+import GameWaveBackground from '@/components/GameWaveBackground';
 import { gamesApi, dailyApi } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Game, GameStatus, TileState, patternToTiles } from '@/lib/types';
@@ -27,7 +27,7 @@ const FLIP_ANIMATION_MS = 5 * 150 + 500 + 150;
 export default function GamePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [settings] = useSettings();
 
   const [game, setGame] = useState<Game | null>(null);
@@ -64,6 +64,7 @@ export default function GamePage() {
   // Load existing game state on mount
   useEffect(() => {
     if (!id) return;
+    if (authLoading) return;
 
     const loadGame = (g: Game) => {
       setGame(g);
@@ -87,7 +88,7 @@ export default function GamePage() {
       .then((res: { data: Game }) => loadGame(res.data))
       .catch(() => router.push('/play'))
       .finally(() => setLoadingGame(false));
-  }, [id, router]);
+  }, [id, router, user, authLoading]);
 
   // Timer — runs while game is in progress
   useEffect(() => {
@@ -290,7 +291,7 @@ export default function GamePage() {
         achievements={unlockedAchievements}
         onDismiss={() => setUnlockedAchievements([])}
       />
-      <GuessWaveEffect pattern={wavePattern} triggerKey={waveTrigger} />
+      <GameWaveBackground patterns={patterns} status={gameStatus} triggerKey={waveTrigger} lastPattern={wavePattern} />
 
       {/* ── Top bar ── */}
       <div className="w-full max-w-lg flex items-center justify-between px-1 mb-2 shrink-0">

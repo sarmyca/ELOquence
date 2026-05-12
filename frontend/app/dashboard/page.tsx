@@ -483,16 +483,16 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          ) : games.length === 0 ? (
+          ) : completedGames.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center gap-4 py-16 px-6 text-center">
               <div className="w-12 h-12 rounded-full bg-bg-muted border border-border-subtle flex items-center justify-center">
                 <Gamepad2 size={22} className="text-text-ghost" />
               </div>
               <div className="space-y-1">
-                <p className="font-sans text-sm font-medium text-text-secondary">No games yet</p>
+                <p className="font-sans text-sm font-medium text-text-secondary">No completed games yet</p>
                 <p className="font-sans text-xs text-text-ghost">
-                  Play a game to start building your history.
+                  Finish a game to see it here.
                 </p>
               </div>
               <Link
@@ -503,13 +503,13 @@ export default function DashboardPage() {
                   outlineColor: 'var(--tile-correct)',
                 }}
               >
-                Play Your First Game
+                Play a Game
               </Link>
             </div>
           ) : (
             /* Game rows */
             <div className="divide-y divide-border-subtle" role="list">
-              {games.map((game, i) => {
+              {completedGames.map((game, i) => {
                 const statusInfo  = STATUS_CONFIG[game.status] ?? STATUS_CONFIG.abandoned;
                 const isClickable = game.status === 'won' || game.status === 'lost';
                 const eloDelta    = game.elo_delta;

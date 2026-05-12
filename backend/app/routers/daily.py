@@ -1,6 +1,6 @@
 """Daily word router."""
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -30,17 +30,26 @@ async def get_daily_info(
 
     daily_result = await db.execute(select(DailyWord).where(DailyWord.date == today))
     daily = daily_result.scalar_one_or_none()
+    today_word = daily.word.upper() if daily else None
 
-    # Check whether the user already has a non-abandoned daily game today
-    played_result = await db.execute(
-        select(Game).where(
-            Game.user_id == current_user.id,
-            Game.mode == "daily",
-            func.date(Game.created_at) == today,
-            Game.status != "abandoned",
+    # Check whether the user already has a non-abandoned daily game for TODAY's
+    # actual puzzle word. Matching by target_word avoids confusing archive-replay
+    # games (created_at=today but representing a past puzzle) with the real daily.
+    # If duplicates exist, prefer the one with the most moves.
+    existing_game = None
+    if today_word is not None:
+        played_result = await db.execute(
+            select(Game).where(
+                Game.user_id == current_user.id,
+                Game.mode == "daily",
+                Game.target_word == today_word,
+                func.date(Game.created_at) == today,
+                Game.status != "abandoned",
+            )
         )
-    )
-    existing_game = played_result.scalar_one_or_none()
+        played_rows = list(played_result.scalars().all())
+        played_rows.sort(key=lambda g: (g.num_guesses, g.created_at), reverse=True)
+        existing_game = played_rows[0] if played_rows else None
 
     return {
         "date": str(today),
@@ -248,7 +257,9 @@ async def replay_daily(
     if target_date > today:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot replay a future date.")
 
-    # Check for existing non-abandoned game on that date
+    # Check for existing non-abandoned game on that date. When duplicates exist,
+    # keep the one with the MOST moves (preserve progress); tie-break by latest
+    # created_at. Abandon the rest to self-heal the state.
     existing_result = await db.execute(
         select(Game)
         .options(selectinload(Game.moves))
@@ -259,15 +270,41 @@ async def replay_daily(
             Game.status != "abandoned",
         )
     )
-    existing = existing_result.scalar_one_or_none()
-    if existing:
-        return _build_game_response(existing)
+    existing_games = list(existing_result.scalars().all())
+    if existing_games:
+        existing_games.sort(key=lambda g: (g.num_guesses, g.created_at), reverse=True)
+        keep = existing_games[0]
+        for older in existing_games[1:]:
+            older.status = "abandoned"
+            older.completed_at = datetime.now(timezone.utc)
+        if len(existing_games) > 1:
+            await db.flush()
+        return _build_game_response(keep)
 
-    # Look up the DailyWord for that date
+    # Look up the DailyWord for that date — lazily create one for past dates so
+    # the archive is fully playable even when the daily seed table is sparse.
     dw_result = await db.execute(select(DailyWord).where(DailyWord.date == target_date))
     dw = dw_result.scalar_one_or_none()
     if dw is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No daily puzzle available for that date.")
+        import random as _random
+
+        from app.analysis.engine import ANSWERS
+        from sqlalchemy.exc import IntegrityError
+
+        # Deterministic per-date pick so every user sees the same word for that date
+        rng = _random.Random(target_date.toordinal())
+        chosen = rng.choice(ANSWERS).upper()
+        difficulty = word_to_elo(chosen)
+        dw = DailyWord(word=chosen.lower(), date=target_date, difficulty=difficulty)
+        db.add(dw)
+        try:
+            await db.flush()
+        except IntegrityError:
+            await db.rollback()
+            dw_result = await db.execute(select(DailyWord).where(DailyWord.date == target_date))
+            dw = dw_result.scalar_one_or_none()
+            if dw is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No daily puzzle available for that date.")
 
     target_word = dw.word.upper()
     difficulty = dw.difficulty if dw.difficulty is not None else word_to_elo(target_word)
@@ -295,30 +332,49 @@ async def replay_daily(
 async def start_daily_game(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    rated: Annotated[bool, Query()] = False,
 ) -> GameResponse:
-    """Create (or return an existing) daily game for the authenticated user."""
+    """Create (or return an existing) daily game for the authenticated user.
+
+    Daily games are always unrated — only competitive games affect ELO.
+    """
     from app.routers.games import _build_game_response
     from sqlalchemy.orm import selectinload
 
     today = date.today()
 
-    # Return existing non-abandoned game if user already started today's daily
-    played_result = await db.execute(
-        select(Game)
-        .options(selectinload(Game.moves))
-        .where(
-            Game.user_id == current_user.id,
-            Game.mode == "daily",
-            func.date(Game.created_at) == today,
-            Game.status != "abandoned",
-        )
-    )
-    existing = played_result.scalar_one_or_none()
-    if existing:
-        return _build_game_response(existing)
+    # Resolve today's puzzle word so we can match games by it (not just by date).
+    # Archive-replay games have created_at=today but a different target_word —
+    # they must NOT be confused with today's real daily.
+    dw_result = await db.execute(select(DailyWord).where(DailyWord.date == today))
+    today_dw = dw_result.scalar_one_or_none()
+    today_word = today_dw.word.upper() if today_dw else None
 
-    # Only allow rated daily after placement is complete
-    daily_rated = rated and not current_user.is_placement
-    game = await create_game(db, current_user, mode="daily", daily_rated=daily_rated)
+    if today_word is not None:
+        # Return existing non-abandoned game for TODAY's word. When duplicates
+        # exist (from past code paths), keep the one with the most moves so
+        # player progress isn't lost; tie-break by latest created_at. Abandon
+        # the rest to self-heal.
+        played_result = await db.execute(
+            select(Game)
+            .options(selectinload(Game.moves))
+            .where(
+                Game.user_id == current_user.id,
+                Game.mode == "daily",
+                Game.target_word == today_word,
+                func.date(Game.created_at) == today,
+                Game.status != "abandoned",
+            )
+        )
+        existing_games = list(played_result.scalars().all())
+        if existing_games:
+            existing_games.sort(key=lambda g: (g.num_guesses, g.created_at), reverse=True)
+            keep = existing_games[0]
+            for older in existing_games[1:]:
+                older.status = "abandoned"
+                older.completed_at = datetime.now(timezone.utc)
+            if len(existing_games) > 1:
+                await db.flush()
+            return _build_game_response(keep)
+
+    game = await create_game(db, current_user, mode="daily")
     return _build_game_response(game)
