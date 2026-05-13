@@ -201,58 +201,85 @@ export default function ChallengePage() {
           visible: { transition: stagger.medium },
         }}
       >
-        {/* Hero card */}
+        {/* Hero card — compact header style matching dashboard/review */}
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 20 },
+            hidden: { opacity: 0, y: 12 },
             visible: { opacity: 1, y: 0, transition: springs.slide },
           }}
-          className="rounded-card-lg bg-bg-base border-2 border-border-default overflow-hidden shadow-card"
+          className="rounded-card-lg bg-bg-base border border-border-default overflow-hidden"
+          style={{
+            borderLeftWidth: 3,
+            borderLeftColor: 'var(--tile-correct)',
+          }}
         >
-          {/* Wordle-green top rule */}
-          <div className="h-[3px] w-full bg-tile-correct" />
-
-          <div className="p-6 flex flex-col items-center gap-5 text-center">
-            {/* Icon */}
-            <div className="w-14 h-14 rounded-card-lg bg-bg-elevated border border-border-subtle flex items-center justify-center">
-              <Trophy size={26} style={{ color: 'var(--gold)' }} />
-            </div>
-
-            {/* Title */}
+          <div className="p-6 flex flex-col gap-5">
+            {/* Eyebrow + title */}
             <div>
-              <p className="font-sans text-sm text-text-secondary mb-1">
-                Challenge from a friend
+              <p
+                className="font-sans text-[10px] uppercase tracking-[0.1em] mb-1"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                Challenge
               </p>
-              <h1 className="font-display font-bold text-2xl text-text-primary">
-                You&apos;ve been challenged!
+              <h1
+                className="font-display font-black tracking-tight"
+                style={{
+                  fontSize: '1.75rem',
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.1,
+                }}
+              >
+                {challenge?.already_played
+                  ? 'Challenge results'
+                  : "You've been challenged"}
               </h1>
-              <p className="font-sans text-sm text-text-secondary mt-1.5">
-                Can you solve this Wordle in fewer guesses?
+              <p
+                className="font-sans text-sm mt-1.5"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {challenge?.already_played
+                  ? 'See how you stacked up against everyone who took it on.'
+                  : 'Solve the same word your friend played and compare results.'}
               </p>
             </div>
 
             {/* Meta chips */}
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              {challenge?.word_difficulty && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {challenge?.word_difficulty != null && (
                 <span
-                  className="text-xs px-2.5 py-1 rounded-pill border font-mono"
+                  className="text-[11px] px-2.5 py-1 rounded-pill border font-mono tabular-nums"
                   style={{
-                    color: 'var(--yellow)',
-                    backgroundColor: 'rgba(201,180,88,0.10)',
-                    borderColor: 'rgba(201,180,88,0.22)',
+                    color: 'var(--cls-blue)',
+                    backgroundColor: 'color-mix(in srgb, var(--cls-blue) 12%, transparent)',
+                    borderColor: 'color-mix(in srgb, var(--cls-blue) 30%, transparent)',
                   }}
                 >
-                  Word ELO: {challenge.word_difficulty.toLocaleString()}
+                  Word ELO {Math.round(challenge.word_difficulty)}
                 </span>
               )}
               {hasResults && (
-                <span className="text-xs px-2.5 py-1 rounded-pill border border-border-subtle bg-bg-elevated text-text-secondary flex items-center gap-1.5">
+                <span
+                  className="text-[11px] px-2.5 py-1 rounded-pill border flex items-center gap-1.5"
+                  style={{
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--bg-elevated)',
+                    borderColor: 'var(--border-subtle)',
+                  }}
+                >
                   <Users size={10} />
                   {results.length} {results.length === 1 ? 'player' : 'players'}
                 </span>
               )}
               {allWordsRevealed && challengeWord && (
-                <span className="text-xs px-2.5 py-1 rounded-pill border border-border-subtle bg-bg-elevated text-text-secondary font-mono uppercase tracking-widest">
+                <span
+                  className="text-[11px] px-2.5 py-1 rounded-pill border font-mono uppercase tracking-widest"
+                  style={{
+                    color: 'var(--tile-correct)',
+                    backgroundColor: 'color-mix(in srgb, var(--tile-correct) 12%, transparent)',
+                    borderColor: 'color-mix(in srgb, var(--tile-correct) 30%, transparent)',
+                  }}
+                >
                   {challengeWord}
                 </span>
               )}
@@ -265,31 +292,44 @@ export default function ChallengePage() {
                 whileTap={{ scale: starting ? 1 : 0.98 }}
                 onClick={handlePlay}
                 disabled={starting}
-                className="w-full py-3 rounded-card bg-tile-correct disabled:opacity-60 text-white font-bold text-base uppercase tracking-wider hover:brightness-110 transition-[filter,transform] active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-card disabled:opacity-60 text-white font-bold text-sm tracking-wide hover:brightness-110 transition-[filter,transform] flex items-center justify-center gap-2"
+                style={{ backgroundColor: 'var(--tile-correct)' }}
               >
                 {starting ? (
                   <div className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
                 ) : (
                   <>
-                    <Swords size={18} />
-                    Accept Challenge
+                    <Swords size={16} />
+                    Accept challenge
                     <ChevronRight size={16} className="ml-auto opacity-60" />
                   </>
                 )}
               </motion.button>
             ) : (
               <div className="w-full flex flex-col gap-2">
-                <div className="py-2.5 rounded-card bg-tile-correct/10 border border-tile-correct/25 text-tile-correct text-sm font-semibold text-center flex items-center justify-center gap-2">
+                <div
+                  className="py-2.5 rounded-card text-sm font-semibold text-center flex items-center justify-center gap-2"
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--tile-correct) 12%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--tile-correct) 30%, transparent)',
+                    color: 'var(--tile-correct)',
+                  }}
+                >
                   <Check size={15} />
                   You&apos;ve completed this challenge
                 </div>
                 {challenge.game_id && (
                   <button
                     onClick={() => router.push(`/review/${challenge.game_id}`)}
-                    className="w-full py-2.5 rounded-card bg-bg-elevated border border-border-subtle hover:border-border-default text-text-primary font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-card text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                    style={{
+                      backgroundColor: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                      color: 'var(--text-primary)',
+                    }}
                   >
                     <ExternalLink size={14} />
-                    View Your Game
+                    View your game
                   </button>
                 )}
               </div>

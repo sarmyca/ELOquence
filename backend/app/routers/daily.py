@@ -194,28 +194,43 @@ async def get_archive_month(
     )
     daily_words = {dw.date: dw for dw in dw_result.scalars().all()}
 
-    # Fetch all non-abandoned daily games for this user in this month
-    games_result = await db.execute(
-        select(Game).where(
-            Game.user_id == current_user.id,
-            Game.mode == "daily",
-            Game.status != "abandoned",
-            func.date(Game.created_at) >= month_start,
-            func.date(Game.created_at) <= effective_end,
+    # Match games by target_word — this keys a daily game to its original
+    # puzzle date even when the user replays an old daily today (since a
+    # replay creates a new game row with `created_at = NOW()`). Without this
+    # match-by-word, a replayed game would otherwise appear under the
+    # replay date instead of the puzzle's actual date.
+    target_words = {dw.word.upper() for dw in daily_words.values()}
+    games_by_target: dict[str, Game] = {}
+    if target_words:
+        games_result = await db.execute(
+            select(Game).where(
+                Game.user_id == current_user.id,
+                Game.mode == "daily",
+                Game.status != "abandoned",
+                Game.target_word.in_(target_words),
+            )
         )
-    )
-    # Key by the calendar date of creation
-    games_by_date: dict[date, Game] = {}
-    for g in games_result.scalars().all():
-        gdate = g.created_at.date() if g.created_at else None
-        if gdate:
-            games_by_date[gdate] = g
+        # If a user somehow has multiple games for the same word, prefer the
+        # one with the most progress (most moves), then the earliest.
+        for g in games_result.scalars().all():
+            tw = g.target_word.upper() if g.target_word else None
+            if tw is None:
+                continue
+            existing = games_by_target.get(tw)
+            if existing is None or (
+                g.num_guesses > existing.num_guesses
+                or (g.num_guesses == existing.num_guesses and g.created_at < existing.created_at)
+            ):
+                games_by_target[tw] = g
 
     entries: list[dict] = []
     current = month_start
     while current <= effective_end:
         dw = daily_words.get(current)
-        game = games_by_date.get(current)
+        game = games_by_target.get(dw.word.upper()) if dw else None
+        played_on_day = False
+        if game and game.created_at and dw:
+            played_on_day = game.created_at.date() == dw.date
         entries.append(
             {
                 "date": str(current),
@@ -223,6 +238,9 @@ async def get_archive_month(
                 "played": game is not None,
                 "status": game.status if game else None,
                 "guesses": game.num_guesses if game else None,
+                # True only when the daily was solved on its actual date.
+                # False means it was completed later via archive replay.
+                "played_on_day": played_on_day,
             }
         )
         current += timedelta(days=1)

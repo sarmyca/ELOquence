@@ -341,28 +341,44 @@ export default function GamePage() {
         />
       </div>
 
-      {/* ── Progress dots ── */}
+      {/* ── Progress dots — all 6 always visible, fill as you play ── */}
       <div className="flex items-center justify-center gap-1.5 mb-3 shrink-0" aria-label="Guess progress">
         {Array.from({ length: 6 }).map((_, i) => {
           const isUsed = i < guesses.length;
           const isCurrent = i === guesses.length && gameStatus === 'in_progress';
 
-          let dotColor = 'bg-white/[0.08]';
+          // Default for unused slots: a faint but clearly visible outlined dot
+          // using the border token so it reads in both light and dark themes.
+          let inlineStyle: React.CSSProperties = {
+            backgroundColor: 'transparent',
+            border: '1.5px solid var(--border-default)',
+          };
+
           if (isUsed && patterns[i] !== undefined) {
             const tiles = patternToTiles(patterns[i]);
             const greens = tiles.filter((t) => t === 'correct').length;
-            if (greens === 5) dotColor = 'bg-[#538d4e]';
-            else if (greens > 0) dotColor = 'bg-[#538d4e]/60';
-            else if (tiles.some((t) => t === 'present')) dotColor = 'bg-[#b59f3b]/60';
-            else dotColor = 'bg-[#3a3a3c]';
+            const yellows = tiles.filter((t) => t === 'present').length;
+            let bg = 'var(--tile-absent)';
+            if (greens === 5) bg = 'var(--tile-correct)';
+            else if (greens > 0)
+              bg = `color-mix(in srgb, var(--tile-correct) ${Math.min(100, 40 + greens * 12)}%, var(--tile-absent))`;
+            else if (yellows > 0)
+              bg = `color-mix(in srgb, var(--tile-present) ${Math.min(100, 35 + yellows * 12)}%, var(--tile-absent))`;
+            inlineStyle = { backgroundColor: bg, border: 'none' };
           }
 
           return (
             <div
               key={i}
-              className={`rounded-full transition-all duration-300 ${dotColor} ${
-                isCurrent ? 'w-2 h-2 ring-1 ring-white/20' : 'w-1.5 h-1.5'
+              className={`rounded-full transition-all duration-300 ${
+                isCurrent ? 'w-2 h-2' : 'w-1.5 h-1.5'
               }`}
+              style={{
+                ...inlineStyle,
+                ...(isCurrent
+                  ? { boxShadow: '0 0 0 2px color-mix(in srgb, var(--tile-correct) 35%, transparent)' }
+                  : {}),
+              }}
             />
           );
         })}

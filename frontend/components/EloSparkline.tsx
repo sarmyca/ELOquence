@@ -16,11 +16,11 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function EloSparkline({ data, width = 600, height = 200 }: Props) {
+export default function EloSparkline({ data: rawData, width = 600, height = 200 }: Props) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const gradId = useId().replace(/:/g, '');
 
-  if (data.length < 2) {
+  if (rawData.length === 0) {
     return (
       <div
         className="flex items-center justify-center text-sm text-text-secondary"
@@ -32,6 +32,25 @@ export default function EloSparkline({ data, width = 600, height = 200 }: Props)
       </div>
     );
   }
+
+  // With a single entry we synthesize a "baseline" point at the first
+  // entry's elo_before, recorded just before the first game, so the chart
+  // has two points to draw and the user sees their actual trajectory
+  // (e.g. 1000 → 1051) instead of an empty-state message.
+  const data: EloHistoryEntry[] =
+    rawData.length === 1
+      ? [
+          {
+            ...rawData[0],
+            elo_after: rawData[0].elo_before,
+            delta: 0,
+            recorded_at: new Date(
+              new Date(rawData[0].recorded_at).getTime() - 1000,
+            ).toISOString(),
+          },
+          rawData[0],
+        ]
+      : rawData;
 
   const pad = { top: 20, right: 20, bottom: 30, left: 50 };
   const plotW = width - pad.left - pad.right;

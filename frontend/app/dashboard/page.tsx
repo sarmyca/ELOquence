@@ -18,9 +18,10 @@ import {
   Swords,
   FlaskConical,
   Gamepad2,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { gamesApi, usersApi } from '@/lib/api';
+import { gamesApi, usersApi, challengesApi } from '@/lib/api';
 import { Game, getRatingTier, RATING_TIERS, EloHistoryEntry } from '@/lib/types';
 import { springs, stagger, easings } from '@/lib/animations';
 import EloSparkline from '@/components/EloSparkline';
@@ -33,6 +34,7 @@ function ModeIcon({ mode, size = 14 }: { mode: string; size?: number }) {
   if (mode === 'daily') return <Sun size={size} className={cls} />;
   if (mode === 'competitive') return <Swords size={size} className={cls} />;
   if (mode === 'practice') return <FlaskConical size={size} className={cls} />;
+  if (mode === 'challenge') return <Users size={size} className={cls} />;
   return <Gamepad2 size={size} className={cls} />;
 }
 
@@ -114,6 +116,10 @@ export default function DashboardPage() {
 
   const [games,          setGames]         = useState<Game[]>([]);
   const [loadingGames,   setLoadingGames]   = useState(true);
+  const [gameFilter,     setGameFilter]     = useState<'all' | 'daily' | 'practice' | 'competitive' | 'challenge'>('all');
+  // Map of target_word → challenge code, used to route challenge-mode games
+  // in Recent Games to the challenge results page instead of the review page.
+  const [challengeCodeByWord, setChallengeCodeByWord] = useState<Record<string, string>>({});
   const [deletingId,     setDeletingId]     = useState<string | null>(null);
   const [eloHistory,     setEloHistory]     = useState<EloHistoryEntry[]>([]);
   const [userStats,      setUserStats]      = useState<UserStats | null>(null);
@@ -136,6 +142,21 @@ export default function DashboardPage() {
       })
       .catch(() => {})
       .finally(() => setLoadingGames(false));
+  }, [user]);
+
+  // Fetch user's challenges so we can route challenge games to their results
+  useEffect(() => {
+    if (!user) return;
+    challengesApi
+      .mine()
+      .then((res) => {
+        const map: Record<string, string> = {};
+        for (const c of res.data as Array<{ code: string; target_word: string }>) {
+          map[c.target_word.toUpperCase()] = c.code;
+        }
+        setChallengeCodeByWord(map);
+      })
+      .catch(() => {});
   }, [user]);
 
   // Fetch ELO history
@@ -211,17 +232,29 @@ export default function DashboardPage() {
       ? 'var(--green)'
       : tier.color;
 
-  const completedGames = games.filter((g) => g.status === 'won' || g.status === 'lost');
-  const wonGames       = games.filter((g) => g.status === 'won');
-  const eloWins        = games.filter((g) => (g.elo_delta ?? 0) > 0);
+  const allCompletedGames = games.filter((g) => g.status === 'won' || g.status === 'lost');
+  const completedGames =
+    gameFilter === 'all'
+      ? allCompletedGames
+      : allCompletedGames.filter((g) => g.mode === gameFilter);
+  // Per-mode stat aggregates derived from the same filtered list — keeps the
+  // stat cards (Games Played / Win Rate / Avg Guesses) consistent with the
+  // Recent Games rows below.
+  const wonGamesFiltered = completedGames.filter((g) => g.status === 'won');
+  const gamesPlayedFiltered = completedGames.length;
   const winRate =
     completedGames.length > 0
-      ? Math.round((eloWins.length / completedGames.length) * 100)
+      ? Math.round((wonGamesFiltered.length / completedGames.length) * 100)
       : 0;
   const avgGuesses =
-    wonGames.length > 0
-      ? (wonGames.reduce((s, g) => s + g.num_guesses, 0) / wonGames.length).toFixed(1)
+    wonGamesFiltered.length > 0
+      ? (
+          wonGamesFiltered.reduce((s, g) => s + g.num_guesses, 0) /
+          wonGamesFiltered.length
+        ).toFixed(1)
       : '—';
+  // For the unfiltered "wins distribution" chart we still want all wins.
+  const wonGames = games.filter((g) => g.status === 'won');
 
   const guessDistribution: Record<string, number> =
     (userStats?.distribution as Record<string, number>) ??
@@ -316,12 +349,12 @@ export default function DashboardPage() {
                 {user.current_streak} streak
               </div>
             )}
-            {user.longest_streak > 0 && (
+            {user.max_streak > 0 && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-pill border border-border-subtle text-xs text-text-secondary">
                 <Star size={11} />
                 Best&nbsp;
                 <span className="font-mono tabular-nums text-text-primary font-semibold">
-                  {user.longest_streak}
+                  {user.max_streak}
                 </span>
               </div>
             )}
@@ -364,6 +397,44 @@ export default function DashboardPage() {
         </div>
       </motion.section>
 
+      {/* ── MODE FILTER (controls stats grid + recent games) ───────────── */}
+      <div
+        role="tablist"
+        aria-label="Filter by mode"
+        className="flex gap-1 p-1 rounded-card bg-bg-elevated border border-border-subtle w-fit"
+      >
+        {(
+          [
+            { key: 'all',         label: 'All',         count: allCompletedGames.length },
+            { key: 'daily',       label: 'Daily',       count: allCompletedGames.filter((g) => g.mode === 'daily').length },
+            { key: 'practice',    label: 'Practice',    count: allCompletedGames.filter((g) => g.mode === 'practice').length },
+            { key: 'competitive', label: 'Competitive', count: allCompletedGames.filter((g) => g.mode === 'competitive').length },
+            { key: 'challenge',   label: 'Challenge',   count: allCompletedGames.filter((g) => g.mode === 'challenge').length },
+          ] as const
+        ).map((opt) => {
+          const active = gameFilter === opt.key;
+          return (
+            <button
+              key={opt.key}
+              role="tab"
+              type="button"
+              aria-selected={active}
+              onClick={() => setGameFilter(opt.key)}
+              className={clsx(
+                'px-3 py-1.5 rounded-card text-xs font-sans font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2',
+                active
+                  ? 'bg-bg-base text-text-primary shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary'
+              )}
+              style={active ? { outlineColor: 'var(--tile-correct)' } : undefined}
+            >
+              {opt.label}
+              <span className="ml-1.5 text-text-ghost font-mono">{opt.count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── STATS GRID ─────────────────────────────────────────────────── */}
       <motion.div
         className="grid grid-cols-2 sm:grid-cols-4 gap-3"
@@ -374,7 +445,7 @@ export default function DashboardPage() {
       >
         <StatCard
           label="Games Played"
-          value={user.games_played}
+          value={gamesPlayedFiltered}
           icon={<Hash size={13} />}
           variants={cardVariants}
         />
@@ -490,21 +561,38 @@ export default function DashboardPage() {
                 <Gamepad2 size={22} className="text-text-ghost" />
               </div>
               <div className="space-y-1">
-                <p className="font-sans text-sm font-medium text-text-secondary">No completed games yet</p>
+                <p className="font-sans text-sm font-medium text-text-secondary">
+                  {gameFilter === 'all'
+                    ? 'No completed games yet'
+                    : `No completed ${gameFilter} games`}
+                </p>
                 <p className="font-sans text-xs text-text-ghost">
-                  Finish a game to see it here.
+                  {gameFilter === 'all'
+                    ? 'Finish a game to see it here.'
+                    : 'Try a different filter or play one.'}
                 </p>
               </div>
-              <Link
-                href="/play"
-                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-card text-white text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2"
-                style={{
-                  backgroundColor: 'var(--tile-correct)',
-                  outlineColor: 'var(--tile-correct)',
-                }}
-              >
-                Play a Game
-              </Link>
+              {gameFilter === 'all' ? (
+                <Link
+                  href="/play"
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-card text-white text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2"
+                  style={{
+                    backgroundColor: 'var(--tile-correct)',
+                    outlineColor: 'var(--tile-correct)',
+                  }}
+                >
+                  Play a Game
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setGameFilter('all')}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-card border border-border-default text-text-secondary text-sm font-semibold transition-colors hover:bg-bg-elevated focus-visible:outline-none focus-visible:ring-2"
+                  style={{ outlineColor: 'var(--tile-correct)' }}
+                >
+                  Show all
+                </button>
+              )}
             </div>
           ) : (
             /* Game rows */
@@ -516,6 +604,19 @@ export default function DashboardPage() {
                 const showWord    =
                   !(game.status === 'in_progress') &&
                   !(game.status === 'abandoned' && game.mode === 'daily');
+
+                const challengeCode =
+                  game.mode === 'challenge'
+                    ? challengeCodeByWord[game.target_word?.toUpperCase() ?? '']
+                    : undefined;
+                const onRowClick = () => {
+                  if (!isClickable) return;
+                  if (challengeCode) {
+                    router.push(`/challenge/${challengeCode}`);
+                  } else {
+                    router.push(`/review/${game.id}`);
+                  }
+                };
 
                 return (
                   <motion.div
@@ -532,10 +633,12 @@ export default function DashboardPage() {
                           ? 'cursor-pointer hover:bg-bg-elevated/50 active:bg-bg-muted'
                           : 'cursor-default'
                       )}
-                      onClick={() => isClickable && router.push(`/review/${game.id}`)}
+                      onClick={onRowClick}
                       aria-label={
                         isClickable
-                          ? `Review ${showWord ? game.target_word : '?????'} — ${statusInfo.label}`
+                          ? (challengeCode
+                              ? `Challenge results for ${showWord ? game.target_word : '?????'}`
+                              : `Review ${showWord ? game.target_word : '?????'} — ${statusInfo.label}`)
                           : undefined
                       }
                     >

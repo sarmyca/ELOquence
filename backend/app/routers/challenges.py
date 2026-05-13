@@ -19,6 +19,52 @@ from app.services.auth import get_current_user
 router = APIRouter(prefix="/challenges", tags=["challenges"])
 
 
+@router.get("/mine")
+async def my_challenges(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[dict]:
+    """Return challenges the authenticated user has participated in.
+
+    Includes challenges the user created plus any whose target_word matches
+    one of the user's challenge-mode games. Useful for re-finding a result
+    page after exiting.
+    """
+    # Challenges the user created
+    created = await db.execute(
+        select(Challenge).where(Challenge.creator_id == current_user.id)
+    )
+    by_code: dict[str, Challenge] = {c.code: c for c in created.scalars().all()}
+
+    # Challenges the user has played as a non-creator: match their challenge
+    # games' target_words to Challenge.target_word.
+    played_games = await db.execute(
+        select(Game.target_word).where(
+            Game.user_id == current_user.id,
+            Game.mode == "challenge",
+        )
+    )
+    target_words = {tw for (tw,) in played_games.all() if tw}
+    if target_words:
+        others = await db.execute(
+            select(Challenge).where(Challenge.target_word.in_(target_words))
+        )
+        for c in others.scalars().all():
+            by_code.setdefault(c.code, c)
+
+    out = sorted(by_code.values(), key=lambda c: c.created_at, reverse=True)
+    return [
+        {
+            "code": c.code,
+            "target_word": c.target_word,
+            "word_difficulty": c.word_difficulty,
+            "is_creator": c.creator_id == current_user.id,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in out
+    ]
+
+
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_challenge(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -143,6 +189,10 @@ async def play_challenge(
     )
     db.add(game)
     await db.flush()
+    # Eagerly load the (empty) moves relationship so the Pydantic response
+    # builder can read it without triggering a lazy DB hit inside a sync
+    # context (which causes a MissingGreenlet error).
+    await db.refresh(game, ["moves"])
 
     return _build_game_response(game).model_dump()
 

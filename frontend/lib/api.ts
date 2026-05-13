@@ -132,6 +132,7 @@ export const challengesApi = {
   get: (code: string) => api.get(`/challenges/${code}`),
   play: (code: string) => api.post(`/challenges/${code}/play`),
   results: (code: string) => api.get(`/challenges/${code}/results`),
+  mine: () => api.get('/challenges/mine'),
 };
 
 // Community stats

@@ -1,32 +1,26 @@
-"""Achievement service — check conditions and unlock achievements after game completion."""
+"""Achievement service — check conditions and unlock achievements after game completion.
+
+Designed around metrics the app actually tracks:
+  - num_guesses (1..6) + status
+  - accuracy_score per game (0–100)
+  - daily streak fields on the user
+  - elo_rating + word_difficulty for rating-based unlocks
+  - total game count + distinct modes for variety unlocks
+"""
 from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.achievement import Achievement
 from app.models.game import Game
-from app.models.move import Move
 from app.models.user import User
 
 
 async def check_and_unlock(db: AsyncSession, user: User, game: Game) -> list[str]:
-    """Check all achievement conditions after a game completes.
-
-    Evaluates each achievement condition against the completed game and the
-    user's current stats. Any achievement that is newly satisfied and not yet
-    awarded is inserted into the database.
-
-    Args:
-        db: Active async session (must be open; caller commits).
-        user: The authenticated player.
-        game: The game that just completed.
-
-    Returns:
-        List of newly unlocked achievement_type strings.
-    """
+    """Check achievement conditions after a game completes and award new unlocks."""
     unlocked: list[str] = []
     existing = await _get_existing(db, user.id)
 
@@ -42,51 +36,28 @@ async def check_and_unlock(db: AsyncSession, user: User, game: Game) -> list[str
             unlocked.append(atype)
             existing.add(atype)
 
-    # --- Accuracy milestones ---
+    # ── Solving ────────────────────────────────────────────────────────────
+    if game.status == "won":
+        await _try_unlock("first_win")
+        if game.num_guesses <= 3:
+            await _try_unlock("quick_solve")
+        if game.num_guesses == 2:
+            await _try_unlock("bullseye")
+        if game.num_guesses == 1:
+            await _try_unlock("hole_in_one")
+        if game.num_guesses == 6:
+            await _try_unlock("last_chance")
+
+    # ── Accuracy ───────────────────────────────────────────────────────────
     if game.accuracy_score is not None:
         if game.accuracy_score >= 90:
-            await _try_unlock("first_90_accuracy")
+            await _try_unlock("sharpshooter")
         if game.accuracy_score >= 95:
-            await _try_unlock("first_95_accuracy")
+            await _try_unlock("precision")
         if game.accuracy_score >= 100:
-            await _try_unlock("first_100_accuracy")
+            await _try_unlock("perfect_game")
 
-    # --- Won-game achievements ---
-    if game.status == "won":
-        moves_result = await db.execute(
-            select(Move).where(Move.game_id == game.id)
-        )
-        moves = list(moves_result.scalars().all())
-
-        # Perfectionist: every classified move must be best, brilliant, or forced
-        if moves and all(
-            m.classification in ("best", "brilliant", "forced")
-            for m in moves
-            if m.classification
-        ):
-            await _try_unlock("perfectionist")
-
-        # Brilliant move milestones
-        brilliants_in_game = [m for m in moves if m.classification == "brilliant"]
-        if brilliants_in_game:
-            await _try_unlock("first_brilliant")
-
-        # Count total brilliants across all of the user's games
-        total_brilliant_result = await db.execute(
-            select(func.count())
-            .select_from(Move)
-            .join(Game, Move.game_id == Game.id)
-            .where(Game.user_id == user.id, Move.classification == "brilliant")
-        )
-        if total_brilliant_result.scalar_one() >= 10:
-            await _try_unlock("ten_brilliants")
-
-        # Underdog: beat a word 300+ ELO above the player's pre-game rating
-        if game.word_difficulty is not None and game.elo_before is not None:
-            if game.word_difficulty - game.elo_before >= 300:
-                await _try_unlock("underdog")
-
-    # --- Streak milestones ---
+    # ── Streaks (daily) ────────────────────────────────────────────────────
     if user.current_streak >= 7:
         await _try_unlock("streak_7")
     if user.current_streak >= 30:
@@ -94,17 +65,40 @@ async def check_and_unlock(db: AsyncSession, user: User, game: Game) -> list[str
     if user.current_streak >= 100:
         await _try_unlock("streak_100")
 
-    # --- Rating milestones ---
+    # ── Rating (competitive ELO + upset wins) ──────────────────────────────
     if user.elo_rating >= 1200:
         await _try_unlock("reach_veteran")
     if user.elo_rating >= 1400:
         await _try_unlock("reach_master")
     if user.elo_rating >= 1600:
         await _try_unlock("reach_grandmaster")
+    if (
+        game.status == "won"
+        and game.word_difficulty is not None
+        and game.elo_before is not None
+        and game.word_difficulty - game.elo_before >= 200
+    ):
+        await _try_unlock("upset")
 
-    # --- Climber: gained 200 ELO from the default starting rating of 1000 ---
-    if user.elo_rating >= 1200:
-        await _try_unlock("climber")
+    # ── Variety (volume + mode coverage) ───────────────────────────────────
+    total_completed_q = await db.execute(
+        select(func.count())
+        .select_from(Game)
+        .where(Game.user_id == user.id, Game.status.in_(["won", "lost"]))
+    )
+    total_completed = total_completed_q.scalar_one() or 0
+    if total_completed >= 25:
+        await _try_unlock("regular")
+    if total_completed >= 200:
+        await _try_unlock("marathon")
+
+    distinct_modes_q = await db.execute(
+        select(func.count(distinct(Game.mode)))
+        .select_from(Game)
+        .where(Game.user_id == user.id, Game.status.in_(["won", "lost"]))
+    )
+    if (distinct_modes_q.scalar_one() or 0) >= 3:
+        await _try_unlock("triathlete")
 
     await db.flush()
     return unlocked
@@ -135,90 +129,35 @@ async def get_user_achievements(db: AsyncSession, user_id: uuid.UUID) -> list[di
     ]
 
 
-# All possible achievements for display (including locked ones)
+# All possible achievements for display (including locked ones).
+# The frontend supplies its own Lucide icons + category mapping; the emoji
+# in `icon` is just a fallback for clients that don't have the mapping.
 ALL_ACHIEVEMENTS: list[dict] = [
-    {
-        "type": "first_90_accuracy",
-        "name": "Sharpshooter",
-        "description": "Achieve 90%+ accuracy in a game",
-        "icon": "🎯",
-    },
-    {
-        "type": "first_95_accuracy",
-        "name": "Precision",
-        "description": "Achieve 95%+ accuracy in a game",
-        "icon": "💎",
-    },
-    {
-        "type": "first_100_accuracy",
-        "name": "Perfect",
-        "description": "Achieve 100% accuracy in a game",
-        "icon": "👑",
-    },
-    {
-        "type": "first_brilliant",
-        "name": "Eureka",
-        "description": "Find your first Brilliant move",
-        "icon": "💡",
-    },
-    {
-        "type": "ten_brilliants",
-        "name": "Mastermind",
-        "description": "Find 10 Brilliant moves",
-        "icon": "🧠",
-    },
-    {
-        "type": "perfectionist",
-        "name": "Perfectionist",
-        "description": "Complete a game with all Best/Brilliant moves",
-        "icon": "⭐",
-    },
-    {
-        "type": "streak_7",
-        "name": "On Fire",
-        "description": "Maintain a 7-day streak",
-        "icon": "🔥",
-    },
-    {
-        "type": "streak_30",
-        "name": "Dedicated",
-        "description": "Maintain a 30-day streak",
-        "icon": "📅",
-    },
-    {
-        "type": "streak_100",
-        "name": "Unstoppable",
-        "description": "Maintain a 100-day streak",
-        "icon": "🏆",
-    },
-    {
-        "type": "reach_veteran",
-        "name": "Veteran",
-        "description": "Reach 1200 ELO",
-        "icon": "⚔️",
-    },
-    {
-        "type": "reach_master",
-        "name": "Master",
-        "description": "Reach 1400 ELO",
-        "icon": "🏅",
-    },
-    {
-        "type": "reach_grandmaster",
-        "name": "Grandmaster",
-        "description": "Reach 1600 ELO",
-        "icon": "👊",
-    },
-    {
-        "type": "underdog",
-        "name": "Underdog",
-        "description": "Beat a word 300+ ELO above your rating",
-        "icon": "💪",
-    },
-    {
-        "type": "climber",
-        "name": "Climber",
-        "description": "Gain 200 ELO from starting rating",
-        "icon": "📈",
-    },
+    # ─── Solving ────────────────────────────────────────────────────────────
+    {"type": "first_win",         "name": "First Win",      "description": "Solve your first puzzle",            "icon": "🏁"},
+    {"type": "quick_solve",       "name": "Quick Solve",    "description": "Win in 3 guesses or fewer",          "icon": "⚡"},
+    {"type": "bullseye",          "name": "Bullseye",       "description": "Win in exactly 2 guesses",           "icon": "🎯"},
+    {"type": "hole_in_one",       "name": "Hole in One",    "description": "Win in 1 guess",                     "icon": "🏆"},
+    {"type": "last_chance",       "name": "Last Chance",    "description": "Win on your 6th guess",              "icon": "🛡"},
+
+    # ─── Accuracy ───────────────────────────────────────────────────────────
+    {"type": "sharpshooter",      "name": "Sharpshooter",   "description": "Hit 90%+ accuracy in a game",        "icon": "🎯"},
+    {"type": "precision",         "name": "Precision",      "description": "Hit 95%+ accuracy in a game",        "icon": "💎"},
+    {"type": "perfect_game",      "name": "Perfect Game",   "description": "Hit 100% accuracy in a game",        "icon": "✨"},
+
+    # ─── Streaks (Daily) ────────────────────────────────────────────────────
+    {"type": "streak_7",          "name": "On Fire",        "description": "Reach a 7-day daily streak",         "icon": "🔥"},
+    {"type": "streak_30",         "name": "Dedicated",      "description": "Reach a 30-day daily streak",        "icon": "📅"},
+    {"type": "streak_100",        "name": "Unstoppable",    "description": "Reach a 100-day daily streak",       "icon": "🏆"},
+
+    # ─── Rating (Competitive) ───────────────────────────────────────────────
+    {"type": "reach_veteran",     "name": "Veteran",        "description": "Reach 1200 ELO",                      "icon": "⚔️"},
+    {"type": "reach_master",      "name": "Master",         "description": "Reach 1400 ELO",                      "icon": "🏅"},
+    {"type": "reach_grandmaster", "name": "Grandmaster",    "description": "Reach 1600 ELO",                      "icon": "👑"},
+    {"type": "upset",             "name": "Upset",          "description": "Beat a word 200+ ELO above you",      "icon": "📈"},
+
+    # ─── Variety ────────────────────────────────────────────────────────────
+    {"type": "regular",           "name": "Regular",        "description": "Play 25 games",                       "icon": "🎮"},
+    {"type": "marathon",          "name": "Marathon",       "description": "Play 200 games",                      "icon": "🏃"},
+    {"type": "triathlete",        "name": "Triathlete",     "description": "Play Daily, Competitive, & Practice", "icon": "🎲"},
 ]

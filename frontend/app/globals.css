@@ -40,6 +40,15 @@
   --yellow:      #c9b458;
   --red:         #e74c3c;
   --gold:        #c9a227;
+  --silver:      #8b95a1;
+  --bronze:      #b87333;
+
+  /* Classification palette — muted, tuned to match the Wordle tile
+     palette (≈30–55% saturation, ≈40–55% lightness). Used by the
+     move-classification pills/icons on the review page. */
+  --cls-blue:   #6485aa;
+  --cls-orange: #c98e58;
+  --cls-red:    #aa6464;
 
   /* Duration tokens (mirrored in tailwind) */
   --dur-fast: 120ms;
@@ -82,6 +91,12 @@
   --green:       #538d4e;
   --green-light: #6aaa64;
   --yellow:      #b59f3b;
+  --silver:      #a8b1bb;
+  --bronze:      #c47a3a;
+
+  --cls-blue:   #4e6c8d;
+  --cls-orange: #b5793b;
+  --cls-red:    #8d4e4e;
 
   color-scheme: dark;
 }

@@ -1,7 +1,7 @@
 """ELO calculation and update service."""
 import math
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -173,7 +173,8 @@ async def apply_elo_update(
     # Daily-streak updates moved to update_daily_streak() so they fire for
     # unrated daily games too (daily is unrated; only competitive moves ELO).
 
-    # Write EloHistory record
+    # Write EloHistory record — set recorded_at explicitly so we don't depend
+    # on a DB-side default that may not be present in every environment.
     history_entry = EloHistory(
         id=uuid.uuid4(),
         user_id=user.id,
@@ -182,5 +183,6 @@ async def apply_elo_update(
         elo_after=elo_after,
         delta=elo_after - elo_before,
         accuracy_score=accuracy,
+        recorded_at=datetime.now(timezone.utc),
     )
     db.add(history_entry)

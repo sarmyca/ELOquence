@@ -178,7 +178,7 @@ async def seed():
             games_played = 0
             current_elo = 1000.0
             current_streak = 0
-            longest_streak = 0
+            max_streak = 0
             is_placement = True
 
             # Create user
@@ -189,7 +189,7 @@ async def seed():
                 text("""
                     INSERT INTO users (id, email, username, password_hash,
                         elo_rating, games_played, is_placement,
-                        current_streak, longest_streak, last_played_date,
+                        current_streak, max_streak, last_played_date,
                         is_admin, created_at)
                     VALUES (:id, :email, :username, :pw,
                         :elo, :gp, :placement,
@@ -252,7 +252,7 @@ async def seed():
                 # Streaks
                 if status == "won":
                     current_streak += 1
-                    longest_streak = max(longest_streak, current_streak)
+                    max_streak = max(max_streak, current_streak)
                 else:
                     current_streak = 0
 
@@ -378,14 +378,14 @@ async def seed():
                         games_played = :gp,
                         is_placement = :placement,
                         current_streak = :cs,
-                        longest_streak = :ls,
+                        max_streak = :ls,
                         last_played_date = :lpd
                     WHERE id = :id
                 """),
                 {
                     "id": user_id, "elo": current_elo, "gp": games_played,
                     "placement": is_placement, "cs": current_streak,
-                    "ls": longest_streak, "lpd": last_played,
+                    "ls": max_streak, "lpd": last_played,
                 },
             )
 

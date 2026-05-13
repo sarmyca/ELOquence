@@ -32,10 +32,12 @@ function TierDot({ elo }: { elo: number }) {
 
 // ─── Rank badge — no medal fill, accent border approach ──────────────────────
 // Top 3 use accent color text; rest use muted text
+// Mirrors the Wordle-tile palette used elsewhere in the app:
+// blue = best (#1), green = good (#2), yellow = okay (#3).
 const TOP3_COLORS: Record<number, string> = {
-  1: 'var(--gold)',
-  2: 'var(--text-secondary)',
-  3: 'var(--yellow)',
+  1: 'var(--cls-blue)',
+  2: 'var(--tile-correct)',
+  3: 'var(--tile-present)',
 };
 
 function RankBadge({ rank }: { rank: number }) {
@@ -297,7 +299,14 @@ export default function LeaderboardPage() {
             </span>
           </div>
 
-          {/* Body */}
+          {/* Body — scrolls inside the card so the page itself doesn't grow */}
+          <div
+            className="overflow-y-auto"
+            style={{
+              maxHeight: 'max(280px, calc(100dvh - 420px))',
+              scrollbarGutter: 'stable',
+            }}
+          >
           {loading ? (
             <div>
               {Array.from({ length: 10 }).map((_, i) => (
@@ -319,6 +328,7 @@ export default function LeaderboardPage() {
               )}
             </motion.div>
           ) : null}
+          </div>
         </motion.div>
       )}
 

@@ -28,7 +28,7 @@ const STATE_STYLES: Record<TileState, string> = {
   absent:  'border-2',
 };
 
-const REVEALED_SHADOW = 'inset 0 -2px 0 rgba(0,0,0,0.18)';
+const REVEALED_SHADOW = '0 1px 2px rgba(0, 0, 0, 0.18), 0 1px 0 rgba(0, 0, 0, 0.10)';
 
 export default function Tile({
   letter = '',

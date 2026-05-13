@@ -40,7 +40,10 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
         const count = counts[key] ?? 0;
         const isHighlighted = highlightKey === key;
         const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
-        const isLarge = pct > 40;
+        // Ensure the bar is always wide enough to hold the count digit(s)
+        // inside, even when its share is tiny. Zero rows render a flat stub
+        // with no number at all.
+        const minPx = count === 0 ? 4 : 26;
 
         return (
           <div key={key} className="flex items-center gap-2">
@@ -61,17 +64,17 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
                     ? 'var(--tile-correct)'
                     : 'var(--text-secondary)',
                   opacity: isHighlighted ? 1 : 0.6,
-                  minWidth: 8,
+                  minWidth: minPx,
                 }}
                 initial={{ width: '0%' }}
-                animate={{ width: `max(8px, ${pct}%)` }}
+                animate={{ width: `max(${minPx}px, ${pct}%)` }}
                 transition={{
                   duration: 0.5,
                   delay: rowIdx * 0.06,
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                {isLarge && (
+                {count > 0 && (
                   <span
                     className="font-sans tabular-nums px-2 shrink-0"
                     style={{
@@ -85,25 +88,6 @@ export default function GuessDistribution({ distribution, losses, highlight }: P
                 )}
               </motion.div>
             </div>
-
-            {/* Count outside bar if bar is small */}
-            {!isLarge && (
-              <motion.span
-                className="font-sans tabular-nums text-text-secondary shrink-0"
-                style={{ fontSize: 12, width: 28, textAlign: 'right' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: rowIdx * 0.06 + 0.4 }}
-              >
-                {count}
-              </motion.span>
-            )}
-            {isLarge && (
-              <span
-                className="font-sans tabular-nums text-text-tertiary shrink-0"
-                style={{ fontSize: 10, width: 28, textAlign: 'right' }}
-              />
-            )}
           </div>
         );
       })}

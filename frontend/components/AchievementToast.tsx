@@ -7,76 +7,33 @@ export const ACHIEVEMENT_META: Record<
   string,
   { name: string; description: string; icon: string }
 > = {
-  first_90_accuracy: {
-    name: 'Sharpshooter',
-    description: 'Achieve 90%+ accuracy',
-    icon: '🎯',
-  },
-  first_95_accuracy: {
-    name: 'Precision',
-    description: 'Achieve 95%+ accuracy',
-    icon: '💎',
-  },
-  first_100_accuracy: {
-    name: 'Perfect',
-    description: 'Achieve 100% accuracy',
-    icon: '👑',
-  },
-  first_brilliant: {
-    name: 'Eureka',
-    description: 'First Brilliant move',
-    icon: '💡',
-  },
-  ten_brilliants: {
-    name: 'Mastermind',
-    description: '10 Brilliant moves',
-    icon: '🧠',
-  },
-  perfectionist: {
-    name: 'Perfectionist',
-    description: 'All Best/Brilliant game',
-    icon: '⭐',
-  },
-  streak_7: {
-    name: 'On Fire',
-    description: '7-day streak',
-    icon: '🔥',
-  },
-  streak_30: {
-    name: 'Dedicated',
-    description: '30-day streak',
-    icon: '📅',
-  },
-  streak_100: {
-    name: 'Unstoppable',
-    description: '100-day streak',
-    icon: '🏆',
-  },
-  reach_veteran: {
-    name: 'Veteran',
-    description: 'Reach 1200 ELO',
-    icon: '⚔️',
-  },
-  reach_master: {
-    name: 'Master',
-    description: 'Reach 1400 ELO',
-    icon: '🏅',
-  },
-  reach_grandmaster: {
-    name: 'Grandmaster',
-    description: 'Reach 1600 ELO',
-    icon: '👊',
-  },
-  underdog: {
-    name: 'Underdog',
-    description: 'Beat word 300+ above',
-    icon: '💪',
-  },
-  climber: {
-    name: 'Climber',
-    description: '+200 ELO gained',
-    icon: '📈',
-  },
+  // Solving
+  first_win:    { name: 'First Win',    description: 'Solve your first puzzle',       icon: '🏁' },
+  quick_solve:  { name: 'Quick Solve',  description: 'Win in 3 guesses or fewer',     icon: '⚡' },
+  bullseye:     { name: 'Bullseye',     description: 'Win in 2 guesses',              icon: '🎯' },
+  hole_in_one:  { name: 'Hole in One',  description: 'Win in 1 guess',                icon: '🏆' },
+  last_chance:  { name: 'Last Chance',  description: 'Win on your 6th guess',         icon: '🛡' },
+
+  // Accuracy
+  sharpshooter: { name: 'Sharpshooter', description: 'Hit 90%+ accuracy in a game',   icon: '🎯' },
+  precision:    { name: 'Precision',    description: 'Hit 95%+ accuracy in a game',   icon: '💎' },
+  perfect_game: { name: 'Perfect Game', description: 'Hit 100% accuracy in a game',   icon: '✨' },
+
+  // Streaks
+  streak_7:     { name: 'On Fire',     description: '7-day daily streak',             icon: '🔥' },
+  streak_30:    { name: 'Dedicated',   description: '30-day daily streak',            icon: '📅' },
+  streak_100:   { name: 'Unstoppable', description: '100-day daily streak',           icon: '🏆' },
+
+  // Rating
+  reach_veteran:     { name: 'Veteran',     description: 'Reach 1200 ELO',                 icon: '⚔️' },
+  reach_master:      { name: 'Master',      description: 'Reach 1400 ELO',                 icon: '🏅' },
+  reach_grandmaster: { name: 'Grandmaster', description: 'Reach 1600 ELO',                 icon: '👑' },
+  upset:             { name: 'Upset',       description: 'Beat a word 200+ ELO above you', icon: '📈' },
+
+  // Variety
+  regular:    { name: 'Regular',    description: 'Play 25 games',                              icon: '🎮' },
+  marathon:   { name: 'Marathon',   description: 'Play 200 games',                             icon: '🏃' },
+  triathlete: { name: 'Triathlete', description: 'Play Daily, Competitive, and Practice',     icon: '🎲' },
 };
 
 interface AchievementToastProps {

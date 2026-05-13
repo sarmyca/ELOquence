@@ -105,7 +105,8 @@ async def analyze_game_endpoint(
         constraint_violations=analysis["constraint_violations"],
         traps_encountered=analysis["traps_encountered"],
         # WordleBot-spec aggregates
-        skill_avg_excluding_opener=analysis.get("skill_avg_excluding_opener", 0.0),
+        skill_avg=analysis.get("skill_avg", 0.0),
+        skill_avg_excluding_opener=analysis.get("skill_avg", 0.0),
         luck_avg=analysis.get("luck_avg", 0.0),
         uniqueness_percentile=analysis.get("uniqueness_percentile", 1),
         bot_solve_path=analysis.get("bot_solve_path", []),
@@ -171,6 +172,22 @@ async def analyze_game_endpoint(
                     )
                     for pb in m.get("pattern_distribution", [])
                 ],
+                optimal_pattern_distribution=[
+                    PatternBucket(
+                        pattern=pb["pattern"],
+                        count=pb["count"],
+                        probability=pb["probability"],
+                        is_actual=pb["is_actual"],
+                        words=pb.get("words", []),
+                    )
+                    for pb in m.get("optimal_pattern_distribution", [])
+                ],
+                optimal_num_groups=m.get("optimal_num_groups"),
+                optimal_largest_group=m.get("optimal_largest_group"),
+                optimal_actual_solutions_after=m.get("optimal_actual_solutions_after"),
+                optimal_expected_steps_until_solution=m.get(
+                    "optimal_expected_steps_until_solution"
+                ),
                 letter_frequencies=m.get("letter_frequencies", {}),
                 # WordleBot-spec per-turn fields
                 skill_score=m.get("skill_score", 0),

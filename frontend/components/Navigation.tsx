@@ -13,6 +13,7 @@ const GUEST_NAV_LINKS = [
   { href: '/archive', label: 'Archive' },
   { href: '/leaderboard', label: 'Leaderboard' },
   { href: '/learn', label: 'Learn' },
+  { href: '/faq', label: 'FAQ' },
 ];
 
 const AUTH_NAV_LINKS = [
@@ -21,6 +22,7 @@ const AUTH_NAV_LINKS = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/leaderboard', label: 'Leaderboard' },
   { href: '/learn', label: 'Learn' },
+  { href: '/faq', label: 'FAQ' },
 ];
 
 function isLinkActive(pathname: string, href: string): boolean {

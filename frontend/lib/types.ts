@@ -20,7 +20,7 @@ export interface User {
   games_played: number;
   is_placement: boolean;
   current_streak: number;
-  longest_streak: number;
+  max_streak: number;
   is_admin: boolean;
   created_at: string;
 }
@@ -94,6 +94,11 @@ export interface MoveAnalysis extends Move {
     trap_size: number;
   } | null;
   pattern_distribution?: PatternBucket[];
+  optimal_pattern_distribution?: PatternBucket[];
+  optimal_num_groups?: number;
+  optimal_largest_group?: number;
+  optimal_actual_solutions_after?: number;
+  optimal_expected_steps_until_solution?: number;
   letter_frequencies?: Record<string, Record<string, number>>;
   // WordleBot-spec per-turn fields
   skill_score?: number;
@@ -124,6 +129,7 @@ export interface AnalysisResult {
   constraint_violations: number;
   traps_encountered: number;
   // WordleBot-spec aggregate fields
+  skill_avg?: number;
   skill_avg_excluding_opener?: number;
   luck_avg?: number;
   uniqueness_percentile?: number;

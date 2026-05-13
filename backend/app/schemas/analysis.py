@@ -55,6 +55,11 @@ class MoveAnalysis(BaseModel):
     remaining_words_list: list[str] = []
     top_picks: list[TopPick]
     pattern_distribution: list[PatternBucket] = []
+    optimal_pattern_distribution: list[PatternBucket] = []
+    optimal_num_groups: int | None = None
+    optimal_largest_group: int | None = None
+    optimal_actual_solutions_after: int | None = None
+    optimal_expected_steps_until_solution: float | None = None
     letter_frequencies: dict[str, dict[str, float]] = {}
 
     # --- WordleBot-spec per-turn fields ---
@@ -110,7 +115,8 @@ class AnalysisResponse(BaseModel):
     patterns: list[StrategicPattern] = []
 
     # --- WordleBot-spec aggregate fields ---
-    skill_avg_excluding_opener: float = 0.0
+    skill_avg: float = 0.0
+    skill_avg_excluding_opener: float = 0.0  # alias for older clients
     luck_avg: float = 0.0
     uniqueness_percentile: int = 1
     bot_solve_path: list[str] = []

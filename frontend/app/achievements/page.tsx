@@ -1,11 +1,30 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import type { Variants } from 'framer-motion';
-import { Lock, Trophy } from 'lucide-react';
+import {
+  Flag,
+  Zap,
+  Target,
+  Award,
+  ShieldCheck,
+  Crosshair,
+  Gem,
+  Sparkles,
+  Flame,
+  CalendarDays,
+  Trophy,
+  Swords,
+  Medal,
+  Crown,
+  TrendingUp,
+  Hash,
+  Activity,
+  Layers,
+  Lock,
+} from 'lucide-react';
+import clsx from 'clsx';
 import { achievementsApi } from '@/lib/api';
 import { ACHIEVEMENT_META } from '@/components/AchievementToast';
-import { stagger } from '@/lib/animations';
 
 interface AchievementDef {
   type: string;
@@ -19,123 +38,198 @@ interface UnlockedAchievement {
   unlocked_at: string;
 }
 
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+type Category = 'solving' | 'accuracy' | 'streaks' | 'rating' | 'variety';
+
+const CATEGORY_FOR_TYPE: Record<string, Category> = {
+  // Solving
+  first_win:         'solving',
+  quick_solve:       'solving',
+  bullseye:          'solving',
+  hole_in_one:       'solving',
+  last_chance:       'solving',
+  // Accuracy
+  sharpshooter:      'accuracy',
+  precision:         'accuracy',
+  perfect_game:      'accuracy',
+  // Streaks
+  streak_7:          'streaks',
+  streak_30:         'streaks',
+  streak_100:        'streaks',
+  // Rating
+  reach_veteran:     'rating',
+  reach_master:      'rating',
+  reach_grandmaster: 'rating',
+  upset:             'rating',
+  // Variety
+  regular:           'variety',
+  marathon:          'variety',
+  triathlete:        'variety',
+};
+
+const ICON_FOR_TYPE: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
+  // Solving
+  first_win:    Flag,
+  quick_solve:  Zap,
+  bullseye:     Target,
+  hole_in_one:  Award,
+  last_chance:  ShieldCheck,
+  // Accuracy
+  sharpshooter: Crosshair,
+  precision:    Gem,
+  perfect_game: Sparkles,
+  // Streaks
+  streak_7:     Flame,
+  streak_30:    CalendarDays,
+  streak_100:   Trophy,
+  // Rating
+  reach_veteran:     Swords,
+  reach_master:      Medal,
+  reach_grandmaster: Crown,
+  upset:             TrendingUp,
+  // Variety
+  regular:    Hash,
+  marathon:   Activity,
+  triathlete: Layers,
+};
+
+const CATEGORY_COLOR: Record<Category, string> = {
+  solving:  'var(--tile-correct)',  // green
+  accuracy: 'var(--cls-blue)',      // blue
+  streaks:  'var(--tile-present)',  // yellow
+  rating:   'var(--cls-orange)',    // orange
+  variety:  'var(--silver)',        // silver/neutral
+};
+
+const CATEGORY_LABEL: Record<Category, string> = {
+  solving:  'Solving',
+  accuracy: 'Accuracy',
+  streaks:  'Streaks',
+  rating:   'Rating',
+  variety:  'Variety',
+};
+
+const CATEGORY_ORDER: Category[] = ['solving', 'accuracy', 'streaks', 'rating', 'variety'];
+
 interface MergedAchievement {
   type: string;
   name: string;
   description: string;
   icon: string;
+  category: Category;
 }
 
-// ---- Skeleton card ----------------------------------------------------------
-function SkeletonCard() {
-  return (
-    <div className="flex flex-col items-center gap-2.5 rounded-card px-4 py-5 bg-bg-base border border-border-default">
-      <div className="w-9 h-9 rounded-full bg-bg-muted animate-pulse" />
-      <div className="w-16 h-2.5 rounded-full bg-bg-muted animate-pulse" />
-      <div className="w-20 h-2 rounded-full bg-bg-muted/60 animate-pulse" />
-    </div>
-  );
-}
+// ─── Achievement card ────────────────────────────────────────────────────────
 
-// ---- Achievement card -------------------------------------------------------
-interface AchievementCardProps {
+function AchievementCard({
+  ach,
+  index,
+  unlockedAt,
+}: {
   ach: MergedAchievement;
   index: number;
   unlockedAt: string | undefined;
-}
-
-const cardVariants: Variants = {
-  hidden: { opacity: 0, y: 18, scale: 0.95 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      type: 'spring',
-      damping: 22,
-      stiffness: 320,
-      delay: i * 0.04,
-    },
-  }),
-};
-
-function AchievementCard({ ach, index, unlockedAt }: AchievementCardProps) {
+}) {
   const isUnlocked = !!unlockedAt;
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const tint = CATEGORY_COLOR[ach.category];
+  const Icon = ICON_FOR_TYPE[ach.type];
 
   return (
     <motion.div
-      custom={index}
-      variants={cardVariants}
-      className="relative flex flex-col items-center text-center gap-2 rounded-card px-4 py-5 bg-bg-base border border-border-default transition-opacity"
+      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: 'spring', damping: 22, stiffness: 320, delay: index * 0.03 }}
+      className="relative flex items-start gap-3 rounded-card p-4 bg-bg-base border transition-colors"
       style={{
-        opacity: isUnlocked ? 1 : 0.6,
-        filter: isUnlocked ? 'none' : 'grayscale(60%)',
-        ...(isUnlocked
-          ? {
-              outline: '1px solid color-mix(in srgb, var(--gold) 30%, transparent)',
-              outlineOffset: '-1px',
-            }
-          : {}),
+        borderColor: isUnlocked
+          ? `color-mix(in srgb, ${tint} 35%, var(--border-default))`
+          : 'var(--border-subtle)',
+        opacity: isUnlocked ? 1 : 0.55,
       }}
     >
-      {/* Lock overlay */}
-      {!isUnlocked && (
-        <div className="absolute top-2.5 right-2.5">
-          <Lock size={11} className="text-text-ghost" />
-        </div>
-      )}
-
-      {/* Icon */}
-      <span
-        className="text-[30px] leading-none"
-        role="img"
-        aria-label={ach.name}
+      {/* Icon disc — color inherits to the SVG via `color` so we can use a token */}
+      <div
+        className="shrink-0 flex items-center justify-center rounded-full"
         style={{
-          filter: isUnlocked ? 'none' : 'grayscale(1)',
-          color: isUnlocked ? 'var(--gold)' : 'var(--text-tertiary)',
+          width: 40,
+          height: 40,
+          backgroundColor: isUnlocked
+            ? `color-mix(in srgb, ${tint} 14%, transparent)`
+            : 'var(--bg-muted)',
+          border: '1px solid',
+          borderColor: isUnlocked
+            ? `color-mix(in srgb, ${tint} 35%, transparent)`
+            : 'var(--border-subtle)',
+          color: isUnlocked ? tint : 'var(--text-tertiary)',
         }}
       >
-        {ach.icon}
-      </span>
+        {Icon ? (
+          <Icon size={18} strokeWidth={2} />
+        ) : (
+          <span style={{ fontSize: 18 }}>{ach.icon}</span>
+        )}
+      </div>
 
-      {/* Name */}
-      <span className="font-sans text-xs font-semibold text-text-primary leading-tight">
-        {ach.name}
-      </span>
+      {/* Text block */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span
+            className="font-sans text-sm font-semibold truncate"
+            style={{ color: isUnlocked ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+          >
+            {ach.name}
+          </span>
+          {!isUnlocked && (
+            <Lock size={11} style={{ color: 'var(--text-ghost)', flexShrink: 0 }} />
+          )}
+        </div>
+        <p
+          className="font-sans text-xs leading-snug"
+          style={{ color: 'var(--text-tertiary)' }}
+        >
+          {ach.description}
+        </p>
+        {isUnlocked && unlockedAt && (
+          <p
+            className="font-sans text-[10px] font-mono mt-1"
+            style={{ color: 'var(--text-ghost)' }}
+          >
+            unlocked {new Date(unlockedAt).toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </p>
+        )}
+      </div>
 
-      {/* Description */}
-      <span className="font-sans text-[10px] text-text-secondary leading-snug">
-        {ach.description}
-      </span>
-
-      {/* Unlocked date */}
-      {isUnlocked && unlockedAt && (
-        <span className="font-sans text-[9px] text-text-ghost mt-auto pt-0.5">
-          {formatDate(unlockedAt)}
-        </span>
-      )}
     </motion.div>
   );
 }
 
-// ---- Page -------------------------------------------------------------------
-const gridContainerVariants: Variants = {
-  hidden:  {},
-  visible: { transition: stagger.medium },
-};
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+
+function SkeletonCard() {
+  return (
+    <div className="flex items-start gap-3 rounded-card p-4 bg-bg-base border border-border-subtle">
+      <div className="w-10 h-10 rounded-full bg-bg-muted animate-pulse" />
+      <div className="flex-1 space-y-1.5 pt-1">
+        <div className="h-3 w-24 rounded bg-bg-muted animate-pulse" />
+        <div className="h-2.5 w-36 rounded bg-bg-muted/60 animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AchievementsPage() {
   const [allAchievements, setAllAchievements] = useState<AchievementDef[]>([]);
   const [unlocked, setUnlocked] = useState<UnlockedAchievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState<'all' | Category>('all');
 
   useEffect(() => {
     Promise.all([achievementsApi.all(), achievementsApi.mine()])
@@ -147,70 +241,107 @@ export default function AchievementsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const unlockedMap = new Map(unlocked.map((u) => [u.type, u.unlocked_at]));
+  const unlockedMap = useMemo(
+    () => new Map(unlocked.map((u) => [u.type, u.unlocked_at])),
+    [unlocked],
+  );
 
-  // Merge server data with local ACHIEVEMENT_META for icons / descriptions
-  const mergedAchievements: MergedAchievement[] = allAchievements.map((a) => {
-    const meta = ACHIEVEMENT_META[a.type];
-    return {
-      type: a.type,
-      name: a.name || meta?.name || a.type,
-      description: a.description || meta?.description || '',
-      icon: a.icon || meta?.icon || '🏆',
+  const mergedAchievements: MergedAchievement[] = useMemo(
+    () =>
+      allAchievements.map((a) => {
+        const meta = ACHIEVEMENT_META[a.type];
+        return {
+          type: a.type,
+          name: a.name || meta?.name || a.type,
+          description: a.description || meta?.description || '',
+          icon: a.icon || meta?.icon || '🏆',
+          category: CATEGORY_FOR_TYPE[a.type] ?? 'rating',
+        };
+      }),
+    [allAchievements],
+  );
+
+  const filteredAchievements = useMemo(
+    () =>
+      filter === 'all'
+        ? mergedAchievements
+        : mergedAchievements.filter((a) => a.category === filter),
+    [mergedAchievements, filter],
+  );
+
+  const grouped: Array<{ category: Category; items: MergedAchievement[] }> = useMemo(() => {
+    const map: Record<Category, MergedAchievement[]> = {
+      solving: [], accuracy: [], streaks: [], rating: [], variety: [],
     };
-  });
+    for (const a of filteredAchievements) map[a.category].push(a);
+    return CATEGORY_ORDER
+      .map((category) => ({ category, items: map[category] }))
+      .filter((g) => g.items.length > 0);
+  }, [filteredAchievements]);
 
   const unlockedCount = unlocked.length;
   const totalCount = mergedAchievements.length;
   const progressPct = totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0;
 
-  // ---- Render: loading ----
+  const filterCounts = useMemo(() => {
+    const counts: Record<'all' | Category, number> = {
+      all: mergedAchievements.length,
+      solving: 0, accuracy: 0, streaks: 0, rating: 0, variety: 0,
+    };
+    for (const a of mergedAchievements) counts[a.category]++;
+    return counts;
+  }, [mergedAchievements]);
+
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Header skeleton */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-5 h-5 rounded bg-bg-muted animate-pulse" />
-            <div className="w-32 h-5 rounded bg-bg-muted animate-pulse" />
-          </div>
-          <div className="w-20 h-3.5 rounded bg-bg-muted/60 animate-pulse mt-1 mb-3" />
-          <div className="h-1.5 w-48 rounded-pill bg-bg-muted animate-pulse" />
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="mb-6 space-y-2">
+          <div className="h-3 w-24 rounded bg-bg-muted animate-pulse" />
+          <div className="h-9 w-56 rounded bg-bg-muted animate-pulse" />
+          <div className="h-1.5 w-48 rounded-pill bg-bg-muted/60 animate-pulse mt-3" />
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {Array.from({ length: 9 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Header */}
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      {/* Compact header matching dashboard/review style */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="mb-6"
+        className="mb-5"
       >
-        <div className="flex items-center gap-2.5 mb-0.5">
-          <Trophy size={20} style={{ color: 'var(--gold)' }} strokeWidth={1.8} aria-hidden="true" />
-          <h1 className="font-display font-black text-4xl text-text-primary tracking-tight">
-            Achievements
-          </h1>
-        </div>
-
-        <p className="font-sans text-sm text-text-secondary mb-3">
-          <span className="text-text-primary font-semibold">{unlockedCount}</span>
-          <span className="text-text-ghost"> / {totalCount}</span>
-          {' '}unlocked
+        <p
+          className="font-sans text-[10px] uppercase tracking-[0.1em] mb-1"
+          style={{ color: 'var(--text-tertiary)' }}
+        >
+          Achievements
         </p>
+        <h1
+          className="font-display font-black tracking-tight mb-2"
+          style={{
+            fontSize: '2rem',
+            color: 'var(--text-primary)',
+            lineHeight: 1.1,
+          }}
+        >
+          {unlockedCount}
+          <span style={{ color: 'var(--text-tertiary)' }}> / {totalCount}</span>
+          <span
+            className="font-sans font-medium ml-2"
+            style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}
+          >
+            unlocked
+          </span>
+        </h1>
 
-        {/* Progress bar — solid tokens, no gradient */}
         <div
-          className="relative h-1.5 max-w-[240px] rounded-pill overflow-hidden bg-bg-muted"
+          className="relative h-1.5 max-w-[280px] rounded-pill overflow-hidden bg-bg-muted"
           role="progressbar"
           aria-valuenow={unlockedCount}
           aria-valuemin={0}
@@ -222,12 +353,52 @@ export default function AchievementsPage() {
             initial={{ width: '0%' }}
             animate={{ width: `${progressPct}%` }}
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
-            style={{ backgroundColor: 'var(--gold)' }}
+            style={{ backgroundColor: 'var(--tile-correct)' }}
           />
         </div>
       </motion.div>
 
-      {/* Error state */}
+      {/* Category filter — same pattern as dashboard/recent-games */}
+      <div
+        role="tablist"
+        aria-label="Filter achievements by category"
+        className="flex gap-1 mb-5 p-1 rounded-card bg-bg-elevated border border-border-subtle w-fit"
+      >
+        {(
+          [
+            { key: 'all',      label: 'All' },
+            { key: 'solving',  label: 'Solving' },
+            { key: 'accuracy', label: 'Accuracy' },
+            { key: 'streaks',  label: 'Streaks' },
+            { key: 'rating',   label: 'Rating' },
+            { key: 'variety',  label: 'Variety' },
+          ] as const
+        ).map((opt) => {
+          const active = filter === opt.key;
+          return (
+            <button
+              key={opt.key}
+              role="tab"
+              type="button"
+              aria-selected={active}
+              onClick={() => setFilter(opt.key)}
+              className={clsx(
+                'px-3 py-1.5 rounded-card text-xs font-sans font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2',
+                active
+                  ? 'bg-bg-base text-text-primary shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary',
+              )}
+              style={active ? { outlineColor: 'var(--tile-correct)' } : undefined}
+            >
+              {opt.label}
+              <span className="ml-1.5 text-text-ghost font-mono">
+                {filterCounts[opt.key]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {error && (
         <div
           className="mb-4 px-4 py-3 rounded-card font-sans text-sm"
@@ -242,29 +413,48 @@ export default function AchievementsPage() {
         </div>
       )}
 
-      {/* Grid */}
-      {mergedAchievements.length > 0 ? (
-        <motion.div
-          variants={gridContainerVariants}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-2 sm:grid-cols-3 gap-3"
-        >
-          {mergedAchievements.map((ach, i) => (
-            <AchievementCard
-              key={ach.type}
-              ach={ach}
-              index={i}
-              unlockedAt={unlockedMap.get(ach.type)}
-            />
-          ))}
-        </motion.div>
+      {/* Grouped grid */}
+      {grouped.length === 0 && !error ? (
+        <div className="text-center py-16 font-sans text-text-secondary text-sm">
+          No achievements in this category.
+        </div>
       ) : (
-        !error && (
-          <div className="text-center py-20 font-sans text-text-secondary text-sm">
-            No achievements found.
-          </div>
-        )
+        <div className="space-y-6">
+          {grouped.map(({ category, items }) => (
+            <section key={category}>
+              <header className="flex items-center gap-2 mb-3">
+                <span
+                  className="font-sans text-[10px] font-semibold uppercase tracking-[0.1em]"
+                  style={{ color: CATEGORY_COLOR[category] }}
+                >
+                  {CATEGORY_LABEL[category]}
+                </span>
+                <span
+                  className="flex-1 h-px"
+                  style={{ backgroundColor: 'var(--border-subtle)' }}
+                />
+                <span
+                  className="font-mono text-[10px]"
+                  style={{ color: 'var(--text-ghost)' }}
+                >
+                  {items.filter((a) => unlockedMap.has(a.type)).length}
+                  {' / '}
+                  {items.length}
+                </span>
+              </header>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {items.map((ach, i) => (
+                  <AchievementCard
+                    key={ach.type}
+                    ach={ach}
+                    index={i}
+                    unlockedAt={unlockedMap.get(ach.type)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
     </div>
   );

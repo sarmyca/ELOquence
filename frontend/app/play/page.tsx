@@ -142,24 +142,23 @@ export default function PlayPage() {
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     if (user) {
+      // Paint from cache immediately to avoid a flash, then always refresh
+      // from the API so the card reflects the latest move count (e.g.,
+      // after a 6th guess submitted from the game page).
+      const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
+      if (savedPatterns) {
+        try {
+          const nums: number[] = JSON.parse(savedPatterns);
+          setDailyPatterns(nums.map((p) => patternToTiles(p)));
+        } catch { /* ignore, API will populate */ }
+      }
+
       dailyApi.get().then(async (res) => {
         if (res.data.already_played) {
           setDailyAlreadyPlayed(true);
           const gameId = res.data.existing_game_id;
           if (gameId) {
             setDailyGameId(gameId);
-          }
-
-          const savedPatterns = localStorage.getItem(`eloquence_daily_patterns_${today}`);
-          if (savedPatterns) {
-            try {
-              const nums: number[] = JSON.parse(savedPatterns);
-              setDailyPatterns(nums.map((p) => patternToTiles(p)));
-              return;
-            } catch { /* ignore, fall through to API */ }
-          }
-
-          if (gameId) {
             try {
               const gameRes = await gamesApi.get(gameId);
               const moves = gameRes.data.moves || [];
@@ -167,9 +166,15 @@ export default function PlayPage() {
                 const sorted = [...moves].sort((a: { move_number: number }, b: { move_number: number }) => a.move_number - b.move_number);
                 const pats = sorted.map((m: { pattern: number }) => patternToTiles(m.pattern));
                 setDailyPatterns(pats);
-                localStorage.setItem(`eloquence_daily_patterns_${today}`, JSON.stringify(sorted.map((m: { pattern: number }) => m.pattern)));
+                localStorage.setItem(
+                  `eloquence_daily_patterns_${today}`,
+                  JSON.stringify(sorted.map((m: { pattern: number }) => m.pattern)),
+                );
+              } else {
+                setDailyPatterns(null);
+                localStorage.removeItem(`eloquence_daily_patterns_${today}`);
               }
-            } catch { /* ignore */ }
+            } catch { /* ignore — keep cached paint */ }
           }
         } else {
           setDailyAlreadyPlayed(false);

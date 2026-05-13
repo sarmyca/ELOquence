@@ -33,6 +33,7 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
     from app.analysis.classifier import classify_move
     from app.analysis.constraints import ConstraintState
     from app.analysis.engine import (
+        ALL_WORDS,
         ANSWERS,
         COMPETITIVE_ANSWERS,
         DICTIONARY_SIZES,
@@ -45,6 +46,7 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
         compute_entropy,
         compute_expected_remaining,
         compute_luck_score,
+        compute_pattern,
         compute_skill_score,
         expected_solutions_after,
         expected_steps_remaining,
@@ -169,6 +171,67 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
             )
         else:
             pattern_dist = []
+
+        # ------------------------------------------------------------------
+        # Bot's parallel metrics — same computations but for the optimal pick
+        # so the review page can show a true head-to-head comparison.
+        # ------------------------------------------------------------------
+        optimal_pattern_dist: list[dict] = []
+        optimal_actual_after: int | None = None
+        optimal_exp_steps: float | None = None
+        optimal_num_groups: int | None = None
+        optimal_largest_group: int | None = None
+        if optimal_word and total_possible > 0:
+            try:
+                opt_idx = get_word_index(optimal_word)
+            except ValueError:
+                opt_idx = None
+            if opt_idx is not None:
+                # Pattern the bot would actually observe against the true target
+                bot_observed_pattern = compute_pattern(optimal_word, target_word.upper())
+
+                opt_patterns = PATTERN_MATRIX[opt_idx, possible]
+                opt_unique, opt_counts = np.unique(opt_patterns, return_counts=True)
+
+                opt_pattern_to_words: dict[int, list[str]] = {}
+                for idx_pos, pat_val in zip(possible, opt_patterns):
+                    pv = int(pat_val)
+                    if pv not in opt_pattern_to_words:
+                        opt_pattern_to_words[pv] = []
+                    opt_pattern_to_words[pv].append(answer_pool[idx_pos])
+
+                optimal_pattern_dist = sorted(
+                    [
+                        {
+                            "pattern": int(p),
+                            "count": int(c),
+                            "probability": round(int(c) / total_possible, 4),
+                            "is_actual": int(p) == bot_observed_pattern,
+                            "words": sorted(opt_pattern_to_words.get(int(p), [])),
+                        }
+                        for p, c in zip(opt_unique, opt_counts)
+                    ],
+                    key=lambda x: -x["count"],
+                )
+
+                optimal_num_groups = len(opt_unique)
+                optimal_largest_group = int(opt_counts.max())
+                optimal_actual_after = actual_solutions_after(
+                    opt_idx, possible, bot_observed_pattern
+                )
+
+                # Expected steps after the bot's pick, assuming the same
+                # target word — gives an apples-to-apples comparison with
+                # the player's `expected_steps_until_solution`.
+                try:
+                    opt_new_possible = get_remaining_answers(
+                        possible, optimal_word, bot_observed_pattern
+                    )
+                    optimal_exp_steps = round(
+                        expected_steps_remaining(opt_new_possible), 2
+                    )
+                except ValueError:
+                    optimal_exp_steps = None
 
         # ------------------------------------------------------------------
         # Letter frequency matrix — 5 positions × 26 letters (% of remaining)
@@ -297,6 +360,11 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
                     for tp in top_picks
                 ],
                 "pattern_distribution": pattern_dist,
+                "optimal_pattern_distribution": optimal_pattern_dist,
+                "optimal_num_groups": optimal_num_groups,
+                "optimal_largest_group": optimal_largest_group,
+                "optimal_actual_solutions_after": optimal_actual_after,
+                "optimal_expected_steps_until_solution": optimal_exp_steps,
                 "letter_frequencies": letter_freq,
                 # WordleBot-spec fields
                 "skill_score": skill,
@@ -320,9 +388,12 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
 
     avg_luck = total_luck / len(game_moves) if game_moves else 0.0
 
-    # WordleBot-spec aggregates
-    non_opener_skill = [r["skill_score"] for r in results[1:] if r["classification"] != "forced"]
-    skill_avg_excl_opener = round(sum(non_opener_skill) / len(non_opener_skill), 1) if non_opener_skill else 0.0
+    # Skill aggregate — include the opener. Openers vary in quality
+    # (e.g. SALET ~6 bits vs MAMMA ~3 bits) so we no longer drop move 1.
+    # Forced moves (only one word left) are still excluded because there
+    # was no choice.
+    skill_scores = [r["skill_score"] for r in results if r["classification"] != "forced"]
+    skill_avg = round(sum(skill_scores) / len(skill_scores), 1) if skill_scores else 0.0
 
     all_luck_scores = [r["luck_score"] for r in results]
     luck_avg_score = round(sum(all_luck_scores) / len(all_luck_scores), 1) if all_luck_scores else 50.0
@@ -345,7 +416,9 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
         "constraint_violations": constraint_violation_count,
         "traps_encountered": trap_count,
         # WordleBot-spec aggregates
-        "skill_avg_excluding_opener": skill_avg_excl_opener,
+        "skill_avg": skill_avg,
+        # Back-compat alias for older clients still reading the old key
+        "skill_avg_excluding_opener": skill_avg,
         "luck_avg": luck_avg_score,
         "uniqueness_percentile": uniq,
         "bot_solve_path": bot_path,

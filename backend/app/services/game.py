@@ -425,28 +425,34 @@ async def submit_guess(
                 accuracy=accuracy,
             )
 
-        # Recalculate player profile — must not block game completion
+        # Recalculate player profile — must not block game completion.
+        # Wrapped in SAVEPOINT so a failure (e.g., schema drift) doesn't
+        # poison the outer transaction and stop the user from completing.
         try:
             from app.services.profile import recalculate_profile
 
-            await recalculate_profile(db, user.id)
-        except Exception:
-            pass
+            async with db.begin_nested():
+                await recalculate_profile(db, user.id)
+        except Exception as exc:
+            _log.warning("recalculate_profile failed for game %s: %s", game.id, exc)
 
         # Update community word statistics — must not block game completion
         try:
             from app.services.word_stats import update_word_stats
 
-            await update_word_stats(db, game.target_word, game.num_guesses, won, accuracy)
-        except Exception:
-            pass
+            async with db.begin_nested():
+                await update_word_stats(db, game.target_word, game.num_guesses, won, accuracy)
+        except Exception as exc:
+            _log.warning("update_word_stats failed for game %s: %s", game.id, exc)
 
         # Check and unlock achievements — must not block game completion
         try:
             from app.services.achievements import check_and_unlock
 
-            newly_unlocked = await check_and_unlock(db, user, game)
-        except Exception:
+            async with db.begin_nested():
+                newly_unlocked = await check_and_unlock(db, user, game)
+        except Exception as exc:
+            _log.warning("check_and_unlock failed for game %s: %s", game.id, exc)
             newly_unlocked = []
 
         # Attach as a transient attribute so the router can read it
