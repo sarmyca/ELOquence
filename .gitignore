@@ -39,6 +39,8 @@ ehthumbs.db
 
 # Docker
 postgres_data/
+docker-compose.override.yml
+**/Dockerfile.local
 
 # Logs
 *.log

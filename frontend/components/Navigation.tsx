@@ -10,9 +10,7 @@ import clsx from 'clsx';
 
 const GUEST_NAV_LINKS = [
   { href: '/play', label: 'Play' },
-  { href: '/archive', label: 'Archive' },
   { href: '/leaderboard', label: 'Leaderboard' },
-  { href: '/learn', label: 'Learn' },
   { href: '/faq', label: 'FAQ' },
 ];
 

@@ -27,7 +27,7 @@ class User(Base):
     provider_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # ELO / stats
-    elo_rating: Mapped[float] = mapped_column(Float, default=1000.0, nullable=False)
+    elo_rating: Mapped[float] = mapped_column(Float, default=800.0, nullable=False)
     games_played: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_placement: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     total_wins: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

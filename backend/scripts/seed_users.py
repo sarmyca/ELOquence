@@ -176,7 +176,7 @@ async def seed():
 
             user_id = uuid.uuid4()
             games_played = 0
-            current_elo = 1000.0
+            current_elo = 800.0
             current_streak = 0
             max_streak = 0
             is_placement = True
@@ -198,7 +198,7 @@ async def seed():
                 """),
                 {
                     "id": user_id, "email": email, "username": username,
-                    "pw": password_hash, "elo": 1000.0, "gp": 0,
+                    "pw": password_hash, "elo": 800.0, "gp": 0,
                     "placement": True, "cs": 0, "ls": 0, "lpd": None,
                     "created": user_created,
                 },

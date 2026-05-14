@@ -7,7 +7,6 @@ import {
   Swords,
   FlaskConical,
   Flame,
-  Star,
   Lock,
   Share2,
   Check,
@@ -899,7 +898,11 @@ export default function PlayPage() {
           { name: 'Grandmaster', color: '#1565c0' },
         ].map((t) => (
           <div key={t.name} className="flex items-center gap-1.5">
-            <Star size={10} style={{ color: t.color }} fill={t.color} />
+            <span
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: t.color }}
+              aria-hidden="true"
+            />
             <span className="text-xs" style={{ color: t.color }}>
               {t.name}
             </span>

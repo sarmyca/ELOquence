@@ -152,18 +152,18 @@ async def reset_user_elo(
     _admin: Annotated[User, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ResetEloResponse:
-    """Reset a user's ELO rating to 1000 and mark them as in placement."""
+    """Reset a user's ELO rating to 800 and mark them as in placement."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
-    user.elo_rating = 1000.0
+    user.elo_rating = 800.0
     user.is_placement = True
     user.games_played = 0
     await db.flush()
 
-    return ResetEloResponse(user_id=user_id, new_elo=1000.0)
+    return ResetEloResponse(user_id=user_id, new_elo=800.0)
 
 
 @router.post("/users/{user_id}/toggle-admin")
