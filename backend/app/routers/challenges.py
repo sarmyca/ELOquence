@@ -4,6 +4,7 @@ from __future__ import annotations
 import random
 import secrets
 import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -203,14 +204,22 @@ async def challenge_results(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
-    """Get all results for a challenge.
+    """Get all results for a challenge, ranked.
 
-    Lists every player who has started (or completed) this challenge,
-    ordered by number of guesses ascending (fewest guesses wins).
+    Ranking (best -> worst):
+      1. Wins beat losses.
+      2. Among wins: fewest guesses wins.
+      3. Tiebreaker on guess count: higher accuracy wins.
+      4. Final tiebreaker: faster time wins (nulls last).
+      5. Losses are sorted by accuracy desc, time asc.
+
+    Rank is computed server-side and returned on each entry so the client
+    doesn't have to re-derive it. In-progress games are excluded from the
+    ranked list — they don't have a final result to compare yet.
 
     The target word is only revealed in the response when every player
     that has a game record has already completed it (no in-progress games
-    remain).  This prevents spoilers for ongoing participants.
+    remain). This prevents spoilers for ongoing participants.
     """
     result = await db.execute(select(Challenge).where(Challenge.code == code))
     c = result.scalar_one_or_none()
@@ -221,23 +230,55 @@ async def challenge_results(
         select(Game, User.username)
         .join(User, Game.user_id == User.id)
         .where(Game.target_word == c.target_word, Game.mode == "challenge")
-        .order_by(Game.num_guesses.asc())
     )
+    rows = list(games_result.all())
+
+    any_in_progress = any(g.status == "in_progress" for g, _ in rows)
+
+    def sort_key(item):
+        game, _username = item
+        won = game.status == "won"
+        # Tuple ordering ASC by default — invert metrics we want DESC
+        # by negation. None tiebreakers go last via float('inf').
+        return (
+            0 if won else 1,                                # wins first
+            game.num_guesses if won else 6,                 # fewer guesses better (only meaningful on wins)
+            -(game.accuracy_score or 0.0),                  # higher accuracy better
+            game.time_seconds if game.time_seconds is not None else float("inf"),
+            game.completed_at or datetime.max,              # earlier finisher breaks final tie
+        )
+
+    ranked_rows = [(g, u) for g, u in rows if g.status != "in_progress"]
+    ranked_rows.sort(key=sort_key)
+    in_progress_rows = [(g, u) for g, u in rows if g.status == "in_progress"]
 
     entries = []
-    for game, username in games_result:
+    for rank, (game, username) in enumerate(ranked_rows, start=1):
         entries.append(
             {
+                "rank": rank,
                 "username": username,
                 "status": game.status,
                 "num_guesses": game.num_guesses,
                 "accuracy_score": game.accuracy_score,
+                "time_seconds": game.time_seconds,
                 "is_creator": game.user_id == c.creator_id,
+                "completed_at": game.completed_at.isoformat() if game.completed_at else None,
             }
         )
-
-    # Only reveal the word once no participant still has an active game
-    any_in_progress = any(e["status"] == "in_progress" for e in entries)
+    for game, username in in_progress_rows:
+        entries.append(
+            {
+                "rank": None,
+                "username": username,
+                "status": game.status,
+                "num_guesses": game.num_guesses,
+                "accuracy_score": None,
+                "time_seconds": None,
+                "is_creator": game.user_id == c.creator_id,
+                "completed_at": None,
+            }
+        )
 
     return {
         "code": c.code,

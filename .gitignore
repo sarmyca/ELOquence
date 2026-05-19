@@ -61,11 +61,6 @@ test-results/
 # Playwright MCP logs
 .playwright-mcp/
 
-# Screenshots (generated)
-screenshots/
-/nyt-wordle-*.png
-/*.screenshot.png
-
 # Claude Code
 .claude/
 .mcp.json
