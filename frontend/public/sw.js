@@ -10,7 +10,18 @@
  * old cache is purged on activate.
  */
 
-const SW_VERSION = 'v3';
+const SW_VERSION = 'v4';
+
+// Next.js dev keeps stable URLs for static chunks (no hash), so an
+// aggressive Cache-First strategy would freeze any code change forever
+// until the next SW version bump. We detect "this is a dev origin"
+// via the hostname and downgrade /_next/ handling to Network-First.
+// Production hosts use fingerprinted chunk filenames, so Cache-First
+// stays optimal there.
+const IS_DEV_HOST = (() => {
+  const h = self.location?.hostname || '';
+  return h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local');
+})();
 const STATIC_CACHE = `eloquence-static-${SW_VERSION}`;
 const RUNTIME_CACHE = `eloquence-runtime-${SW_VERSION}`;
 const SWR_CACHE = `eloquence-swr-${SW_VERSION}`;
@@ -176,9 +187,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Immutable static assets (Next.js hashed) -> Cache-First
+  // 2. Immutable static assets (Next.js hashed) -> Cache-First in prod,
+  //    Network-First on dev hosts (because dev chunk URLs aren't hashed,
+  //    so a Cache-First entry would shadow every subsequent code change
+  //    until the next SW version bump).
   if (isImmutableAsset(request.url)) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(IS_DEV_HOST ? networkFirst(request) : cacheFirst(request));
     return;
   }
 
