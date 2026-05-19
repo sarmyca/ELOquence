@@ -117,6 +117,10 @@ export default function DashboardPage() {
   const [games,          setGames]         = useState<Game[]>([]);
   const [loadingGames,   setLoadingGames]   = useState(true);
   const [gameFilter,     setGameFilter]     = useState<'all' | 'daily' | 'practice' | 'competitive' | 'challenge'>('all');
+  // Client-side pagination over the fetched games. The list itself is
+  // already capped at the API's per_page (currently 20) — for deeper
+  // history users go through /archive.
+  const [recentPage,     setRecentPage]    = useState(1);
   // Map of target_word → challenge code, used to route challenge-mode games
   // in Recent Games to the challenge results page instead of the review page.
   const [challengeCodeByWord, setChallengeCodeByWord] = useState<Record<string, string>>({});
@@ -130,6 +134,12 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
+
+  // Reset to page 1 whenever the mode filter changes — otherwise the
+  // visible page can sit beyond the new filtered list's end.
+  useEffect(() => {
+    setRecentPage(1);
+  }, [gameFilter]);
 
   // Fetch recent games
   useEffect(() => {
@@ -237,6 +247,16 @@ export default function DashboardPage() {
     gameFilter === 'all'
       ? allCompletedGames
       : allCompletedGames.filter((g) => g.mode === gameFilter);
+
+  // Pagination derived from the filtered list. Reset to page 1 whenever
+  // the filter changes (handled in an effect below).
+  const RECENT_PER_PAGE = 5;
+  const recentTotalPages = Math.max(1, Math.ceil(completedGames.length / RECENT_PER_PAGE));
+  const recentClampedPage = Math.min(recentPage, recentTotalPages);
+  const recentVisible = completedGames.slice(
+    (recentClampedPage - 1) * RECENT_PER_PAGE,
+    recentClampedPage * RECENT_PER_PAGE,
+  );
   // Per-mode stat aggregates derived from the same filtered list — keeps the
   // stat cards (Games Played / Win Rate / Avg Guesses) consistent with the
   // Recent Games rows below.
@@ -597,7 +617,7 @@ export default function DashboardPage() {
           ) : (
             /* Game rows */
             <div className="divide-y divide-border-subtle" role="list">
-              {completedGames.map((game, i) => {
+              {recentVisible.map((game, i) => {
                 const statusInfo  = STATUS_CONFIG[game.status] ?? STATUS_CONFIG.abandoned;
                 const isClickable = game.status === 'won' || game.status === 'lost';
                 const eloDelta    = game.elo_delta;
@@ -728,6 +748,51 @@ export default function DashboardPage() {
                   </motion.div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Pagination controls — only render when there's more than
+              one page of completed games to show. */}
+          {!loadingGames && completedGames.length > RECENT_PER_PAGE && (
+            <div
+              className="flex items-center justify-between gap-3 px-4 py-3"
+              style={{ borderTop: '1px solid var(--border-subtle)' }}
+            >
+              <button
+                type="button"
+                onClick={() => setRecentPage((p) => Math.max(1, p - 1))}
+                disabled={recentClampedPage <= 1}
+                className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+                aria-label="Previous page"
+              >
+                ← Prev
+              </button>
+              <span
+                className="text-xs font-mono tabular-nums"
+                style={{ color: 'var(--text-secondary)' }}
+                aria-live="polite"
+              >
+                Page {recentClampedPage} of {recentTotalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setRecentPage((p) => Math.min(recentTotalPages, p + 1))}
+                disabled={recentClampedPage >= recentTotalPages}
+                className="px-3 py-1.5 rounded-md text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+                aria-label="Next page"
+              >
+                Next →
+              </button>
             </div>
           )}
         </div>
