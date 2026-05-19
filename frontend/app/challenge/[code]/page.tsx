@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { challengesApi } from '@/lib/api';
 import { springs, stagger } from '@/lib/animations';
 import clsx from 'clsx';
+import TileSpinner from '@/components/TileSpinner';
 
 interface ChallengeInfo {
   code: string;
@@ -389,7 +390,7 @@ function LeaderboardRow({
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-      <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin border-tile-correct" />
+      <TileSpinner size="lg" label="Loading challenge" />
     </div>
   );
 }

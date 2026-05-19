@@ -495,17 +495,25 @@ def compute_skill_score(
     player_entropy: float,
     optimal_entropy: float,
     remaining_before: int,
+    is_book_move: bool = False,
 ) -> int:
     """Compute a 0–99 skill score for a single move.
 
-    Formula (mirrors WordleBot's interpretation):
+    Formula:
         ratio = player_entropy / optimal_entropy   (clamped 0–1)
         raw   = ratio * 99
-        bonus = max(0, log10(remaining_before) - 1) * 4
+        bonus = max(0, log10(remaining_before) - 1) * 4   if NOT book move
+              = 0                                          if book move
         skill = round(clamp(raw + bonus, 0, 99))
 
-    The bonus rewards moves made under genuine uncertainty (large pools)
-    because choosing well from 2,000 candidates is harder than from 3.
+    The uncertainty bonus rewards moves made under genuine search-space
+    pressure (lots of remaining answers). It is **suppressed for known
+    book openers** because picking SALET / CRANE / SLATE etc. as the
+    first move is a memorised choice for most players — there is no
+    real navigation of the 5,500-word space happening on the player's
+    side, so awarding the maximum bonus would inflate skill for what
+    is, in practice, recall not reasoning. A creative non-book opener
+    still earns the bonus.
 
     Returns:
         Integer in [0, 99].  99 means the player matched the bot exactly.
@@ -515,8 +523,13 @@ def compute_skill_score(
         return 99
     ratio = min(1.0, player_entropy / optimal_entropy)
     raw = ratio * 99.0
-    # Uncertainty bonus: log10(2309)≈3.36 → max ~9.4 bonus pts at opener
-    bonus = max(0.0, float(np.log10(max(1, remaining_before))) - 1.0) * 4.0
+    # Uncertainty bonus: log10(2309)≈3.36 → max ~9.4 bonus pts at opener.
+    # Memorised openers (is_book_move) collect the same ratio score but
+    # forgo the uncertainty premium.
+    if is_book_move:
+        bonus = 0.0
+    else:
+        bonus = max(0.0, float(np.log10(max(1, remaining_before))) - 1.0) * 4.0
     return int(round(min(99.0, raw + bonus)))
 
 

@@ -282,7 +282,7 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
         # ------------------------------------------------------------------
         # WordleBot-spec per-turn metrics
         # ------------------------------------------------------------------
-        skill = compute_skill_score(player_entropy, optimal_info, n_remaining)
+        skill = compute_skill_score(player_entropy, optimal_info, n_remaining, is_book_move=is_book)
         luck_s = compute_luck_score(info_gained, player_entropy, n_remaining)
         exp_sol_after = round(expected_solutions_after(guess_idx, possible) if guess_idx is not None else float(n_remaining), 2)
         act_sol_after = actual_solutions_after(guess_idx, possible, pattern) if guess_idx is not None else len(new_possible)

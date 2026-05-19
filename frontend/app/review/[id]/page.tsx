@@ -1287,7 +1287,7 @@ function StepOverview({
           className="font-sans text-[13px] underline"
           style={{ color: 'var(--tile-correct)' }}
         >
-          {showExplanation ? 'Hide explanation' : 'Show explanation'}
+          {showExplanation ? 'Show less' : 'Show more'}
         </button>
 
         <AnimatePresence>
@@ -1299,6 +1299,14 @@ function StepOverview({
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
+              {/* ELO distribution — top of the disclosure so it's the
+                  first thing the player sees when they open "Show more". */}
+              {game && game.rated && game.accuracy_score != null && (
+                <div className="mt-4">
+                  <EloProjection game={game} accuracy={game.accuracy_score} />
+                </div>
+              )}
+
               <div
                 className="mt-4 rounded-xl p-4"
                 style={{ backgroundColor: 'var(--bg-muted)' }}
@@ -1339,15 +1347,6 @@ function StepOverview({
                   </p>
                 ))}
               </div>
-
-              {/* ELO distribution — shown alongside the column glossary
-                  so the player can see how each hypothetical outcome
-                  would have moved their rating. Gated on game + rated. */}
-              {game && game.rated && game.accuracy_score != null && (
-                <div className="mt-4">
-                  <EloProjection game={game} accuracy={game.accuracy_score} />
-                </div>
-              )}
             </motion.div>
           )}
         </AnimatePresence>

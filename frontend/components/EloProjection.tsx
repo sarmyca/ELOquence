@@ -51,7 +51,7 @@ export default function EloProjection({
       }}
     >
       <div
-        className="px-4 pt-3 pb-2 flex items-baseline justify-between"
+        className="px-4 pt-3 pb-2"
         style={{ borderBottom: '1px solid var(--border-subtle)' }}
       >
         <span
@@ -59,12 +59,6 @@ export default function EloProjection({
           style={{ color: 'var(--text-secondary)' }}
         >
           ELO distribution
-        </span>
-        <span
-          className="text-[10px] font-sans"
-          style={{ color: 'var(--text-tertiary)' }}
-        >
-          accuracy held at {Math.round(accuracy)}%
         </span>
       </div>
 

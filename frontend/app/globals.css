@@ -206,3 +206,56 @@ body {
   background: rgba(106, 170, 100, 0.3);
   color: var(--text-primary);
 }
+
+/* ── Branded loading indicator (TileSpinner) ──────────────────────────
+   A row of Wordle-style tiles whose colors cycle through the in-game
+   palette (absent → present → correct) in a 1.05s loop. The component
+   sets individual `animation-delay` per tile to produce the staggered
+   wave; everything else lives here so the markup stays minimal.
+
+   `prefers-reduced-motion` is handled by the global rule earlier in
+   this file — the spinner degrades to a near-static row, which still
+   carries the visual brand without movement. */
+@keyframes tile-spinner-pulse {
+  0%, 100% {
+    background-color: var(--border-default);
+    transform: scaleY(0.78);
+    opacity: 0.55;
+  }
+  30% {
+    background-color: var(--tile-present);
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  60% {
+    background-color: var(--tile-correct);
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  85% {
+    background-color: var(--tile-absent);
+    transform: scaleY(0.9);
+    opacity: 0.75;
+  }
+}
+
+.tile-spinner-cell {
+  display: inline-block;
+  background-color: var(--border-default);
+  animation: tile-spinner-pulse 1.05s ease-in-out infinite;
+  transform-origin: center;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Screen-reader only utility (used by TileSpinner's a11y label). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

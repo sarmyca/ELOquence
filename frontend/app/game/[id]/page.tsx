@@ -7,6 +7,7 @@ import GameBoard from '@/components/GameBoard';
 import Keyboard from '@/components/Keyboard';
 import GameOverModal from '@/components/GameOverModal';
 import Toast from '@/components/Toast';
+import TileSpinner from '@/components/TileSpinner';
 import AchievementToast, { ACHIEVEMENT_META } from '@/components/AchievementToast';
 import GameWaveBackground from '@/components/GameWaveBackground';
 import { gamesApi, dailyApi, challengesApi } from '@/lib/api';
@@ -310,7 +311,7 @@ export default function GamePage() {
   if (loadingGame) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-5 h-5 rounded-full border-2 border-[#538d4e] border-t-transparent animate-spin" />
+        <TileSpinner size="lg" label="Loading game" />
       </div>
     );
   }
