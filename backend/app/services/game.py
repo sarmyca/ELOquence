@@ -1,6 +1,7 @@
 """Game service — create games, process guesses, fetch game history."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import random
 import uuid
@@ -342,6 +343,13 @@ async def submit_guess(
     pattern = compute_pattern(guess, game.target_word)
     move_number = game.num_guesses + 1
 
+    # Snapshot prior-move data BEFORE inserting the new move so
+    # analyze_single_move replays state from a clean prior set.
+    prior_moves_data = [
+        {"guess_word": m.guess_word, "pattern": m.pattern, "move_number": m.move_number}
+        for m in sorted(game.moves, key=lambda m: m.move_number)
+    ]
+
     move = Move(
         id=uuid.uuid4(),
         game_id=game.id,
@@ -350,6 +358,43 @@ async def submit_guess(
         pattern=pattern,
     )
     db.add(move)
+
+    # ── Per-guess analysis ─────────────────────────────────────────────
+    # Each move is analysed at submission and persisted on its Move row.
+    # Doing it here (rather than retroactively for every move on game
+    # completion) amortises the cost — most of which is hidden inside the
+    # client's flip animation — so the winning guess no longer pays the
+    # spike of analysing every prior move all at once.
+    try:
+        from app.analysis.incremental import analyze_single_move
+
+        move_analysis = await asyncio.to_thread(
+            analyze_single_move,
+            prior_moves_data,
+            guess,
+            pattern,
+            move_number,
+            game.target_word,
+            competitive=game.mode == "competitive",
+        )
+        move.remaining_words = move_analysis["remaining_words"]
+        move.entropy_before = move_analysis["entropy_before"]
+        move.entropy_after = move_analysis["entropy_after"]
+        move.info_gained = move_analysis["info_gained"]
+        move.optimal_info = move_analysis["optimal_info"]
+        move.optimal_word = move_analysis["optimal_word"]
+        move.expected_remaining = move_analysis["expected_remaining"]
+        move.optimal_expected_remaining = move_analysis["optimal_expected_remaining"]
+        move.efficiency_ratio = move_analysis["efficiency_ratio"]
+        move.bits_lost = move_analysis["bits_lost"]
+        move.classification = move_analysis["classification"]
+        move.constraint_violation = move_analysis["constraint_violation"]
+        move.trap_detected = move_analysis["trap_detected"]
+        move.is_book_move = move_analysis["is_book_move"]
+    except Exception as exc:
+        # Per-move analysis must never block the game flow — the move is
+        # still recorded; analysis fields just stay NULL for this row.
+        _log.warning("analyze_single_move failed for game %s move %s: %s", game.id, move_number, exc)
 
     game.num_guesses = move_number
     won = pattern == 242  # all greens: 2+2*3+2*9+2*27+2*81 = 242
@@ -365,51 +410,30 @@ async def submit_guess(
 
     # Run completion side-effects for every finished game (won|lost).
     # Only the ELO update inside this block is gated on `game.rated` —
-    # analysis, streaks, word stats, achievements and profile refresh
-    # run for every completion (so unrated daily games still update streaks).
+    # streaks, word stats, achievements and profile refresh run for every
+    # completion (so unrated daily games still update streaks).
     if game.status in ("won", "lost"):
-        # Run quick analysis for accuracy calculation
-        all_moves_data = [
-            {"guess_word": m.guess_word, "pattern": m.pattern, "move_number": m.move_number}
-            for m in sorted(game.moves, key=lambda m: m.move_number)
-        ]
-        # Include the new move we just created
-        all_moves_data.append(
-            {"guess_word": move.guess_word, "pattern": move.pattern, "move_number": move.move_number}
-        )
-
+        # Game-level analysis aggregates derived from per-move data that
+        # analyze_single_move already wrote. No fresh analysis pass.
         try:
-            from app.analysis import analyze_game
+            from app.analysis.incremental import aggregate_completion_metrics
 
-            analysis = analyze_game(all_moves_data, game.target_word, competitive=game.mode == "competitive")
-            accuracy = analysis["accuracy_score"]
+            # Same convention as the prior code: `move` was added via db.add
+            # but back-population into game.moves only happens after refresh,
+            # so we union explicitly.
+            existing_nums = {m.move_number for m in game.moves}
+            all_completed_moves = sorted(
+                [*game.moves] + ([move] if move.move_number not in existing_nums else []),
+                key=lambda m: m.move_number,
+            )
+            metrics = aggregate_completion_metrics(all_completed_moves)
+            accuracy = metrics["accuracy_score"]
             game.accuracy_score = accuracy
-            game.luck_factor = analysis["luck_factor"]
-            game.constraint_violations = analysis["constraint_violations"]
-            game.traps_encountered = analysis["traps_encountered"]
-
-            # Persist per-move analysis
-            move_results_by_num = {r["move_number"]: r for r in analysis["moves"]}
-            all_db_moves = list(game.moves) + [move]
-            for db_move in all_db_moves:
-                r = move_results_by_num.get(db_move.move_number)
-                if r:
-                    db_move.remaining_words = r["remaining_words"]
-                    db_move.entropy_before = r["entropy_before"]
-                    db_move.entropy_after = r["entropy_after"]
-                    db_move.info_gained = r["info_gained"]
-                    db_move.optimal_info = r["optimal_info"]
-                    db_move.optimal_word = r["optimal_word"]
-                    db_move.expected_remaining = r["expected_remaining"]
-                    db_move.optimal_expected_remaining = r["optimal_expected_remaining"]
-                    db_move.efficiency_ratio = r["efficiency_ratio"]
-                    db_move.bits_lost = r["bits_lost"]
-                    db_move.classification = r["classification"]
-                    db_move.constraint_violation = r["constraint_violation"]
-                    db_move.trap_detected = r["trap_detected"]
-                    db_move.is_book_move = r["is_book_move"]
-        except Exception:
-            # Analysis failure must not block game completion
+            game.luck_factor = metrics["luck_factor"]
+            game.constraint_violations = metrics["constraint_violations"]
+            game.traps_encountered = metrics["traps_encountered"]
+        except Exception as exc:
+            _log.warning("aggregate_completion_metrics failed for game %s: %s", game.id, exc)
             accuracy = 50.0
 
         # Update daily streak BEFORE ELO update — streak applies to every
