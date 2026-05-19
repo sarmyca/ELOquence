@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Timer, ArrowLeft, AlertTriangle } from 'lucide-react';
 import GameBoard from '@/components/GameBoard';
@@ -9,7 +9,7 @@ import GameOverModal from '@/components/GameOverModal';
 import Toast from '@/components/Toast';
 import AchievementToast, { ACHIEVEMENT_META } from '@/components/AchievementToast';
 import GameWaveBackground from '@/components/GameWaveBackground';
-import { gamesApi, dailyApi } from '@/lib/api';
+import { gamesApi, dailyApi, challengesApi } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Game, GameStatus, TileState, patternToTiles } from '@/lib/types';
 import { springs } from '@/lib/animations';
@@ -27,7 +27,15 @@ const FLIP_ANIMATION_MS = 5 * 150 + 500 + 150;
 export default function GamePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
+
+  // ?challenge=<code> is set when the user accepted a challenge that
+  // routed them here; the game-over modal uses it to offer a "Back to
+  // results" link instead of the generic "create new challenge" CTA.
+  const [challengeCode, setChallengeCode] = useState<string | null>(
+    () => searchParams?.get('challenge') ?? null,
+  );
   const [settings] = useSettings();
 
   const [game, setGame] = useState<Game | null>(null);
@@ -89,6 +97,29 @@ export default function GamePage() {
       .catch(() => router.push('/play'))
       .finally(() => setLoadingGame(false));
   }, [id, router, user, authLoading]);
+
+  // Fallback: if the URL didn't carry a ?challenge= param but the loaded
+  // game turns out to be a challenge game, resolve the code by matching
+  // the game's target_word against the user's known challenges. Covers
+  // opening an older challenge game directly (e.g. from the dashboard).
+  useEffect(() => {
+    if (challengeCode) return;
+    if (!user || !game || game.mode !== 'challenge' || !game.target_word) return;
+    let cancelled = false;
+    challengesApi
+      .mine()
+      .then((res) => {
+        if (cancelled) return;
+        const match = (res.data as { code: string; target_word: string }[]).find(
+          (c) => c.target_word === game.target_word,
+        );
+        if (match) setChallengeCode(match.code);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [challengeCode, user, game]);
 
   // Timer — runs while game is in progress
   useEffect(() => {
@@ -470,6 +501,7 @@ export default function GamePage() {
           isGuest={!user}
           onClose={() => setModalOpen(false)}
           gamesPlayed={user?.games_played}
+          challengeCode={challengeCode}
         />
       )}
     </div>

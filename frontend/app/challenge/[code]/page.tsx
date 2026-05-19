@@ -10,7 +10,6 @@ import {
   Crown,
   ExternalLink,
   Users,
-  ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { challengesApi } from '@/lib/api';
@@ -451,7 +450,9 @@ export default function ChallengePage() {
     setError('');
     try {
       const res = await challengesApi.play(code);
-      router.push(`/game/${res.data.id}`);
+      // Forward the challenge code so the game-over modal can offer a
+      // "Back to results" link instead of the generic Challenge action.
+      router.push(`/game/${res.data.id}?challenge=${encodeURIComponent(code)}`);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
@@ -624,7 +625,6 @@ export default function ChallengePage() {
                   <>
                     <Swords size={16} />
                     Accept challenge
-                    <ChevronRight size={16} className="ml-auto opacity-60" />
                   </>
                 )}
               </motion.button>

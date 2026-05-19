@@ -10,6 +10,7 @@ import {
   BarChart2,
   Check,
   Swords,
+  Trophy,
   X,
   ArrowLeft,
 } from 'lucide-react';
@@ -24,6 +25,11 @@ interface GameOverModalProps {
   isGuest?: boolean;
   onClose?: () => void;
   gamesPlayed?: number;
+  // When the finished game was a challenge play, this is the shareable
+  // challenge code so the modal can offer a "Back to results" link
+  // (the leaderboard of everyone who took the same challenge) instead
+  // of the generic "Challenge a friend" CTA.
+  challengeCode?: string | null;
 }
 
 const TILE_EMOJI: Record<string, string> = {
@@ -142,6 +148,7 @@ export default function GameOverModal({
   isGuest = false,
   onClose,
   gamesPlayed,
+  challengeCode = null,
 }: GameOverModalProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -416,13 +423,21 @@ export default function GameOverModal({
                             successIcon={<Check size={14} style={{ color: 'var(--green)' }} />}
                             success={copied}
                           />
-                          <SecondaryBtn
-                            onClick={handleChallenge}
-                            icon={<Swords size={14} />}
-                            label={challengeCopied ? 'Copied!' : 'Challenge'}
-                            successIcon={<Check size={14} style={{ color: 'var(--green)' }} />}
-                            success={challengeCopied}
-                          />
+                          {game.mode === 'challenge' && challengeCode ? (
+                            <SecondaryBtn
+                              onClick={() => router.push(`/challenge/${challengeCode}`)}
+                              icon={<Trophy size={14} />}
+                              label="Results"
+                            />
+                          ) : (
+                            <SecondaryBtn
+                              onClick={handleChallenge}
+                              icon={<Swords size={14} />}
+                              label={challengeCopied ? 'Copied!' : 'Challenge'}
+                              successIcon={<Check size={14} style={{ color: 'var(--green)' }} />}
+                              success={challengeCopied}
+                            />
+                          )}
                           <SecondaryBtn
                             onClick={() => router.push('/play')}
                             icon={<ArrowLeft size={14} />}
