@@ -144,3 +144,85 @@ def build_payload(
         "badge": badge,
         "icon": icon,
     }
+
+
+async def notify_challenge_completed(game_id) -> None:
+    """Push the challenge creator(s) that someone just played their challenge.
+
+    Runs in a fresh DB session — designed to be fired via asyncio.create_task
+    so it does NOT block the response that returns the player's result.
+
+    Identifies challenges by ``target_word`` (the same convention the
+    /challenges/{code}/results endpoint uses). In the rare case where two
+    creators independently rolled the same word, both get pinged — they
+    each created a challenge that someone is now playing.
+    """
+    if not settings.push_enabled:
+        return
+
+    from app.database import AsyncSessionLocal
+    from app.models.challenge import Challenge
+    from app.models.game import Game
+    from app.models.user import User
+
+    try:
+        async with AsyncSessionLocal() as db:
+            game = (
+                await db.execute(select(Game).where(Game.id == game_id))
+            ).scalar_one_or_none()
+            if game is None or game.mode != "challenge":
+                return
+
+            # Load player username for personalisation
+            player_username = "Someone"
+            if game.user_id:
+                player = (
+                    await db.execute(select(User).where(User.id == game.user_id))
+                ).scalar_one_or_none()
+                if player:
+                    player_username = player.username or "Someone"
+
+            # All challenges for this target_word (existing convention)
+            challenges = (
+                await db.execute(
+                    select(Challenge).where(Challenge.target_word == game.target_word)
+                )
+            ).scalars().all()
+
+            # Build per-creator notification list, deduping if a creator
+            # somehow appears more than once.
+            seen_creators: set = set()
+            for c in challenges:
+                if not c.creator_id or c.creator_id == game.user_id:
+                    continue
+                if c.creator_id in seen_creators:
+                    continue
+                seen_creators.add(c.creator_id)
+
+                if game.status == "won":
+                    body = f"{player_username} solved your challenge in {game.num_guesses}/6"
+                elif game.status == "lost":
+                    body = f"{player_username} couldn't crack your challenge"
+                else:
+                    continue  # in_progress slipped through somehow — skip
+
+                payload = build_payload(
+                    title="ELOquence",
+                    body=body,
+                    url=f"/challenge/{c.code}",
+                    tag=f"challenge-{c.code}",
+                )
+
+                subs = (
+                    await db.execute(
+                        select(PushSubscription).where(
+                            PushSubscription.user_id == c.creator_id
+                        )
+                    )
+                ).scalars().all()
+                if subs:
+                    await send_push_to_subscriptions(db, list(subs), payload)
+
+            await db.commit()
+    except Exception as exc:  # noqa: BLE001 — never let push fail bubble out
+        _log.warning("notify_challenge_completed failed for game %s: %s", game_id, exc)

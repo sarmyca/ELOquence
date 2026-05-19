@@ -2,7 +2,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -42,17 +42,29 @@ async def make_guess(
     payload: GuessSubmit,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
 ) -> dict:
     """Submit a guess and return the updated game state.
 
     The response is a GameResponse payload extended with a ``newly_unlocked``
     field — a list of achievement_type strings unlocked by this guess
     (non-empty only when the game just completed).
+
+    If the guess completes a challenge-mode game, a background task is
+    queued to push-notify the challenge creator. It runs after the
+    response is sent (and after this request's DB transaction commits),
+    so it observes the persisted final state.
     """
     game, _move = await submit_guess(db, game_id, payload.guess, current_user)
     response = _build_game_response(game)
     result = response.model_dump()
     result["newly_unlocked"] = getattr(game, "_newly_unlocked", [])
+
+    if game.mode == "challenge" and game.status in ("won", "lost"):
+        from app.services.push import notify_challenge_completed
+
+        background_tasks.add_task(notify_challenge_completed, game.id)
+
     return result
 
 
