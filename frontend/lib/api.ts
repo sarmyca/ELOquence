@@ -140,4 +140,20 @@ export const communityApi = {
   gameStats: (gameId: string) => api.get(`/games/${gameId}/community-stats`),
 };
 
+// Push notifications
+export const pushApi = {
+  vapidPublicKey: () =>
+    api.get<{ public_key: string; enabled: boolean }>('/push/vapid-public-key'),
+  subscribe: (subscription: PushSubscriptionJSON, userAgent?: string) =>
+    api.post<{ id: string }>('/push/subscribe', {
+      subscription,
+      user_agent: userAgent,
+    }),
+  unsubscribe: (endpoint: string) =>
+    api.delete<{ deleted: number }>('/push/subscribe', {
+      data: { endpoint },
+    }),
+  test: () => api.post<{ sent: number; removed: number }>('/push/test'),
+};
+
 export default api;

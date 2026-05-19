@@ -8,6 +8,7 @@ from app.models.elo_history import EloHistory
 from app.models.game import Game
 from app.models.move import Move
 from app.models.player_profile import PlayerProfile
+from app.models.push_subscription import PushSubscription
 from app.models.user import User
 from app.models.word_stats import WordStats
 
@@ -23,4 +24,5 @@ __all__ = [
     "Achievement",
     "Announcement",
     "Challenge",
+    "PushSubscription",
 ]

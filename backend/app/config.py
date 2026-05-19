@@ -15,6 +15,17 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 
+    # Web Push VAPID — empty values disable push entirely (graceful no-op).
+    # Generate a fresh pair with `python -m app.cli.generate_vapid`.
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_SUBJECT: str = "mailto:dev@eloquence.local"
+
+    @property
+    def push_enabled(self) -> bool:
+        """True when both VAPID keys are configured."""
+        return bool(self.VAPID_PUBLIC_KEY and self.VAPID_PRIVATE_KEY)
+
     model_config = {"env_file": ".env", "case_sensitive": True}
 
     @property

@@ -19,6 +19,7 @@ from PIL import Image, ImageDraw, ImageFont
 WORDLE_GREEN = (106, 170, 100, 255)   # --tile-correct
 WORDLE_GREEN_DARK = (94, 152, 89, 255)
 WHITE = (255, 255, 255, 255)
+WHITE_BG = (255, 255, 255, 255)
 
 PUBLIC = Path(__file__).resolve().parent.parent / "public"
 
@@ -77,27 +78,48 @@ def _rounded_square(size: int, radius_ratio: float, fill) -> Image.Image:
 
 
 def make_any(size: int) -> Image.Image:
-    """Rounded green tile with margin; matches the Wordle tile aesthetic."""
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    inset = int(size * 0.06)
+    """White card with a rounded green Wordle tile inside.
+
+    The opaque white background means no Chrome chrome (e.g. the dark
+    'Open in app' pill) shows through the rounded corners. On dark UI
+    surfaces the white edges read as an intentional app-card.
+    """
+    img = Image.new("RGBA", (size, size), WHITE_BG)
+    inset = int(size * 0.08)
     tile_size = size - 2 * inset
     tile = _rounded_square(tile_size, 0.18, WORDLE_GREEN)
-    _draw_letter(tile, "E", 0.62)
+    _draw_letter(tile, "E", 0.68)
     img.paste(tile, (inset, inset), tile)
     return img
 
 
 def make_maskable(size: int) -> Image.Image:
-    """Full bleed green with letter inside the 80% safe zone."""
+    """Full bleed green so OS masks (circle/squircle) crop only green.
+
+    The letter sits inside the inner ~80% safe zone so no Android
+    launcher ever clips it.
+    """
     img = Image.new("RGBA", (size, size), WORDLE_GREEN)
-    _draw_letter(img, "E", 0.46)
+    _draw_letter(img, "E", 0.48)
     return img
 
 
 def make_apple(size: int) -> Image.Image:
-    """iOS auto-rounds corners; full bleed green works best."""
+    """iOS auto-rounds corners; full bleed green looks best on dock/home."""
     img = Image.new("RGBA", (size, size), WORDLE_GREEN)
-    _draw_letter(img, "E", 0.58)
+    _draw_letter(img, "E", 0.62)
+    return img
+
+
+def make_favicon_tile(size: int) -> Image.Image:
+    """Rounded green tile on a transparent canvas — reads cleanly as a
+    tab favicon across browser themes. Used only for favicon.ico."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    inset = max(1, int(size * 0.04))
+    tile_size = size - 2 * inset
+    tile = _rounded_square(tile_size, 0.18, WORDLE_GREEN)
+    _draw_letter(tile, "E", 0.66)
+    img.paste(tile, (inset, inset), tile)
     return img
 
 
@@ -115,10 +137,8 @@ def main() -> None:
         img.save(path, "PNG", optimize=True)
         print(f"wrote {path}  ({path.stat().st_size:,} bytes)")
 
-    favicon_32 = make_any(32)
-    favicon_16 = make_any(16)
     favicon_path = PUBLIC / "favicon.ico"
-    favicon_32.save(favicon_path, format="ICO", sizes=[(16, 16), (32, 32)])
+    make_favicon_tile(32).save(favicon_path, format="ICO", sizes=[(16, 16), (32, 32)])
     print(f"wrote {favicon_path}  ({favicon_path.stat().st_size:,} bytes)")
 
 

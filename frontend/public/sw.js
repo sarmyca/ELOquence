@@ -10,7 +10,7 @@
  * old cache is purged on activate.
  */
 
-const SW_VERSION = 'v1';
+const SW_VERSION = 'v3';
 const STATIC_CACHE = `eloquence-static-${SW_VERSION}`;
 const RUNTIME_CACHE = `eloquence-runtime-${SW_VERSION}`;
 const SWR_CACHE = `eloquence-swr-${SW_VERSION}`;
@@ -200,4 +200,70 @@ self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// ---------- push -------------------------------------------------------------
+// The backend sends JSON payloads shaped as:
+//   { title, body, url, tag, icon, badge }
+// `url` lets a click navigate to a specific in-app route (e.g. /play).
+// `tag` collapses repeated notifications of the same kind on the OS side.
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = { title: 'ELOquence', body: event.data.text() };
+    }
+  }
+
+  const title = data.title || 'ELOquence';
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/icon-192.png',
+    tag: data.tag || undefined,
+    data: { url: data.url || '/' },
+    vibrate: [120, 60, 120],
+    renotify: Boolean(data.tag),
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        // If an ELOquence tab is already open, focus it (and navigate it).
+        for (const client of windowClients) {
+          try {
+            const url = new URL(client.url);
+            if (url.origin === self.location.origin) {
+              if (url.pathname !== targetUrl && 'navigate' in client) {
+                return client.navigate(targetUrl).then((c) => c && c.focus());
+              }
+              return client.focus();
+            }
+          } catch {
+            // ignore malformed client URLs
+          }
+        }
+        // Otherwise open a new tab on the target route.
+        return self.clients.openWindow(targetUrl);
+      }),
+  );
+});
+
+// `pushsubscriptionchange` fires when the browser rotates the endpoint
+// (rare — e.g. after a quota refresh). We can't re-register here without
+// an auth token, so we just clear the local state; the next time the page
+// loads it'll see no subscription and re-subscribe via the UI.
+self.addEventListener('pushsubscriptionchange', () => {
+  // no-op for now — handled when the user next visits the app
 });

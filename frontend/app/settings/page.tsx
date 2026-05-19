@@ -1,9 +1,16 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Palette, Zap, Trash2, UserX, AlertTriangle, X, Settings, Shield, Moon, Keyboard } from 'lucide-react';
+import { Palette, Zap, Trash2, UserX, AlertTriangle, X, Settings, Shield, Moon, Keyboard, Bell, BellOff } from 'lucide-react';
 import { usersApi } from '@/lib/api';
 import { useSettings } from '@/lib/useSettings';
+import {
+  getPushState,
+  subscribeToPush,
+  unsubscribeFromPush,
+  sendTestPush,
+  type PushState,
+} from '@/lib/push';
 
 /* ------------------------------------------------------------------ */
 /*  Shared modal shell                                                  */
@@ -352,6 +359,148 @@ function SettingRow({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Notifications section                                              */
+/* ------------------------------------------------------------------ */
+
+function NotificationsSection() {
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<string>('');
+
+  useEffect(() => {
+    getPushState().then(setState).catch(() => setState({ status: 'unsupported', endpoint: null }));
+  }, []);
+
+  const showFeedback = (msg: string) => {
+    setFeedback(msg);
+    setTimeout(() => setFeedback(''), 3000);
+  };
+
+  const handleToggle = async () => {
+    if (!state || busy) return;
+    setBusy(true);
+    try {
+      if (state.status === 'subscribed') {
+        const next = await unsubscribeFromPush();
+        setState(next);
+      } else {
+        const next = await subscribeToPush();
+        setState(next);
+        if (next.status === 'denied') {
+          showFeedback('Permission denied — enable notifications in your browser settings.');
+        } else if (next.status === 'unsubscribed') {
+          showFeedback('Could not enable notifications — try again after the page finishes loading.');
+        }
+      }
+    } catch (err) {
+      console.error('[push] toggle failed', err);
+      showFeedback('Something went wrong. Check the console.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleTest = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await sendTestPush();
+      if (res.sent === 0) {
+        showFeedback('Sent — but no device received it (check OS notification settings).');
+      } else {
+        showFeedback(`Test sent to ${res.sent} device${res.sent === 1 ? '' : 's'}.`);
+      }
+    } catch (err) {
+      console.error('[push] test failed', err);
+      showFeedback('Test failed. See console.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!state) return null;
+
+  const isSubscribed = state.status === 'subscribed';
+
+  let description = 'Get notified about challenges and daily puzzles.';
+  let disabledReason: string | null = null;
+  switch (state.status) {
+    case 'unsupported':
+      disabledReason = 'Your browser does not support push notifications.';
+      break;
+    case 'server-disabled':
+      disabledReason = 'Push notifications are not configured on this server.';
+      break;
+    case 'denied':
+      disabledReason = 'Permission is blocked — re-enable it in your browser site settings.';
+      break;
+    case 'unsubscribed':
+      description = 'Not enabled on this device.';
+      break;
+    case 'subscribed':
+      description = 'Enabled on this device.';
+      break;
+  }
+
+  return (
+    <section>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary mb-2 px-1">
+        Notifications
+      </p>
+      <div className="flex flex-col gap-2">
+        <SettingRow
+          icon={isSubscribed ? <Bell size={17} /> : <BellOff size={17} />}
+          title="Push Notifications"
+          description={disabledReason || description}
+        >
+          <button
+            type="button"
+            onClick={handleToggle}
+            disabled={busy || !!disabledReason}
+            className="px-3 py-1.5 rounded-[8px] text-xs font-semibold transition-colors duration-150 disabled:opacity-50"
+            style={{
+              backgroundColor: isSubscribed ? 'var(--bg-muted)' : 'var(--tile-correct)',
+              color: isSubscribed ? 'var(--text-primary)' : '#ffffff',
+              border: isSubscribed ? '1px solid var(--border-default)' : '0',
+            }}
+          >
+            {busy ? '...' : isSubscribed ? 'Disable' : 'Enable'}
+          </button>
+        </SettingRow>
+
+        {isSubscribed && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-[12px] bg-bg-elevated border border-border-subtle">
+            <p className="text-xs text-text-secondary">
+              Send a test notification to confirm delivery on this device.
+            </p>
+            <button
+              type="button"
+              onClick={handleTest}
+              disabled={busy}
+              className="px-3 py-1.5 rounded-[8px] text-xs font-medium transition-colors duration-150 disabled:opacity-50"
+              style={{
+                backgroundColor: 'var(--bg-muted)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-default)',
+              }}
+            >
+              Send test
+            </button>
+          </div>
+        )}
+
+        {feedback && (
+          <p className="text-xs px-3 py-2 rounded-[8px] bg-bg-muted border border-border-subtle"
+             style={{ color: 'var(--text-secondary)' }}>
+            {feedback}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main settings page                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -413,6 +562,9 @@ export default function SettingsPage() {
               </SettingRow>
             </div>
           </section>
+
+          {/* Notifications section */}
+          <NotificationsSection />
 
           {/* Appearance section */}
           <section>

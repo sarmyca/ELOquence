@@ -68,6 +68,7 @@ def create_app() -> FastAPI:
     from app.routers.games import router as games_router
     from app.routers.graph import router as graph_router
     from app.routers.leaderboard import router as leaderboard_router
+    from app.routers.push import router as push_router
     from app.routers.users import router as users_router
 
     app.include_router(auth_router, prefix="/api")
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router, prefix="/api")
     app.include_router(achievements_router, prefix="/api")
     app.include_router(announcements_public_router, prefix="/api")
+    app.include_router(push_router, prefix="/api")
 
     @app.get("/health")
     async def health_check() -> dict:
