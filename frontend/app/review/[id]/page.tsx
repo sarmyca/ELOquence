@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import CoachChat from '@/components/CoachChat';
+import EloProjection from '@/components/EloProjection';
 import { gamesApi, analysisApi, communityApi, dailyApi } from '@/lib/api';
 import {
   Game,
@@ -1703,6 +1704,15 @@ function ReviewPage() {
             </div>
           )}
         </div>
+
+        {/* ELO projection — shows what the rating change would have been
+            for each hypothetical outcome (1/6 .. 6/6, X/6) with the same
+            accuracy. Only rendered for rated games. */}
+        {game && game.rated && game.accuracy_score != null && (
+          <div className="mt-4">
+            <EloProjection game={game} accuracy={game.accuracy_score} />
+          </div>
+        )}
 
         {/* Analysis error */}
         {analysisError && (
