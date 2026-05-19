@@ -76,6 +76,20 @@ export async function getPushState(): Promise<PushState> {
   if (!reg) return { status: 'unsubscribed', endpoint: null };
   const existing = await reg.pushManager.getSubscription();
   if (existing) {
+    // The browser may already hold a subscription from a previous session
+    // whose server-side row was wiped (DB reset, migration, logout under a
+    // different account). Re-POST it on every read — the backend upserts
+    // on the endpoint uniqueness constraint, so this is safe to repeat.
+    try {
+      await pushApi.subscribe(
+        existing.toJSON() as PushSubscriptionJSON,
+        navigator.userAgent,
+      );
+    } catch {
+      // Server might be down or the user might not be authenticated.
+      // Either way, the local sub still exists, so report it as such —
+      // the UI can show a Disable button to let the user clean it up.
+    }
     return { status: 'subscribed', endpoint: existing.endpoint };
   }
   return { status: 'unsubscribed', endpoint: null };

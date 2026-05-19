@@ -65,6 +65,14 @@ async def make_guess(
 
         background_tasks.add_task(notify_challenge_completed, game.id)
 
+    newly_unlocked = result.get("newly_unlocked") or []
+    if newly_unlocked:
+        from app.services.push import notify_achievements_unlocked
+
+        background_tasks.add_task(
+            notify_achievements_unlocked, current_user.id, list(newly_unlocked)
+        )
+
     return result
 
 

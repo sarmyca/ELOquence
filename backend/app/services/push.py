@@ -25,9 +25,26 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.notification_preferences import DEFAULT_PREFS, NotificationPreferences
 from app.models.push_subscription import PushSubscription
 
 _log = logging.getLogger(__name__)
+
+
+async def is_trigger_enabled(db: AsyncSession, user_id, trigger: str) -> bool:
+    """Return True if the user has the given trigger enabled.
+
+    Falls back to ``DEFAULT_PREFS`` when no preferences row exists yet —
+    so brand-new accounts get all triggers by default and have to actively
+    opt-out.
+    """
+    result = await db.execute(
+        select(NotificationPreferences).where(NotificationPreferences.user_id == user_id)
+    )
+    prefs = result.scalar_one_or_none()
+    if prefs is None:
+        return bool(DEFAULT_PREFS.get(trigger, False))
+    return bool(getattr(prefs, trigger, DEFAULT_PREFS.get(trigger, False)))
 
 
 def _send_one(sub: PushSubscription, payload: dict) -> tuple[bool, bool]:
@@ -199,6 +216,10 @@ async def notify_challenge_completed(game_id) -> None:
                     continue
                 seen_creators.add(c.creator_id)
 
+                # Honour the creator's opt-in preference for this trigger.
+                if not await is_trigger_enabled(db, c.creator_id, "challenge_results"):
+                    continue
+
                 if game.status == "won":
                     body = f"{player_username} solved your challenge in {game.num_guesses}/6"
                 elif game.status == "lost":
@@ -226,3 +247,119 @@ async def notify_challenge_completed(game_id) -> None:
             await db.commit()
     except Exception as exc:  # noqa: BLE001 — never let push fail bubble out
         _log.warning("notify_challenge_completed failed for game %s: %s", game_id, exc)
+
+
+async def notify_achievements_unlocked(user_id, achievement_types: list[str]) -> None:
+    """Push the user about newly-unlocked achievements (multi-device sync).
+
+    The user already sees an in-app toast on the device they unlocked it on,
+    but pushing means a player on phone + desktop simultaneously sees the
+    unlock everywhere.
+    """
+    if not settings.push_enabled or not achievement_types:
+        return
+
+    from app.database import AsyncSessionLocal
+    from app.services.achievements import ALL_ACHIEVEMENTS
+
+    name_by_type = {a["type"]: a["name"] for a in ALL_ACHIEVEMENTS}
+
+    try:
+        async with AsyncSessionLocal() as db:
+            if not await is_trigger_enabled(db, user_id, "achievement_unlock"):
+                return
+
+            subs = (
+                await db.execute(
+                    select(PushSubscription).where(PushSubscription.user_id == user_id)
+                )
+            ).scalars().all()
+            if not subs:
+                return
+
+            if len(achievement_types) == 1:
+                title = "Achievement unlocked"
+                name = name_by_type.get(achievement_types[0], achievement_types[0])
+                body = name
+            else:
+                title = f"{len(achievement_types)} achievements unlocked"
+                pretty = [name_by_type.get(t, t) for t in achievement_types[:3]]
+                body = ", ".join(pretty)
+                if len(achievement_types) > 3:
+                    body += f", +{len(achievement_types) - 3} more"
+
+            payload = build_payload(
+                title=title,
+                body=body,
+                url="/achievements",
+                tag=f"achievement-{user_id}",
+            )
+            await send_push_to_subscriptions(db, list(subs), payload)
+            await db.commit()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("notify_achievements_unlocked failed for user %s: %s", user_id, exc)
+
+
+async def notify_daily_reminder(user_id) -> None:
+    """Single-user nudge that today's daily puzzle is waiting.
+
+    Caller (the cron job) is responsible for selecting *which* users to
+    notify; this helper just builds the payload and respects the user's
+    daily_reminder preference.
+    """
+    if not settings.push_enabled:
+        return
+
+    from app.database import AsyncSessionLocal
+
+    try:
+        async with AsyncSessionLocal() as db:
+            if not await is_trigger_enabled(db, user_id, "daily_reminder"):
+                return
+            subs = (
+                await db.execute(
+                    select(PushSubscription).where(PushSubscription.user_id == user_id)
+                )
+            ).scalars().all()
+            if not subs:
+                return
+            payload = build_payload(
+                title="ELOquence",
+                body="Today's puzzle is ready. Take your shot.",
+                url="/play?mode=daily",
+                tag="daily-reminder",
+            )
+            await send_push_to_subscriptions(db, list(subs), payload)
+            await db.commit()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("notify_daily_reminder failed for user %s: %s", user_id, exc)
+
+
+async def notify_streak_warning(user_id, streak_days: int) -> None:
+    """End-of-day nudge for users with an active streak who haven't played today."""
+    if not settings.push_enabled:
+        return
+
+    from app.database import AsyncSessionLocal
+
+    try:
+        async with AsyncSessionLocal() as db:
+            if not await is_trigger_enabled(db, user_id, "streak_warning"):
+                return
+            subs = (
+                await db.execute(
+                    select(PushSubscription).where(PushSubscription.user_id == user_id)
+                )
+            ).scalars().all()
+            if not subs:
+                return
+            payload = build_payload(
+                title="Streak alert",
+                body=f"Your {streak_days}-day streak ends at midnight. Play today's puzzle.",
+                url="/play?mode=daily",
+                tag="streak-warning",
+            )
+            await send_push_to_subscriptions(db, list(subs), payload)
+            await db.commit()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("notify_streak_warning failed for user %s: %s", user_id, exc)

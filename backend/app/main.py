@@ -33,9 +33,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Pre-warm the word index cache so the first guess doesn't pay the cold-start cost
     is_valid_word("WARMUP")
 
+    # Scheduled notification jobs (daily reminder + streak warning).
+    # They are no-ops when push is not configured, but the loops still
+    # run so we don't have to special-case toggle the lifecycle.
+    from app.services.notifications_cron import start_cron_tasks
+
+    cron_tasks = start_cron_tasks()
+
     print("ELOquence backend ready.")
     yield
-    # Nothing to clean up on shutdown
+
+    for task in cron_tasks:
+        task.cancel()
 
 
 def create_app() -> FastAPI:

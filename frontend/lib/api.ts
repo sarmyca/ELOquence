@@ -141,6 +141,13 @@ export const communityApi = {
 };
 
 // Push notifications
+export interface PushPreferences {
+  challenge_results: boolean;
+  achievement_unlock: boolean;
+  daily_reminder: boolean;
+  streak_warning: boolean;
+}
+
 export const pushApi = {
   vapidPublicKey: () =>
     api.get<{ public_key: string; enabled: boolean }>('/push/vapid-public-key'),
@@ -154,6 +161,9 @@ export const pushApi = {
       data: { endpoint },
     }),
   test: () => api.post<{ sent: number; removed: number }>('/push/test'),
+  getPreferences: () => api.get<PushPreferences>('/push/preferences'),
+  updatePreferences: (patch: Partial<PushPreferences>) =>
+    api.patch<PushPreferences>('/push/preferences', patch),
 };
 
 export default api;

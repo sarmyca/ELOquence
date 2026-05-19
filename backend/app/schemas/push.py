@@ -38,3 +38,19 @@ class PushTestResponse(BaseModel):
     """Response for POST /push/test."""
     sent: int
     removed: int = 0
+
+
+class NotificationPreferencesPayload(BaseModel):
+    """GET response and PATCH body for /push/preferences."""
+    challenge_results: bool = True
+    achievement_unlock: bool = True
+    daily_reminder: bool = True
+    streak_warning: bool = True
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    """PATCH body — every field is optional so the client can toggle one."""
+    challenge_results: bool | None = None
+    achievement_unlock: bool | None = None
+    daily_reminder: bool | None = None
+    streak_warning: bool | None = None

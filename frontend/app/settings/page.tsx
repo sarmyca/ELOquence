@@ -11,6 +11,7 @@ import {
   sendTestPush,
   type PushState,
 } from '@/lib/push';
+import { pushApi, type PushPreferences } from '@/lib/api';
 
 /* ------------------------------------------------------------------ */
 /*  Shared modal shell                                                  */
@@ -362,14 +363,70 @@ function SettingRow({
 /*  Notifications section                                              */
 /* ------------------------------------------------------------------ */
 
+const TRIGGER_LABELS: { key: keyof PushPreferences; title: string; description: string }[] = [
+  {
+    key: 'challenge_results',
+    title: 'Challenge results',
+    description: 'When someone plays a challenge you created.',
+  },
+  {
+    key: 'achievement_unlock',
+    title: 'Achievements',
+    description: 'When you unlock a new achievement.',
+  },
+  {
+    key: 'daily_reminder',
+    title: 'Daily puzzle reminder',
+    description: "A nudge in the morning if you haven't played today.",
+  },
+  {
+    key: 'streak_warning',
+    title: 'Streak warning',
+    description: 'Evening alert if your streak is about to break.',
+  },
+];
+
 function NotificationsSection() {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string>('');
+  const [prefs, setPrefs] = useState<PushPreferences | null>(null);
+  const [prefsBusy, setPrefsBusy] = useState<keyof PushPreferences | null>(null);
 
   useEffect(() => {
     getPushState().then(setState).catch(() => setState({ status: 'unsupported', endpoint: null }));
   }, []);
+
+  // Load per-trigger preferences once we know the user is subscribed —
+  // no need to fetch them when push is disabled entirely.
+  useEffect(() => {
+    if (state?.status !== 'subscribed') {
+      setPrefs(null);
+      return;
+    }
+    pushApi
+      .getPreferences()
+      .then((res) => setPrefs(res.data))
+      .catch((err) => console.error('[push] load prefs failed', err));
+  }, [state?.status]);
+
+  const togglePref = async (key: keyof PushPreferences) => {
+    if (!prefs || prefsBusy) return;
+    setPrefsBusy(key);
+    const optimistic = { ...prefs, [key]: !prefs[key] };
+    setPrefs(optimistic);
+    try {
+      const res = await pushApi.updatePreferences({ [key]: optimistic[key] });
+      setPrefs(res.data);
+    } catch (err) {
+      console.error('[push] update pref failed', err);
+      setPrefs(prefs); // revert
+      setFeedback("Couldn't save preference. Try again.");
+      setTimeout(() => setFeedback(''), 3000);
+    } finally {
+      setPrefsBusy(null);
+    }
+  };
 
   const showFeedback = (msg: string) => {
     setFeedback(msg);
@@ -486,6 +543,27 @@ function NotificationsSection() {
             >
               Send test
             </button>
+          </div>
+        )}
+
+        {isSubscribed && prefs && (
+          <div className="flex flex-col gap-2 px-4 py-3 rounded-[12px] bg-bg-elevated border border-border-subtle">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
+              Notify me about
+            </p>
+            {TRIGGER_LABELS.map(({ key, title, description }) => (
+              <div key={key} className="flex items-center justify-between gap-3 py-1.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-text-primary">{title}</p>
+                  <p className="text-xs text-text-secondary mt-0.5 leading-snug">{description}</p>
+                </div>
+                <Toggle
+                  checked={prefs[key]}
+                  onChange={() => togglePref(key)}
+                  label={`Toggle ${title}`}
+                />
+              </div>
+            ))}
           </div>
         )}
 

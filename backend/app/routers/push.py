@@ -1,4 +1,4 @@
-"""Push notification endpoints — subscribe / unsubscribe / send test."""
+"""Push notification endpoints — subscribe / unsubscribe / preferences / test."""
 from __future__ import annotations
 
 import uuid
@@ -10,9 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
+from app.models.notification_preferences import DEFAULT_PREFS, NotificationPreferences
 from app.models.push_subscription import PushSubscription
 from app.models.user import User
 from app.schemas.push import (
+    NotificationPreferencesPayload,
+    NotificationPreferencesUpdate,
     PushSubscribeRequest,
     PushTestResponse,
     PushUnsubscribeRequest,
@@ -22,6 +25,54 @@ from app.services.auth import get_current_user
 from app.services.push import build_payload, send_push_to_subscriptions
 
 router = APIRouter(prefix="/push", tags=["push"])
+
+
+async def _get_or_default_prefs(db: AsyncSession, user_id) -> dict:
+    result = await db.execute(
+        select(NotificationPreferences).where(NotificationPreferences.user_id == user_id)
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        return dict(DEFAULT_PREFS)
+    return {k: getattr(row, k) for k in DEFAULT_PREFS}
+
+
+@router.get("/preferences", response_model=NotificationPreferencesPayload)
+async def get_preferences(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> NotificationPreferencesPayload:
+    """Return the user's per-trigger opt-in settings (defaults to all on)."""
+    prefs = await _get_or_default_prefs(db, current_user.id)
+    return NotificationPreferencesPayload(**prefs)
+
+
+@router.patch("/preferences", response_model=NotificationPreferencesPayload)
+async def update_preferences(
+    payload: NotificationPreferencesUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> NotificationPreferencesPayload:
+    """Toggle one or more per-trigger preferences for the current user."""
+    result = await db.execute(
+        select(NotificationPreferences).where(NotificationPreferences.user_id == current_user.id)
+    )
+    row = result.scalar_one_or_none()
+    updates = payload.model_dump(exclude_unset=True)
+
+    if row is None:
+        # First write — start from defaults and overlay the provided fields.
+        merged = {**DEFAULT_PREFS, **updates}
+        row = NotificationPreferences(user_id=current_user.id, **merged)
+        db.add(row)
+    else:
+        for key, value in updates.items():
+            setattr(row, key, value)
+
+    await db.flush()
+    return NotificationPreferencesPayload(
+        **{k: getattr(row, k) for k in DEFAULT_PREFS}
+    )
 
 
 @router.get("/vapid-public-key", response_model=PushVapidPublicKey)

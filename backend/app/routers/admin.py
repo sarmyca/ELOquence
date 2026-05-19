@@ -495,6 +495,38 @@ async def active_announcements(
 
 
 # ---------------------------------------------------------------------------
+# Notification job triggers (demo / on-demand)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/notifications/trigger")
+async def trigger_notification_job(
+    _admin: Annotated[User, Depends(require_admin)],
+    type: Annotated[str, Query(description="daily_reminder or streak_warning")],
+) -> dict:
+    """Fire one of the scheduled notification jobs immediately.
+
+    Useful for demos and integration tests — the real jobs run at 09:00
+    and 19:00 local time, which is impractical to wait for in a review.
+    """
+    from app.services.notifications_cron import (
+        run_daily_reminder_job,
+        run_streak_warning_job,
+    )
+
+    if type == "daily_reminder":
+        stats = await run_daily_reminder_job()
+    elif type == "streak_warning":
+        stats = await run_streak_warning_job()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="type must be 'daily_reminder' or 'streak_warning'",
+        )
+    return {"type": type, **stats}
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
