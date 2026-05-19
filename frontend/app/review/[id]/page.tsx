@@ -1220,11 +1220,13 @@ function StepOverview({
   activeRow,
   showExplanation,
   setShowExplanation,
+  game,
 }: {
   analysis: AnalysisResult;
   activeRow: number;
   showExplanation: boolean;
   setShowExplanation: (fn: (v: boolean) => boolean) => void;
+  game: Game | null;
 }) {
   return (
     <div>
@@ -1337,6 +1339,15 @@ function StepOverview({
                   </p>
                 ))}
               </div>
+
+              {/* ELO distribution — shown alongside the column glossary
+                  so the player can see how each hypothetical outcome
+                  would have moved their rating. Gated on game + rated. */}
+              {game && game.rated && game.accuracy_score != null && (
+                <div className="mt-4">
+                  <EloProjection game={game} accuracy={game.accuracy_score} />
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1705,15 +1716,6 @@ function ReviewPage() {
           )}
         </div>
 
-        {/* ELO projection — shows what the rating change would have been
-            for each hypothetical outcome (1/6 .. 6/6, X/6) with the same
-            accuracy. Only rendered for rated games. */}
-        {game && game.rated && game.accuracy_score != null && (
-          <div className="mt-4">
-            <EloProjection game={game} accuracy={game.accuracy_score} />
-          </div>
-        )}
-
         {/* Analysis error */}
         {analysisError && (
           <div className="mt-6 flex flex-col gap-3">
@@ -1797,6 +1799,7 @@ function ReviewPage() {
                     activeRow={activeRow}
                     showExplanation={showExplanation}
                     setShowExplanation={setShowExplanation}
+                    game={game}
                   />
                 )}
                 {currentStep >= 1 && currentStep <= moveCount && (

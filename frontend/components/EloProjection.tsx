@@ -43,7 +43,7 @@ export default function EloProjection({
 
   return (
     <section
-      aria-label="ELO projection by outcome"
+      aria-label="ELO distribution"
       className="rounded-card-lg overflow-hidden"
       style={{
         backgroundColor: 'var(--bg-base)',
@@ -58,7 +58,7 @@ export default function EloProjection({
           className="text-[10px] font-bold uppercase tracking-wider font-display"
           style={{ color: 'var(--text-secondary)' }}
         >
-          ELO impact by outcome
+          ELO distribution
         </span>
         <span
           className="text-[10px] font-sans"
