@@ -11,6 +11,7 @@ import {
   Check,
   Swords,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import { Game, patternToTiles } from '@/lib/types';
 import { springs } from '@/lib/animations';
@@ -424,8 +425,8 @@ export default function GameOverModal({
                           />
                           <SecondaryBtn
                             onClick={() => router.push('/play')}
-                            icon={<RotateCcw size={14} />}
-                            label="Again"
+                            icon={<ArrowLeft size={14} />}
+                            label="Back"
                           />
                         </div>
                       </>

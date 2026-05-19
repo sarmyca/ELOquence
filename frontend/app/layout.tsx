@@ -4,6 +4,8 @@ import './globals.css';
 import { AuthProvider } from '@/lib/hooks/useAuth';
 import Navigation from '@/components/Navigation';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
+import InstallPrompt from '@/components/InstallPrompt';
 
 const libreFranklin = Libre_Franklin({
   subsets: ['latin'],
@@ -29,21 +31,36 @@ export const metadata: Metadata = {
   title: 'ELOquence',
   description:
     'Competitive Wordle with information-theory analysis, ELO ratings, and deep move breakdowns.',
+  applicationName: 'ELOquence',
   openGraph: {
     title: 'ELOquence',
     description: 'The Chess.com of Wordle',
     type: 'website',
   },
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'ELOquence',
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#ffffff',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#121213' },
+  ],
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -70,7 +87,9 @@ export default function RootLayout({
           <Navigation />
           <AnnouncementBanner />
           <main className="relative z-10">{children}</main>
+          <InstallPrompt />
         </AuthProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

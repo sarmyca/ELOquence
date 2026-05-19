@@ -70,3 +70,7 @@ screenshots/
 .claude/
 .mcp.json
 
+# Lecture materials (not part of the app)
+/10-PWA.pdf
+/10-PWA.txt
+
