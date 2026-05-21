@@ -12,6 +12,7 @@ import AchievementToast, { ACHIEVEMENT_META } from '@/components/AchievementToas
 import GameWaveBackground from '@/components/GameWaveBackground';
 import { gamesApi, dailyApi, challengesApi } from '@/lib/api';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useAbandonOnExit } from '@/lib/hooks/useAbandonOnExit';
 import { Game, GameStatus, TileState, patternToTiles } from '@/lib/types';
 import { springs } from '@/lib/animations';
 import { useSettings } from '@/lib/useSettings';
@@ -135,6 +136,27 @@ export default function GamePage() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [gameStatus]);
+
+  // ── Exit-handling policy ─────────────────────────────────────────────
+  // Consequential modes get the browser-native beforeunload prompt as a
+  // guard against accidental refresh/close. Daily is retryable, practice
+  // is free, so neither warrants the extra friction. All in-progress
+  // games still emit a pagehide beacon so the server can mark state
+  // cleanly (rated games take their ELO hit here — closing the tab is
+  // not an escape hatch).
+  const isInProgress = gameStatus === 'in_progress';
+  const isChallenge = game?.mode === 'challenge';
+  const isRatedComp = !!game?.rated;
+  const isConsequential = isInProgress && (isRatedComp || isChallenge);
+  // In-app back-button shows confirmation for every mode except practice,
+  // since even daily merits a soft "are you sure" against a stray tap.
+  const shouldConfirmBack = isInProgress && game?.mode !== 'practice';
+
+  useAbandonOnExit({
+    gameId: id,
+    isActive: isInProgress,
+    warn: isConsequential,
+  });
 
   // Build keyboard letter states from all submitted guesses
   const letterStates: Record<string, TileState> = {};
@@ -331,7 +353,7 @@ export default function GamePage() {
         <motion.button
           whileTap={{ scale: 0.92 }}
           onClick={() => {
-            if (game?.rated && gameStatus === 'in_progress') {
+            if (shouldConfirmBack) {
               setShowAbandonConfirm(true);
             } else {
               router.push('/play');
@@ -455,11 +477,31 @@ export default function GamePage() {
                     <div className="w-10 h-10 rounded-full bg-[#e74c3c]/[0.12] flex items-center justify-center">
                       <AlertTriangle size={20} className="text-[#e74c3c]" />
                     </div>
-                    <h3 className="text-sm font-bold text-[#ededf0]">Abandon game?</h3>
+                    <h3 className="text-sm font-bold text-[#ededf0]">
+                      {isRatedComp
+                        ? 'Abandon game?'
+                        : isChallenge
+                        ? 'Leave challenge?'
+                        : 'Leave the daily?'}
+                    </h3>
                     <p className="text-xs text-[#9898a0] leading-relaxed">
-                      This counts as a{' '}
-                      <span className="text-[#e74c3c] font-semibold">loss</span> and you will
-                      lose ELO.
+                      {isRatedComp ? (
+                        <>
+                          This counts as a{' '}
+                          <span className="text-[#e74c3c] font-semibold">loss</span> and you
+                          will lose ELO.
+                        </>
+                      ) : isChallenge ? (
+                        <>
+                          You won&apos;t be able to replay this challenge — the word will be{' '}
+                          <span className="text-[#e74c3c] font-semibold">locked</span> for you.
+                        </>
+                      ) : (
+                        <>
+                          Your current attempt will be marked abandoned. You can come back and
+                          try today&apos;s word again.
+                        </>
+                      )}
                     </p>
                   </div>
 
@@ -484,7 +526,7 @@ export default function GamePage() {
                       disabled={abandoning}
                       className="flex-1 py-2.5 rounded-xl bg-[#e74c3c] hover:bg-[#c0392b] text-white font-medium text-xs transition-colors disabled:opacity-60"
                     >
-                      {abandoning ? 'Leaving...' : 'Abandon'}
+                      {abandoning ? 'Leaving...' : isRatedComp ? 'Abandon' : 'Leave'}
                     </button>
                   </div>
                 </div>

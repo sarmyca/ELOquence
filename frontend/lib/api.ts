@@ -51,6 +51,32 @@ export const gamesApi = {
   list: (params?: { page?: number; per_page?: number; mode?: string }) =>
     api.get('/games', { params }),
   delete: (gameId: string) => api.delete(`/games/${gameId}`),
+  /**
+   * Fire-and-forget abandon used from `pagehide` (tab close, refresh,
+   * navigate-away). `navigator.sendBeacon` can't attach an Authorization
+   * header — we use `fetch` with `keepalive: true`, which survives the
+   * unload AND accepts a Bearer token. Errors are swallowed (the page is
+   * already leaving); the server-side stale-cleanup on the user's next
+   * `create_game` is the safety net if this fetch never lands.
+   */
+  abandonBeacon: (gameId: string) => {
+    if (typeof window === 'undefined') return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    try {
+      void fetch(`${API_URL}/api/games/${gameId}`, {
+        method: 'DELETE',
+        headers,
+        keepalive: true,
+      });
+    } catch {
+      /* page is unloading — nothing to do */
+    }
+  },
 };
 
 // Analysis

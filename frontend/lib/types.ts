@@ -1,4 +1,4 @@
-export type GameMode = 'daily' | 'competitive' | 'practice';
+export type GameMode = 'daily' | 'competitive' | 'practice' | 'challenge';
 export type GameStatus = 'in_progress' | 'won' | 'lost' | 'abandoned';
 export type Classification =
   | 'brilliant'

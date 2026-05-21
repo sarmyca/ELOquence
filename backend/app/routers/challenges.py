@@ -157,10 +157,27 @@ async def play_challenge(
     """
     from app.routers.games import _build_game_response
 
+    from app.services.game import abandon_game
+
     result = await db.execute(select(Challenge).where(Challenge.code == code))
     c = result.scalar_one_or_none()
     if not c:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Challenge not found.")
+
+    # Clean up any orphaned in-progress challenge games (different word) so
+    # a stale challenge — caused by a tab close before the pagehide beacon
+    # could land — doesn't sit pending forever. Same-word in-progress games
+    # are caught by the constraint check below and reported as 409.
+    stale = await db.execute(
+        select(Game).where(
+            Game.user_id == current_user.id,
+            Game.mode == "challenge",
+            Game.status == "in_progress",
+            Game.target_word != c.target_word,
+        )
+    )
+    for stale_game in stale.scalars().all():
+        await abandon_game(db, stale_game.id, current_user)
 
     existing = await db.execute(
         select(Game).where(
