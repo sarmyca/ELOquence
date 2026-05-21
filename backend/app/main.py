@@ -1,13 +1,49 @@
 """FastAPI application entry point."""
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from app.config import settings
+
+_log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Security headers middleware
+# ---------------------------------------------------------------------------
+
+# Conservative defaults that match an API + SPA topology. Anything that
+# would break the existing frontend (e.g. a strict Content-Security-Policy
+# enumerating every script source) is left out — the SPA loads its own
+# assets and Next.js inline scripts, and a half-right CSP would simply
+# break things in prod without adding real defence. Reverse-proxy in front
+# of this in production for proper HSTS + CSP tuning.
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",  # blocks MIME sniffing
+    "X-Frame-Options": "DENY",            # clickjacking — the API has no UI
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+    # Only meaningful when served over HTTPS; harmless on plain HTTP.
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+}
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Append a small set of hardening headers to every response."""
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        for k, v in _SECURITY_HEADERS.items():
+            response.headers.setdefault(k, v)
+        return response
 
 
 @asynccontextmanager
@@ -56,14 +92,29 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS
+    # CORS — restrict methods and headers to what the SPA actually uses.
+    # Wildcarding both with `allow_credentials=True` is permissive enough
+    # that a misconfigured CORS_ORIGINS entry quickly becomes a credential
+    # exfiltration channel; pin the allowlist instead.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type"],
+        max_age=600,
     )
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # Global exception handler — never leak stack traces or internal paths
+    # to clients. The full traceback is still logged server-side for ops.
+    @app.exception_handler(Exception)
+    async def _unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
+        _log.exception("Unhandled exception on %s %s", request.method, request.url.path)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Internal server error."},
+        )
 
     # Routers
     from app.routers.achievements import router as achievements_router

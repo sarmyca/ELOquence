@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import random
 import uuid
@@ -10,10 +11,25 @@ from datetime import date, datetime, timezone
 import httpx
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+
+def _create_game_lock_key(user_id: uuid.UUID, mode: str) -> int:
+    """Stable 63-bit int derived from (user_id, mode) for advisory locks.
+
+    Used to serialise concurrent `create_game` calls for the same player
+    in the same mode: without it, N racing `POST /api/daily/play` requests
+    each saw "no existing daily" and each created a fresh row, giving the
+    player N parallel official daily attempts. Python's built-in ``hash``
+    is per-process randomised, so we sha256 the inputs and truncate to
+    the bigint signed-positive range PostgreSQL's `pg_advisory_xact_lock`
+    expects.
+    """
+    digest = hashlib.sha256(f"{user_id}:{mode}".encode()).digest()
+    return int.from_bytes(digest[:8], "big", signed=False) & 0x7FFFFFFFFFFFFFFF
 
 from app.models.daily_word import DailyWord
 from app.models.game import Game
@@ -208,16 +224,35 @@ async def create_game(
 
     pool = await _get_word_pool(mode, word_pool)
 
-    # Abandon any in-progress games of the same mode for this user
+    # Transaction-scoped advisory lock keyed on (user_id, mode). Forces
+    # concurrent `create_game` calls for the same player+mode to serialise
+    # — the second call blocks here until the first commits, then re-reads
+    # the just-created row and returns it via the existing-game branches
+    # downstream (in daily.py and play_challenge). Without this, racing
+    # POSTs to /api/daily/play each saw "no existing daily" and each
+    # created a separate row, giving the player parallel attempts at the
+    # same puzzle.
     await db.execute(
-        update(Game)
-        .where(
+        text("SELECT pg_advisory_xact_lock(:k)"),
+        {"k": _create_game_lock_key(user.id, mode)},
+    )
+
+    # Abandon any in-progress games of the same mode for this user before
+    # starting a new one. Route each through abandon_game() so rated
+    # competitive games get the proper ELO penalty (X/6-equivalent loss).
+    # A naive bulk UPDATE here would leave the cheese vector "close tab on
+    # losing rated game, start a fresh competitive, no ELO lost" wide open.
+    # Scope is intentionally same-mode only: a user mid-competitive who
+    # opens a daily/practice shouldn't be penalized for switching modes.
+    stale = await db.execute(
+        select(Game).where(
             Game.user_id == user.id,
             Game.mode == mode,
             Game.status == "in_progress",
         )
-        .values(status="abandoned")
     )
+    for stale_game in stale.scalars().all():
+        await abandon_game(db, stale_game.id, user)
 
     if mode == "daily":
         target_word, difficulty = await _get_or_create_daily_word(db)
@@ -299,14 +334,25 @@ async def submit_guess(
             detail=f"'{guess}' is not a valid word.",
         )
 
-    # Load game with moves — allow guest games (user_id is None)
+    # Load game with moves — row-level lock to serialize concurrent guesses.
+    # Without `with_for_update()`, two simultaneous /guess POSTs both pass the
+    # `status == 'in_progress'` check on stale snapshots and both insert Move
+    # rows; the attacker pumps N concurrent guesses per "slot," extracting
+    # pattern info without consuming a guess budget. The FOR UPDATE locks the
+    # Game row until commit, forcing the second call to wait, observe the
+    # post-first-guess state, and either continue legitimately or reject with
+    # 409 if the first guess completed the game.
+    #
+    # Guest games (user_id IS NULL) are intentionally NOT accessible here —
+    # the `/api/daily/guest/{id}/guess` endpoint handles those with its own
+    # query. Previously this filter allowed any authed user to submit on any
+    # guest game (IDOR), enabling cross-account play and sacrificial-guest
+    # solving to learn the daily answer.
     result = await db.execute(
         select(Game)
         .options(selectinload(Game.moves))
-        .where(
-            Game.id == game_id,
-            (Game.user_id == user.id) | (Game.user_id.is_(None)),
-        )
+        .where(Game.id == game_id, Game.user_id == user.id)
+        .with_for_update()
     )
     game = result.scalar_one_or_none()
     if game is None:

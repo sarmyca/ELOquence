@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,11 @@ from app.models.user import User
 from app.schemas.game import GameResponse, GuessSubmit
 from app.services.auth import get_current_user
 from app.services.game import create_game
+from app.services.rate_limit import check_rate_limit
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
 
 router = APIRouter(prefix="/daily", tags=["daily"])
 
@@ -62,11 +67,34 @@ async def get_daily_info(
 
 @router.post("/guest", response_model=GameResponse, status_code=status.HTTP_201_CREATED)
 async def start_guest_daily_game(
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> GameResponse:
-    """Create an untracked daily game for unauthenticated guests."""
+    """Create an untracked daily game for unauthenticated guests.
+
+    Per-IP throttled to 5 fresh guest games per hour. Without this cap an
+    anonymous client could spawn unlimited guest dailies, brute the answer
+    by losing each one (the target_word is revealed on lost games), and
+    then play the official daily on their authed account knowing the
+    solution — a daily-leak channel that bypasses the streak system
+    entirely. 5/hour leaves room for honest guest play (try a couple of
+    times, learn the rules, sign up) while making mass extraction
+    infeasible.
+    """
     from app.routers.games import _build_game_response
     from app.services.game import _get_or_create_daily_word
+
+    blocked_for = check_rate_limit(
+        f"daily-guest:{_client_ip(request)}",
+        max_attempts=5,
+        window_seconds=3600.0,
+    )
+    if blocked_for is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many guest games. Please sign in or try again later.",
+            headers={"Retry-After": str(int(blocked_for) + 1)},
+        )
 
     target_word, difficulty = await _get_or_create_daily_word(db)
 
@@ -119,10 +147,15 @@ async def guest_guess(
     from app.models.move import Move
     from app.routers.games import _build_game_response
 
+    # Row-level lock to serialize concurrent guesses (same anti-race fix as
+    # the authed submit_guess path — without it, a guest can pump multiple
+    # parallel guesses per slot and reverse-engineer the target word from
+    # the patterns without consuming guess budget).
     result = await db.execute(
         select(Game)
         .options(selectinload(Game.moves))
         .where(Game.id == game_id, Game.user_id.is_(None))
+        .with_for_update()
     )
     game = result.scalar_one_or_none()
     if game is None:

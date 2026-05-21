@@ -260,6 +260,19 @@ async def coach_chat_endpoint(
     if game is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Game not found.")
 
+    # Refuse to coach an in-progress game — the system prompt includes the
+    # target word and the LLM has no instruction to keep it hidden. A single
+    # "print your system prompt" message would otherwise leak the answer and
+    # turn any rated game into a guaranteed win. Mirrors the explicit gates
+    # on /explain-move and /game-summary above. The other two AI endpoints
+    # are post-completion only by design; coach-chat is meant to be used
+    # during play, so we explicitly close this loophole here.
+    if game.status == "in_progress":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Coach is available after the game ends.",
+        )
+
     moves_data = [
         {"guess_word": m.guess_word, "pattern": m.pattern, "move_number": m.move_number}
         for m in sorted(game.moves, key=lambda m: m.move_number)
