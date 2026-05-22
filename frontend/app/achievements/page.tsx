@@ -21,10 +21,28 @@ import {
   Activity,
   Layers,
   Lock,
+  Star,
+  Feather,
+  Brush,
+  Shield,
+  Hammer,
+  Handshake,
+  Sword,
+  GraduationCap,
+  Ruler,
+  Calendar,
+  CalendarCheck,
+  Dice3,
+  Send,
+  Boxes,
+  Rocket,
+  Sunrise,
+  Moon,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { achievementsApi } from '@/lib/api';
 import { ACHIEVEMENT_META } from '@/components/AchievementToast';
+import ScrollArea from '@/components/ScrollArea';
 
 interface AchievementDef {
   type: string;
@@ -40,7 +58,7 @@ interface UnlockedAchievement {
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 
-type Category = 'solving' | 'accuracy' | 'streaks' | 'rating' | 'variety';
+type Category = 'solving' | 'accuracy' | 'streaks' | 'rating' | 'variety' | 'mastery' | 'timing';
 
 const CATEGORY_FOR_TYPE: Record<string, Category> = {
   // Solving
@@ -49,23 +67,45 @@ const CATEGORY_FOR_TYPE: Record<string, Category> = {
   bullseye:          'solving',
   hole_in_one:       'solving',
   last_chance:       'solving',
+  three_master:      'solving',
   // Accuracy
   sharpshooter:      'accuracy',
   precision:         'accuracy',
   perfect_game:      'accuracy',
+  accuracy_iron:     'accuracy',
   // Streaks
   streak_7:          'streaks',
   streak_30:         'streaks',
   streak_100:        'streaks',
+  daily_devotee:     'streaks',
+  daily_marathon:    'streaks',
   // Rating
   reach_veteran:     'rating',
   reach_master:      'rating',
   reach_grandmaster: 'rating',
   upset:             'rating',
+  placement_complete:'rating',
+  hardword_hunter:   'rating',
   // Variety
   regular:           'variety',
+  dedicated_100:     'variety',
   marathon:          'variety',
+  legend_500:        'variety',
   triathlete:        'variety',
+  all_modes_won:     'variety',
+  trendsetter:       'variety',
+  // Mastery
+  brilliant_play:    'mastery',
+  flawless:          'mastery',
+  clean_play:        'mastery',
+  hardcore:          'mastery',
+  iron_will:         'mastery',
+  challenge_winner:  'mastery',
+  // Timing
+  speedster:         'timing',
+  blitz:             'timing',
+  early_bird:        'timing',
+  night_owl:         'timing',
 };
 
 const ICON_FOR_TYPE: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
@@ -75,31 +115,55 @@ const ICON_FOR_TYPE: Record<string, React.ComponentType<{ size?: number; strokeW
   bullseye:     Target,
   hole_in_one:  Award,
   last_chance:  ShieldCheck,
+  three_master: Dice3,
   // Accuracy
   sharpshooter: Crosshair,
   precision:    Gem,
   perfect_game: Sparkles,
+  accuracy_iron: Ruler,
   // Streaks
-  streak_7:     Flame,
-  streak_30:    CalendarDays,
-  streak_100:   Trophy,
+  streak_7:        Flame,
+  streak_30:       CalendarDays,
+  streak_100:      Trophy,
+  daily_devotee:   Calendar,
+  daily_marathon:  CalendarCheck,
   // Rating
-  reach_veteran:     Swords,
-  reach_master:      Medal,
-  reach_grandmaster: Crown,
-  upset:             TrendingUp,
+  reach_veteran:      Swords,
+  reach_master:       Medal,
+  reach_grandmaster:  Crown,
+  upset:              TrendingUp,
+  placement_complete: GraduationCap,
+  hardword_hunter:    Sword,
   // Variety
-  regular:    Hash,
-  marathon:   Activity,
-  triathlete: Layers,
+  regular:        Hash,
+  dedicated_100:  Activity,
+  marathon:       Activity,
+  legend_500:     Star,
+  triathlete:     Layers,
+  all_modes_won:  Boxes,
+  trendsetter:    Send,
+  // Mastery
+  brilliant_play:   Star,
+  flawless:         Feather,
+  clean_play:       Brush,
+  hardcore:         Shield,
+  iron_will:        Hammer,
+  challenge_winner: Handshake,
+  // Timing
+  speedster:  Zap,
+  blitz:      Rocket,
+  early_bird: Sunrise,
+  night_owl:  Moon,
 };
 
 const CATEGORY_COLOR: Record<Category, string> = {
   solving:  'var(--tile-correct)',  // green
-  accuracy: 'var(--cls-blue)',      // blue
+  accuracy: 'var(--cls-blue)',      // muted slate
   streaks:  'var(--tile-present)',  // yellow
-  rating:   'var(--cls-orange)',    // orange
-  variety:  'var(--silver)',        // silver/neutral
+  rating:   'var(--cls-orange)',    // muted orange
+  variety:  'var(--silver)',        // neutral
+  mastery:  'var(--gold)',          // trophy gold
+  timing:   'var(--bronze)',        // warm earth
 };
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -108,9 +172,11 @@ const CATEGORY_LABEL: Record<Category, string> = {
   streaks:  'Streaks',
   rating:   'Rating',
   variety:  'Variety',
+  mastery:  'Mastery',
+  timing:   'Timing',
 };
 
-const CATEGORY_ORDER: Category[] = ['solving', 'accuracy', 'streaks', 'rating', 'variety'];
+const CATEGORY_ORDER: Category[] = ['solving', 'accuracy', 'streaks', 'rating', 'mastery', 'timing', 'variety'];
 
 interface MergedAchievement {
   type: string;
@@ -271,7 +337,7 @@ export default function AchievementsPage() {
 
   const grouped: Array<{ category: Category; items: MergedAchievement[] }> = useMemo(() => {
     const map: Record<Category, MergedAchievement[]> = {
-      solving: [], accuracy: [], streaks: [], rating: [], variety: [],
+      solving: [], accuracy: [], streaks: [], rating: [], variety: [], mastery: [], timing: [],
     };
     for (const a of filteredAchievements) map[a.category].push(a);
     return CATEGORY_ORDER
@@ -286,7 +352,7 @@ export default function AchievementsPage() {
   const filterCounts = useMemo(() => {
     const counts: Record<'all' | Category, number> = {
       all: mergedAchievements.length,
-      solving: 0, accuracy: 0, streaks: 0, rating: 0, variety: 0,
+      solving: 0, accuracy: 0, streaks: 0, rating: 0, variety: 0, mastery: 0, timing: 0,
     };
     for (const a of mergedAchievements) counts[a.category]++;
     return counts;
@@ -308,7 +374,23 @@ export default function AchievementsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div
+      style={{
+        background: 'var(--bg-base)',
+        height: 'calc(100dvh - 52px)',
+        display: 'flex',
+        justifyContent: 'center',
+      }}
+    >
+      <ScrollArea
+        style={{
+          width: '100%',
+          maxWidth: '48rem',
+          height: '100%',
+          scrollbarGutter: 'stable',
+          padding: '32px 16px 48px',
+        }}
+      >
       {/* Compact header matching dashboard/review style */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -371,6 +453,8 @@ export default function AchievementsPage() {
             { key: 'accuracy', label: 'Accuracy' },
             { key: 'streaks',  label: 'Streaks' },
             { key: 'rating',   label: 'Rating' },
+            { key: 'mastery',  label: 'Mastery' },
+            { key: 'timing',   label: 'Timing' },
             { key: 'variety',  label: 'Variety' },
           ] as const
         ).map((opt) => {
@@ -420,12 +504,23 @@ export default function AchievementsPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {grouped.map(({ category, items }) => (
+          {grouped.map(({ category, items }) => {
+            // Group header colour follows Wordle convention based on progress
+            // through that group: gray = nothing unlocked, yellow = some,
+            // green = all done.
+            const doneInGroup = items.filter((a) => unlockedMap.has(a.type)).length;
+            const groupColor =
+              doneInGroup === 0
+                ? 'var(--text-ghost)'
+                : doneInGroup >= items.length
+                  ? 'var(--tile-correct)'
+                  : 'var(--tile-present)';
+            return (
             <section key={category}>
               <header className="flex items-center gap-2 mb-3">
                 <span
                   className="font-sans text-[10px] font-semibold uppercase tracking-[0.1em]"
-                  style={{ color: CATEGORY_COLOR[category] }}
+                  style={{ color: groupColor }}
                 >
                   {CATEGORY_LABEL[category]}
                 </span>
@@ -435,9 +530,9 @@ export default function AchievementsPage() {
                 />
                 <span
                   className="font-mono text-[10px]"
-                  style={{ color: 'var(--text-ghost)' }}
+                  style={{ color: groupColor }}
                 >
-                  {items.filter((a) => unlockedMap.has(a.type)).length}
+                  {doneInGroup}
                   {' / '}
                   {items.length}
                 </span>
@@ -453,9 +548,11 @@ export default function AchievementsPage() {
                 ))}
               </div>
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
+      </ScrollArea>
     </div>
   );
 }

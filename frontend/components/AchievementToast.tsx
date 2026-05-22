@@ -31,9 +31,33 @@ export const ACHIEVEMENT_META: Record<
   upset:             { name: 'Upset',       description: 'Beat a word 200+ ELO above you', icon: '📈' },
 
   // Variety
-  regular:    { name: 'Regular',    description: 'Play 25 games',                              icon: '🎮' },
-  marathon:   { name: 'Marathon',   description: 'Play 200 games',                             icon: '🏃' },
-  triathlete: { name: 'Triathlete', description: 'Play Daily, Competitive, and Practice',     icon: '🎲' },
+  regular:        { name: 'Regular',        description: 'Play 25 games',                                icon: '🎮' },
+  dedicated_100:  { name: 'Centurion',      description: 'Play 100 games',                               icon: '💯' },
+  marathon:       { name: 'Marathon',       description: 'Play 200 games',                               icon: '🏃' },
+  legend_500:     { name: 'Legend',         description: 'Play 500 games',                               icon: '🌟' },
+  triathlete:     { name: 'Triathlete',     description: 'Play Daily, Competitive, and Practice',        icon: '🎲' },
+  all_modes_won:  { name: 'Complete Set',   description: 'Win in every game mode',                       icon: '🃏' },
+  trendsetter:    { name: 'Trendsetter',    description: 'Create 5 challenges',                          icon: '📤' },
+  daily_devotee:  { name: 'Daily Devotee',  description: 'Solve 30 daily puzzles',                       icon: '📆' },
+  daily_marathon: { name: 'Daily Marathon', description: 'Solve 100 daily puzzles',                      icon: '🗓️' },
+  three_master:   { name: 'Three Master',   description: 'Win in exactly 3 guesses 25 times',            icon: '3️⃣' },
+
+  // Mastery
+  brilliant_play:     { name: 'Brilliant',         description: 'Land a brilliant move in a win',           icon: '🌠' },
+  flawless:           { name: 'Flawless',          description: 'Win with no blunders or mistakes',         icon: '🪶' },
+  clean_play:         { name: 'Clean Play',        description: 'Win with no constraint violations',        icon: '🧹' },
+  hardcore:           { name: 'Hardcore',          description: 'Win 10 hard-mode games',                   icon: '🛡️' },
+  iron_will:          { name: 'Iron Will',         description: 'Win 50 hard-mode games',                   icon: '⚒️' },
+  challenge_winner:   { name: 'Challenge Master',  description: 'Win 10 challenges',                        icon: '🤝' },
+  hardword_hunter:    { name: 'Hardword Hunter',   description: 'Beat 10 words rated 1600+',                icon: '🗡️' },
+  placement_complete: { name: 'Calibrated',        description: 'Finish all 5 placement games',             icon: '🎓' },
+  accuracy_iron:      { name: 'Iron Accuracy',     description: 'Score 85%+ in 5 games in a row',           icon: '📐' },
+
+  // Timing
+  speedster:   { name: 'Speedster',  description: 'Win a game in under 60 seconds', icon: '⚡' },
+  blitz:       { name: 'Blitz',      description: 'Win a game in under 30 seconds', icon: '💨' },
+  early_bird:  { name: 'Early Bird', description: 'Win 10 games before 9 AM',       icon: '🌅' },
+  night_owl:   { name: 'Night Owl',  description: 'Win 10 games after 9 PM',        icon: '🌙' },
 };
 
 interface AchievementToastProps {
