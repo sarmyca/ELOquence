@@ -53,7 +53,6 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
         find_optimal_guess,
         get_remaining_answers,
         get_word_index,
-        uniqueness_percentile as compute_uniqueness_percentile,
     )
     from app.analysis.traps import detect_trap
 
@@ -400,7 +399,11 @@ def analyze_game(game_moves: list[dict], target_word: str, *, competitive: bool 
 
     guesses_list = [r["guess_word"] for r in results]
     patterns_list = [r["pattern"] for r in results]
-    uniq = compute_uniqueness_percentile(guesses_list, patterns_list)
+    # Real uniqueness ("1 in N") is computed in the analysis router from
+    # the game's stored `move_fingerprint`. The pure-Python analyze_game
+    # cannot touch the DB, so we just leave a placeholder of 1 here and
+    # let the router override before serialising the response.
+    uniq = 1
     bot_path = compute_bot_solve_path(guesses_list, patterns_list)
 
     # Failure score (only if game was not won — all 6 guesses used with no solution)

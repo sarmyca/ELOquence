@@ -452,6 +452,21 @@ async def submit_guess(
         game.status = "lost"
         game.completed_at = datetime.now(timezone.utc)
 
+    # Stamp the grid fingerprint on completion so the uniqueness analytic
+    # can count how many other players solved this same (target, guesses).
+    if game.status in ("won", "lost"):
+        from app.services.uniqueness import compute_move_fingerprint
+
+        existing_nums_for_fp = {m.move_number for m in game.moves}
+        completed_moves_for_fp = sorted(
+            [*game.moves] + ([move] if move.move_number not in existing_nums_for_fp else []),
+            key=lambda m: m.move_number,
+        )
+        game.move_fingerprint = compute_move_fingerprint(
+            game.target_word,
+            [m.guess_word for m in completed_moves_for_fp],
+        )
+
     await db.flush()
 
     # Run completion side-effects for every finished game (won|lost).

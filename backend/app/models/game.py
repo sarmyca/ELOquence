@@ -49,6 +49,14 @@ class Game(Base):
     constraint_violations: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     traps_encountered: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
+    # Stable hash of (target_word, ordered guess list). Used by the
+    # uniqueness-percentile analytic to count how many other completed games
+    # share this exact grid: a real "1 in N" community comparison. Nullable
+    # because legacy rows (pre-migration 017) haven't been backfilled.
+    move_fingerprint: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

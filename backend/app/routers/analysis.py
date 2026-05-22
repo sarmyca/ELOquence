@@ -22,6 +22,7 @@ from app.schemas.analysis import (
     TopPick,
 )
 from app.services.auth import get_current_user
+from app.services.uniqueness import compute_move_fingerprint, count_grid_occurrences
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -93,7 +94,22 @@ async def analyze_game_endpoint(
     game.constraint_violations = analysis["constraint_violations"]
     game.traps_encountered = analysis["traps_encountered"]
 
+    # Backfill the move fingerprint for legacy games that completed before
+    # migration 017 — guarantees the uniqueness query always has something
+    # to count against, without requiring a separate backfill script run.
+    if not game.move_fingerprint:
+        game.move_fingerprint = compute_move_fingerprint(
+            game.target_word, [m["guess_word"] for m in moves_data]
+        )
+
     await db.flush()
+
+    # Real "1 in N" community uniqueness — count completed games sharing
+    # this exact (target, guesses) grid. Overrides the placeholder set by
+    # the pure-Python `analyze_game` (which can't touch the DB).
+    analysis["uniqueness_percentile"] = await count_grid_occurrences(
+        db, game.move_fingerprint or ""
+    )
 
     raw_patterns = detect_strategic_patterns(analysis["moves"], current_user.elo_rating)
 

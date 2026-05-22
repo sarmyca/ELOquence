@@ -1439,9 +1439,6 @@ function ReviewPage() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const [showExplanation, setShowExplanation] = useState(false);
-  // AI-generated whole-game summary (2-3 sentences) shown under the title.
-  const [gameSummary, setGameSummary] = useState<string | null>(null);
-  const [loadingGameSummary, setLoadingGameSummary] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1487,29 +1484,6 @@ function ReviewPage() {
       runAnalysis();
     }
   }, [game, runAnalysis]);
-
-  // Once the analysis is in, request a Gemini-written game summary. Cached
-  // server-side (30 days, keyed on move-list hash) so re-opening the review
-  // is a single DB lookup.
-  useEffect(() => {
-    if (!id || !analysis || loadingAnalysis) return;
-    let cancelled = false;
-    setLoadingGameSummary(true);
-    aiApi
-      .gameSummary(id)
-      .then((res) => {
-        if (!cancelled) setGameSummary((res.data as { summary: string }).summary);
-      })
-      .catch(() => {
-        /* leave gameSummary null; the block simply doesn't render */
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingGameSummary(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id, analysis, loadingAnalysis]);
 
   const goToStep = useCallback(
     (next: number) => {
@@ -1776,34 +1750,6 @@ function ReviewPage() {
             </div>
           )}
         </div>
-
-        {/* AI-written game summary — slot below the title row. Skeleton while
-            the request is in flight; quietly disappears if the LLM is
-            unavailable. Cached server-side so revisits are instant. */}
-        {(loadingGameSummary || gameSummary) && (
-          <div
-            className="mt-4 mb-2 px-4 py-3 rounded-card"
-            style={{
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'color-mix(in srgb, var(--tile-correct) 5%, var(--bg-base))',
-            }}
-          >
-            {loadingGameSummary && !gameSummary ? (
-              <div className="flex flex-col gap-1.5">
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-[88%]" />
-                <Skeleton className="h-3 w-[64%]" />
-              </div>
-            ) : (
-              <p
-                className="font-sans text-sm leading-relaxed"
-                style={{ color: 'var(--text-secondary)' }}
-              >
-                {gameSummary}
-              </p>
-            )}
-          </div>
-        )}
 
         {/* Analysis error */}
         {analysisError && (
