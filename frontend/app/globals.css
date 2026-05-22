@@ -201,6 +201,16 @@ body {
 [data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); }
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
 
+/* Inner scroller used by <ScrollArea> — hides the native bar so we can
+ * render a custom thumb overlay with full opacity animation control.
+ * (Chromium does not animate ::-webkit-scrollbar-thumb reliably.) */
+.hide-native-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.hide-native-scrollbar::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* The custom thumb the ScrollArea component overlays. Colour adapts to theme. */
+.custom-scroll-thumb { background: rgba(0,0,0,0.22); }
+[data-theme="dark"] .custom-scroll-thumb { background: rgba(255,255,255,0.20); }
+
 /* ── Selection ── */
 ::selection {
   background: rgba(106, 170, 100, 0.3);

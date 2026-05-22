@@ -1,588 +1,425 @@
 'use client';
-// Layout: left module rail (sticky, 220px) + right lesson pane.
-// The lesson pane header, scrollable content area, and nav bar use
-// explicit heights so content fills the viewport without page scroll.
-// localStorage key: "eloquence.trainer.progress" — { [lessonId]: true }
+
+/**
+ * Learn page — Duolingo-style gamified mini-challenges.
+ *
+ * Two views:
+ *   1. Module overview (default) — lesson cards in a grid, progress bar
+ *      per lesson, locked-state for lessons that aren’t the next-up.
+ *   2. Active lesson — full LessonRunner takes over with a sequence of
+ *      mini-challenges. Closing the runner returns to the overview.
+ */
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  BookOpen,
-  Zap,
-  Target,
-  Lock,
-  BarChart2,
-  ChevronDown,
-} from 'lucide-react';
-import clsx from 'clsx';
-import { MODULES, LESSON_ORDER, TOTAL_LESSONS } from './_components/lessonData';
-
-import M1L1 from './_components/lessons/M1L1';
-import M1L2 from './_components/lessons/M1L2';
-import M1L3 from './_components/lessons/M1L3';
-import M2L1 from './_components/lessons/M2L1';
-import M2L2 from './_components/lessons/M2L2';
-import M2L3 from './_components/lessons/M2L3';
-import M3L1 from './_components/lessons/M3L1';
-import M3L2 from './_components/lessons/M3L2';
-import M3L3 from './_components/lessons/M3L3';
-import M4L1 from './_components/lessons/M4L1';
-import M4L2 from './_components/lessons/M4L2';
-import M5L1 from './_components/lessons/M5L1';
-import M5L2 from './_components/lessons/M5L2';
+import { motion } from 'framer-motion';
+import { Check, Lock, Play } from 'lucide-react';
+import LessonRunner from './_components/challenges/LessonRunner';
+import ScrollArea from '@/components/ScrollArea';
+import { MODULES, TOTAL_LESSONS, findLesson, LESSON_ORDER } from './_lessons';
 
 const STORAGE_KEY = 'eloquence.trainer.progress';
 
-const MODULE_ICONS: Record<string, React.ReactNode> = {
-  m1: <BookOpen size={13} aria-hidden="true" />,
-  m2: <BarChart2 size={13} aria-hidden="true" />,
-  m3: <Target size={13} aria-hidden="true" />,
-  m4: <Lock size={13} aria-hidden="true" />,
-  m5: <Zap size={13} aria-hidden="true" />,
-};
+/* Progress map: lessonId → number of challenges completed (high-water mark
+ * across all sessions). A lesson is "done" when this value ≥ challenges.length. */
+type Progress = Record<string, number>;
 
-// One instantiated component per lesson — avoids re-mounting on re-render
-const LESSON_COMPONENTS: Record<string, React.ReactNode> = {
-  m1l1: <M1L1 />,
-  m1l2: <M1L2 />,
-  m1l3: <M1L3 />,
-  m2l1: <M2L1 />,
-  m2l2: <M2L2 />,
-  m2l3: <M2L3 />,
-  m3l1: <M3L1 />,
-  m3l2: <M3L2 />,
-  m3l3: <M3L3 />,
-  m4l1: <M4L1 />,
-  m4l2: <M4L2 />,
-  m5l1: <M5L1 />,
-  m5l2: <M5L2 />,
-};
-
-function loadProgress(): Record<string, boolean> {
+function loadProgress(): Progress {
   if (typeof window === 'undefined') return {};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed: Record<string, unknown> = JSON.parse(raw);
+    const result: Progress = {};
+    // Migrate old boolean format → use a sentinel large number for "true"
+    // so it compares ≥ any lesson.challenges.length and reads as fully done.
+    for (const [key, val] of Object.entries(parsed)) {
+      if (typeof val === 'boolean') result[key] = val ? 999 : 0;
+      else if (typeof val === 'number') result[key] = val;
+    }
+    return result;
   } catch {
     return {};
   }
 }
 
-function saveProgress(p: Record<string, boolean>) {
+function saveProgress(p: Progress) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
   } catch {
-    // ignore quota / private-browsing errors
+    /* ignore quota */
   }
 }
 
 export default function LearnPage() {
-  const [progress, setProgress] = useState<Record<string, boolean>>({});
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set(['m1']));
-  const [railOpen, setRailOpen] = useState(false);
+  const [progress, setProgress] = useState<Progress>({});
+  const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
 
   useEffect(() => {
     setProgress(loadProgress());
   }, []);
 
-  const currentLessonId = LESSON_ORDER[currentIdx];
-  const currentLesson = MODULES.flatMap((m) => m.lessons).find((l) => l.id === currentLessonId);
-  const currentModule = MODULES.find((m) => m.id === currentLesson?.moduleId);
-  const lessonNumInModule = currentModule?.lessons.findIndex((l) => l.id === currentLessonId) ?? 0;
+  // Lesson is fully complete when the stored count ≥ its challenges length.
+  const lessonDone = useCallback(
+    (lessonId: string): boolean => {
+      const lesson = findLesson(lessonId)?.lesson;
+      if (!lesson) return false;
+      return (progress[lessonId] || 0) >= lesson.challenges.length;
+    },
+    [progress],
+  );
 
-  const completedCount = Object.values(progress).filter(Boolean).length;
+  const completedCount = LESSON_ORDER.filter((id) => lessonDone(id)).length;
 
-  const markComplete = useCallback(() => {
-    if (!currentLessonId) return;
-    setProgress((prev) => {
-      const next = { ...prev, [currentLessonId]: true };
-      saveProgress(next);
-      return next;
-    });
-  }, [currentLessonId]);
+  const handleStart = useCallback((lessonId: string) => {
+    setActiveLessonId(lessonId);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
-  function goTo(idx: number) {
-    setCurrentIdx(idx);
-    const targetId = LESSON_ORDER[idx];
-    const targetModuleId = MODULES.flatMap((m) => m.lessons).find((l) => l.id === targetId)?.moduleId;
-    if (targetModuleId) {
-      setExpandedModules((prev) => {
-        const arr = Array.from(prev);
-        if (!arr.includes(targetModuleId)) arr.push(targetModuleId);
-        return new Set(arr);
+  const handleProgress = useCallback(
+    (count: number) => {
+      if (!activeLessonId) return;
+      setProgress((prev) => {
+        const current = prev[activeLessonId] || 0;
+        if (count <= current) return prev;
+        const next = { ...prev, [activeLessonId]: count };
+        saveProgress(next);
+        return next;
       });
+    },
+    [activeLessonId],
+  );
+
+  const handleComplete = useCallback(() => {
+    if (!activeLessonId) return;
+    // Auto-advance to the next lesson; if none, return to overview.
+    const currentIdx = LESSON_ORDER.indexOf(activeLessonId);
+    const nextId = LESSON_ORDER[currentIdx + 1];
+    if (nextId) {
+      setActiveLessonId(nextId);
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setActiveLessonId(null);
     }
-    setRailOpen(false);
+  }, [activeLessonId]);
+
+  const activeLesson = activeLessonId ? findLesson(activeLessonId) : null;
+
+  // First lesson in LESSON_ORDER that isn't fully done. Everything past it is
+  // locked. If everything is done, this is null.
+  const firstIncompleteId = LESSON_ORDER.find((id) => !lessonDone(id)) ?? null;
+  const firstIncompleteIdx = firstIncompleteId
+    ? LESSON_ORDER.indexOf(firstIncompleteId)
+    : LESSON_ORDER.length;
+
+  // A lesson is unlocked if it's the first incomplete OR something before it
+  // in the global order. (Done lessons are always replayable.)
+  const isLessonUnlocked = useCallback(
+    (lessonId: string): boolean => {
+      const idx = LESSON_ORDER.indexOf(lessonId);
+      if (idx === -1) return false;
+      return idx <= firstIncompleteIdx;
+    },
+    [firstIncompleteIdx],
+  );
+
+  // Active lesson view — the scroll container is the inner bounded column,
+  // not the outer page, so the scrollbar sits at the right edge of the
+  // content (next to the cards) rather than at the far right of the viewport.
+  if (activeLesson) {
+    return (
+      <div
+        style={{
+          background: 'var(--bg-base)',
+          height: 'calc(100dvh - 52px)',
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <ScrollArea
+          style={{
+            width: '100%',
+            maxWidth: 680,
+            height: '100%',
+            scrollbarGutter: 'stable',
+            padding: '24px 16px 48px',
+          }}
+        >
+          <LessonRunner
+            lesson={activeLesson.lesson}
+            onComplete={handleComplete}
+            onProgress={handleProgress}
+          />
+        </ScrollArea>
+      </div>
+    );
   }
 
-  function toggleModule(moduleId: string) {
-    setExpandedModules((prev) => {
-      const next = new Set(prev);
-      if (next.has(moduleId)) next.delete(moduleId);
-      else next.add(moduleId);
-      return next;
-    });
-  }
-
-  const hasPrev = currentIdx > 0;
-  const hasNext = currentIdx < LESSON_ORDER.length - 1;
-
-  // nav bar is 62px, page header is ~94px, site nav is 52px
-  const CONTENT_HEIGHT = 'max(280px, calc(100dvh - 52px - 94px - 62px - 60px))';
-
+  // Overview view — same trick: scroll happens on the bounded inner column
+  // so the scrollbar is anchored to the right of the card grid.
   return (
     <div
       style={{
         background: 'var(--bg-base)',
-        // Pin the whole page to the viewport (minus the 56px site navbar) so
-        // the only scrollbar is the internal one inside the lesson content.
-        height: 'calc(100dvh - 56px)',
-        overflow: 'hidden',
+        height: 'calc(100dvh - 52px)',
         display: 'flex',
-        flexDirection: 'column',
+        justifyContent: 'center',
       }}
     >
-      {/* ── Page header ─────────────────────────────────────────────── */}
-      <div
+      <ScrollArea
         style={{
-          borderBottom: '1px solid var(--border-subtle)',
-          background: 'var(--bg-base)',
-          padding: '14px 24px 12px',
+          width: '100%',
+          maxWidth: 760,
+          height: '100%',
+          scrollbarGutter: 'stable',
+          padding: '24px 16px 60px',
         }}
       >
-        <div style={{ maxWidth: 960, margin: '0 auto' }}>
-          <span
+        {/* Header */}
+        <div style={{ marginBottom: 24 }}>
+          <h1
             style={{
-              fontSize: 10,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
-              color: 'var(--tile-correct)',
+              fontFamily: 'var(--font-display)',
+              fontSize: 28,
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              margin: 0,
+              lineHeight: 1.15,
             }}
           >
-            Learn
-          </span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 2, flexWrap: 'wrap' }}>
-            <h1
+            Train your Wordle instincts
+          </h1>
+          <div style={{ display: 'flex', gap: 14, marginTop: 14, alignItems: 'center' }}>
+            <div
               style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 22,
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: 0,
-                lineHeight: 1.2,
+                flex: 1,
+                maxWidth: 280,
+                height: 10,
+                borderRadius: 999,
+                background: 'var(--bg-muted)',
+                overflow: 'hidden',
               }}
             >
-              Learn to play better
-            </h1>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(completedCount / TOTAL_LESSONS) * 100}%` }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                style={{ height: '100%', background: 'var(--tile-correct)' }}
+              />
+            </div>
             <span
               style={{
                 fontSize: 12,
                 fontFamily: 'var(--font-display)',
-                fontWeight: 600,
-                color: completedCount === TOTAL_LESSONS ? 'var(--tile-correct)' : 'var(--text-tertiary)',
-                whiteSpace: 'nowrap',
+                fontWeight: 700,
+                color: 'var(--text-tertiary)',
               }}
             >
-              {completedCount} / {TOTAL_LESSONS} complete
+              {completedCount} / {TOTAL_LESSONS}
             </span>
           </div>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '3px 0 0 0', lineHeight: 1.4 }}>
-            Short interactive lessons — no long reads, just hands-on practice.
-          </p>
         </div>
-      </div>
 
-      {/* ── Body wrapper — fills remaining viewport, no own scroll ──── */}
-      <div
-        style={{
-          maxWidth: 960,
-          margin: '0 auto',
-          display: 'flex',
-          position: 'relative',
-          flex: 1,
-          minHeight: 0,
-          width: '100%',
-        }}
-      >
-        {/* Mobile-only rail toggle — hidden on desktop where the rail is
-            always visible alongside the lesson pane */}
-        <button
-          className="md:hidden flex items-center gap-1.5"
-          onClick={() => setRailOpen((v) => !v)}
-          style={{
-            position: 'absolute',
-            top: 14,
-            right: 16,
-            zIndex: 20,
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 8,
-            padding: '6px 10px',
-            fontSize: 12,
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-          }}
-          aria-expanded={railOpen}
-          aria-label="Toggle module list"
-        >
-          <BookOpen size={12} aria-hidden="true" />
-          Modules
-          <ChevronDown
-            size={11}
-            style={{ transform: railOpen ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}
-            aria-hidden="true"
-          />
-        </button>
+        {/* Modules */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+          {MODULES.map((mod, mi) => {
+            // Aggregate challenge counts across the module: how many done, how many total.
+            const modChallengesDone = mod.lessons.reduce(
+              (sum, l) => sum + Math.min(progress[l.id] || 0, l.challenges.length),
+              0,
+            );
+            const modChallengesTotal = mod.lessons.reduce((sum, l) => sum + l.challenges.length, 0);
+            const lessonsFullyDone = mod.lessons.filter(
+              (l) => (progress[l.id] || 0) >= l.challenges.length,
+            ).length;
+            const totalInMod = mod.lessons.length;
 
-        {/* ── Left rail — fills parent height, scrolls internally ─────── */}
-        <nav
-          aria-label="Lesson modules"
-          className={clsx(railOpen ? 'flex' : 'hidden', 'md:flex')}
-          style={{
-            width: 220,
-            minWidth: 220,
-            flexShrink: 0,
-            flexDirection: 'column',
-            borderRight: '1px solid var(--border-subtle)',
-            overflowY: 'auto',
-            paddingTop: 12,
-            paddingBottom: 12,
-            height: '100%',
-          }}
-        >
-          {MODULES.map((mod) => {
-            const expanded = expandedModules.has(mod.id);
-            const modLessonIds = mod.lessons.map((l) => l.id);
-            const modDone = modLessonIds.filter((id) => progress[id]).length;
-            const modTotal = modLessonIds.length;
-            const isActiveModule = mod.lessons.some((l) => l.id === currentLessonId);
+            // A module is locked when its *first* lesson is past the first
+            // incomplete one — i.e. the previous module isn't fully done.
+            const moduleLocked = !isLessonUnlocked(mod.lessons[0].id);
+
+            // Module label colour: gray = nothing done / locked, yellow = some
+            // done, green = all done.
+            const modColor =
+              modChallengesDone === 0
+                ? 'var(--text-ghost)'
+                : modChallengesDone >= modChallengesTotal
+                  ? 'var(--tile-correct)'
+                  : 'var(--tile-present)';
 
             return (
-              <div key={mod.id}>
-                <button
-                  onClick={() => toggleModule(mod.id)}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '7px 14px',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
-                  aria-expanded={expanded}
-                >
-                  <span style={{ color: isActiveModule ? 'var(--tile-correct)' : 'var(--text-ghost)', flexShrink: 0 }}>
-                    {MODULE_ICONS[mod.id]}
-                  </span>
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: isActiveModule ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {mod.title}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontFamily: 'var(--font-display)',
-                      color: modDone === modTotal ? 'var(--tile-correct)' : 'var(--text-ghost)',
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {modDone}/{modTotal}
-                  </span>
-                  <ChevronDown
-                    size={11}
-                    style={{
-                      color: 'var(--text-ghost)',
-                      transform: expanded ? 'rotate(180deg)' : 'none',
-                      transition: 'transform 200ms',
-                      flexShrink: 0,
-                    }}
-                    aria-hidden="true"
-                  />
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {expanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.18, ease: 'easeOut' }}
-                      style={{ overflow: 'hidden' }}
+              <div key={mod.id} style={{ opacity: moduleLocked ? 0.55 : 1 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.1em',
+                        color: modColor,
+                      }}
                     >
-                      {mod.lessons.map((lesson) => {
-                        const done = !!progress[lesson.id];
-                        const isCurrent = lesson.id === currentLessonId;
-                        const lessonIdx = LESSON_ORDER.indexOf(lesson.id);
+                      Module {mi + 1}
+                    </span>
+                    <h2
+                      style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize: 19,
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        margin: '2px 0 0 0',
+                      }}
+                    >
+                      {mod.title}
+                    </h2>
+                    <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '2px 0 0 0' }}>
+                      {mod.blurb}
+                    </p>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      color: modColor,
+                    }}
+                  >
+                    {lessonsFullyDone}/{totalInMod}
+                  </span>
+                </div>
 
-                        return (
-                          <button
-                            key={lesson.id}
-                            onClick={() => goTo(lessonIdx)}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                  {mod.lessons.map((l, li) => {
+                    const challengesDone = Math.min(progress[l.id] || 0, l.challenges.length);
+                    const total = l.challenges.length;
+                    const done = challengesDone >= total;
+                    const inProgress = challengesDone > 0 && !done;
+                    const locked = !isLessonUnlocked(l.id);
+
+                    // Wordle colour convention based on challenges completed:
+                    //   gray   = 0 challenges done (or locked)
+                    //   yellow = some but not all
+                    //   green  = all done
+                    const stateColor = done
+                      ? 'var(--tile-correct)'
+                      : inProgress
+                        ? 'var(--tile-present)'
+                        : 'var(--border-subtle)';
+                    const circleBg = done
+                      ? 'var(--tile-correct)'
+                      : inProgress
+                        ? 'var(--tile-present)'
+                        : locked
+                          ? 'var(--bg-muted)'
+                          : 'var(--tile-present)'; // unlocked, not started yet
+                    const circleIconColor = locked && !done && !inProgress ? 'var(--text-ghost)' : '#fff';
+
+                    return (
+                      <motion.button
+                        key={l.id}
+                        type="button"
+                        onClick={() => !locked && handleStart(l.id)}
+                        disabled={locked}
+                        whileHover={!locked ? { y: -3 } : undefined}
+                        whileTap={!locked ? { scale: 0.97 } : undefined}
+                        style={{
+                          background: 'var(--bg-elevated)',
+                          border: `2px solid ${stateColor}`,
+                          borderRadius: 14,
+                          padding: '14px 16px',
+                          textAlign: 'left',
+                          cursor: locked ? 'not-allowed' : 'pointer',
+                          opacity: locked ? 0.6 : 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 10,
+                          position: 'relative',
+                          transition: 'border-color 200ms ease, opacity 200ms ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span
                             style={{
-                              width: '100%',
+                              fontSize: 10,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              color: 'var(--text-ghost)',
+                              fontWeight: 700,
+                            }}
+                          >
+                            Lesson {li + 1}
+                          </span>
+                          <span
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: '50%',
+                              background: circleBg,
                               display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: 8,
-                              padding: '5px 14px 5px 28px',
-                              background: isCurrent
-                                ? 'color-mix(in srgb, var(--tile-correct) 10%, transparent)'
-                                : 'transparent',
-                              border: 'none',
-                              borderLeft: isCurrent
-                                ? '2px solid var(--tile-correct)'
-                                : '2px solid transparent',
-                              cursor: 'pointer',
-                              textAlign: 'left',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: circleIconColor,
                             }}
                           >
                             {done ? (
-                              <Check
-                                size={11}
-                                aria-hidden="true"
-                                style={{ color: 'var(--tile-correct)', flexShrink: 0, marginTop: 2 }}
-                              />
+                              <Check size={14} strokeWidth={3} />
+                            ) : locked ? (
+                              <Lock size={12} />
                             ) : (
+                              <Play size={12} fill="#fff" strokeWidth={0} />
+                            )}
+                          </span>
+                        </div>
+                        <div>
+                          <h3
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: 'var(--text-primary)',
+                              margin: 0,
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {l.title}
+                          </h3>
+                          {l.subtitle && (
+                            <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                              {l.subtitle}
+                            </p>
+                          )}
+                        </div>
+                        {/* Per-challenge progress dots */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-ghost)' }}>
+                          <div style={{ display: 'flex', gap: 3 }}>
+                            {l.challenges.map((_, ci) => (
                               <span
+                                key={ci}
                                 style={{
-                                  width: 11,
-                                  height: 11,
-                                  borderRadius: '50%',
-                                  border: '1.5px solid var(--border-default)',
-                                  flexShrink: 0,
-                                  display: 'inline-block',
-                                  marginTop: 2,
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: 999,
+                                  background:
+                                    ci < challengesDone
+                                      ? 'var(--tile-correct)'
+                                      : 'var(--border-default)',
+                                  transition: 'background-color 200ms ease',
                                 }}
                               />
-                            )}
-                            <span
-                              style={{
-                                fontSize: 12,
-                                color: isCurrent ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                fontWeight: isCurrent ? 600 : 400,
-                                lineHeight: 1.35,
-                              }}
-                            >
-                              {lesson.title}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                            ))}
+                          </div>
+                          <span style={{ marginLeft: 4 }}>
+                            {challengesDone}/{total}
+                          </span>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
-        </nav>
-
-        {/* ── Main lesson pane ──────────────────────────────────────── */}
-        <main
-          style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}
-          aria-live="polite"
-          aria-label="Current lesson"
-        >
-          {/* Lesson eyebrow + title */}
-          <div
-            style={{
-              padding: '16px 24px 12px',
-              borderBottom: '1px solid var(--border-subtle)',
-              flexShrink: 0,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 10,
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                color: 'var(--text-ghost)',
-                fontWeight: 600,
-              }}
-            >
-              {currentModule?.title} &middot; Lesson {lessonNumInModule + 1}
-            </span>
-            <h2
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 18,
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                margin: '3px 0 0 0',
-                lineHeight: 1.25,
-              }}
-            >
-              {currentLesson?.title}
-            </h2>
-          </div>
-
-          {/* Scrollable lesson content — fills the space between the
-              lesson header and the bottom nav bar */}
-          <div
-            style={{
-              overflowY: 'auto',
-              padding: '18px 24px 16px',
-              flex: 1,
-              minHeight: 0,
-            }}
-          >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentLessonId}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.16, ease: 'easeOut' }}
-              >
-                {LESSON_COMPONENTS[currentLessonId] ?? (
-                  <p style={{ color: 'var(--text-tertiary)', fontSize: 14 }}>
-                    Lesson not found.
-                  </p>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Navigation bar */}
-          <div
-            style={{
-              flexShrink: 0,
-              borderTop: '1px solid var(--border-subtle)',
-              padding: '12px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              height: 62,
-              background: 'var(--bg-base)',
-            }}
-          >
-            {/* Prev */}
-            <button
-              onClick={() => hasPrev && goTo(currentIdx - 1)}
-              disabled={!hasPrev}
-              aria-label="Previous lesson"
-              style={{
-                padding: '6px 12px',
-                borderRadius: 8,
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-subtle)',
-                color: hasPrev ? 'var(--text-primary)' : 'var(--text-ghost)',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: hasPrev ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                opacity: hasPrev ? 1 : 0.35,
-                flexShrink: 0,
-              }}
-            >
-              <ChevronLeft size={14} aria-hidden="true" />
-              Prev
-            </button>
-
-            {/* Dot progress indicator */}
-            <div
-              role="group"
-              aria-label={`Lesson ${currentIdx + 1} of ${LESSON_ORDER.length}`}
-              style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}
-            >
-              {LESSON_ORDER.map((id, i) => (
-                <button
-                  key={id}
-                  onClick={() => goTo(i)}
-                  aria-label={`Go to lesson ${i + 1}`}
-                  aria-current={i === currentIdx ? 'step' : undefined}
-                  style={{
-                    width: i === currentIdx ? 20 : 7,
-                    height: 7,
-                    borderRadius: 4,
-                    background: i === currentIdx
-                      ? 'var(--tile-correct)'
-                      : progress[id]
-                      ? 'color-mix(in srgb, var(--tile-correct) 45%, var(--bg-muted))'
-                      : 'var(--bg-muted)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                    transition: 'width 200ms ease, background 200ms ease',
-                    flexShrink: 0,
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Got it / Finish */}
-            {hasNext ? (
-              <button
-                onClick={() => { markComplete(); goTo(currentIdx + 1); }}
-                aria-label="Mark complete and go to next lesson"
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 8,
-                  background: 'var(--tile-correct)',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  flexShrink: 0,
-                }}
-              >
-                Got it
-                <ChevronRight size={14} aria-hidden="true" />
-              </button>
-            ) : (
-              <button
-                onClick={markComplete}
-                aria-label="Mark final lesson complete"
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 8,
-                  background: progress[currentLessonId] ? 'var(--bg-muted)' : 'var(--tile-correct)',
-                  border: '1px solid var(--border-subtle)',
-                  color: progress[currentLessonId] ? 'var(--text-secondary)' : '#fff',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  flexShrink: 0,
-                }}
-              >
-                {progress[currentLessonId] ? (
-                  <>
-                    <Check size={13} aria-hidden="true" />
-                    Done
-                  </>
-                ) : (
-                  'Finish'
-                )}
-              </button>
-            )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </ScrollArea>
     </div>
   );
 }
