@@ -883,32 +883,6 @@ export default function PlayPage() {
       </motion.div>
 
       {challengeModal}
-
-      {/* ── Rating tiers reference ── */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="mt-12 flex items-center gap-3 flex-wrap justify-center"
-      >
-        {[
-          { name: 'Novice', color: '#818384' },
-          { name: 'Veteran', color: '#b59f3b' },
-          { name: 'Master', color: '#6aaa64' },
-          { name: 'Grandmaster', color: '#1565c0' },
-        ].map((t) => (
-          <div key={t.name} className="flex items-center gap-1.5">
-            <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: t.color }}
-              aria-hidden="true"
-            />
-            <span className="text-xs" style={{ color: t.color }}>
-              {t.name}
-            </span>
-          </div>
-        ))}
-      </motion.div>
     </div>
   );
 }

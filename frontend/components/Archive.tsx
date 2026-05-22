@@ -564,25 +564,29 @@ export default function Archive() {
           )}
         </div>
 
-        {/* Legend */}
+        {/* Legend — stretched edge-to-edge with equidistant items */}
         <div
-          className="flex items-center gap-4 flex-wrap px-4 py-3 border-t text-xs font-sans"
-          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
+          className="grid items-center px-4 py-3 border-t text-xs font-sans"
+          style={{
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            borderColor: 'var(--border-subtle)',
+            color: 'var(--text-secondary)',
+            gap: 8,
+          }}
         >
           {[
             { style: { backgroundColor: 'var(--tile-correct)', border: '2px solid var(--tile-correct)' }, label: 'Won on the day' },
             { style: { backgroundColor: 'color-mix(in srgb, var(--tile-correct) 55%, var(--bg-elevated))', border: '2px dashed var(--tile-correct)' }, label: 'Won via replay' },
             { style: { backgroundColor: 'var(--tile-absent)', border: '2px solid var(--tile-absent)' }, label: 'Lost' },
             { style: { backgroundColor: 'var(--tile-present)', border: '2px solid var(--tile-present)' }, label: 'In progress' },
-            { style: { backgroundColor: 'var(--tile-empty-bg)', border: '2px solid var(--tile-empty-border)' }, label: 'Not played' },
           ].map(({ style, label }) => (
-            <div key={label} className="flex items-center gap-1.5">
+            <div key={label} className="flex items-center justify-center gap-1.5 min-w-0">
               <span
                 className="inline-block w-3.5 h-3.5 rounded-[3px] flex-shrink-0"
                 style={style}
                 aria-hidden="true"
               />
-              {label}
+              <span className="truncate">{label}</span>
             </div>
           ))}
         </div>
