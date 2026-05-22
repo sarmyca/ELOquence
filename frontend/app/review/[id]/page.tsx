@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import CoachChat from '@/components/CoachChat';
 import EloProjection from '@/components/EloProjection';
-import { gamesApi, analysisApi, communityApi, dailyApi } from '@/lib/api';
+import { gamesApi, analysisApi, communityApi, dailyApi, aiApi } from '@/lib/api';
 import {
   Game,
   AnalysisResult,
@@ -667,13 +667,42 @@ function GuessCard({
   moveIndex,
   activeRow,
   targetWord,
+  gameId,
 }: {
   move: MoveAnalysis;
   moveIndex: number;
   activeRow: number;
   targetWord: string | null;
+  gameId: string | null;
 }) {
   const n = move.move_number;
+  // AI-written per-move commentary. Falls back to the rule-based commentary
+  // (`buildCommentary`) if the LLM is unavailable or the request fails.
+  const [aiCommentary, setAiCommentary] = useState<string | null>(null);
+  const [aiCommentaryLoading, setAiCommentaryLoading] = useState(true);
+
+  useEffect(() => {
+    if (!gameId) {
+      setAiCommentaryLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setAiCommentaryLoading(true);
+    aiApi
+      .explainMove(gameId, n)
+      .then((res) => {
+        if (!cancelled) setAiCommentary((res.data as { explanation: string }).explanation);
+      })
+      .catch(() => {
+        /* leave aiCommentary null; the render path falls back to buildCommentary */
+      })
+      .finally(() => {
+        if (!cancelled) setAiCommentaryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId, n]);
   const isSolving = move.pattern === 242;
   const optimalWord = move.optimal_word ?? move.bot_pick ?? '—';
   const skill = move.skill_score ?? 0;
@@ -833,12 +862,19 @@ function GuessCard({
             </div>
           </div>
 
-          <p
-            className="font-sans text-[15px] leading-relaxed mb-6"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {buildCommentary(move, optimalWord)}
-          </p>
+          {aiCommentaryLoading ? (
+            <div className="mb-6 flex flex-col gap-1.5">
+              <Skeleton className="h-3.5 w-full" />
+              <Skeleton className="h-3.5 w-[85%]" />
+            </div>
+          ) : (
+            <p
+              className="font-sans text-[15px] leading-relaxed mb-6"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {aiCommentary || buildCommentary(move, optimalWord)}
+            </p>
+          )}
 
           {/* Solved variant — skip metrics/groups */}
           {isSolving ? (
@@ -1403,6 +1439,9 @@ function ReviewPage() {
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [analysisError, setAnalysisError] = useState('');
   const [showExplanation, setShowExplanation] = useState(false);
+  // AI-generated whole-game summary (2-3 sentences) shown under the title.
+  const [gameSummary, setGameSummary] = useState<string | null>(null);
+  const [loadingGameSummary, setLoadingGameSummary] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1448,6 +1487,29 @@ function ReviewPage() {
       runAnalysis();
     }
   }, [game, runAnalysis]);
+
+  // Once the analysis is in, request a Gemini-written game summary. Cached
+  // server-side (30 days, keyed on move-list hash) so re-opening the review
+  // is a single DB lookup.
+  useEffect(() => {
+    if (!id || !analysis || loadingAnalysis) return;
+    let cancelled = false;
+    setLoadingGameSummary(true);
+    aiApi
+      .gameSummary(id)
+      .then((res) => {
+        if (!cancelled) setGameSummary((res.data as { summary: string }).summary);
+      })
+      .catch(() => {
+        /* leave gameSummary null; the block simply doesn't render */
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingGameSummary(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, analysis, loadingAnalysis]);
 
   const goToStep = useCallback(
     (next: number) => {
@@ -1715,6 +1777,34 @@ function ReviewPage() {
           )}
         </div>
 
+        {/* AI-written game summary — slot below the title row. Skeleton while
+            the request is in flight; quietly disappears if the LLM is
+            unavailable. Cached server-side so revisits are instant. */}
+        {(loadingGameSummary || gameSummary) && (
+          <div
+            className="mt-4 mb-2 px-4 py-3 rounded-card"
+            style={{
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: 'color-mix(in srgb, var(--tile-correct) 5%, var(--bg-base))',
+            }}
+          >
+            {loadingGameSummary && !gameSummary ? (
+              <div className="flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-[88%]" />
+                <Skeleton className="h-3 w-[64%]" />
+              </div>
+            ) : (
+              <p
+                className="font-sans text-sm leading-relaxed"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                {gameSummary}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Analysis error */}
         {analysisError && (
           <div className="mt-6 flex flex-col gap-3">
@@ -1807,6 +1897,7 @@ function ReviewPage() {
                     moveIndex={currentStep - 1}
                     activeRow={activeRow}
                     targetWord={game?.target_word ?? null}
+                    gameId={game?.id ?? null}
                   />
                 )}
                 {currentStep === moveCount + 1 && (
