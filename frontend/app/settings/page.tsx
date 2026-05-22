@@ -8,10 +8,11 @@ import {
   getPushState,
   subscribeToPush,
   unsubscribeFromPush,
-  sendTestPush,
   type PushState,
 } from '@/lib/push';
 import { pushApi, type PushPreferences } from '@/lib/api';
+import ScrollArea from '@/components/ScrollArea';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 /* ------------------------------------------------------------------ */
 /*  Shared modal shell                                                  */
@@ -101,15 +102,21 @@ function DeleteGamesModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const { user } = useAuth();
+  const hasPassword = user?.has_password !== false;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmUsername, setConfirmUsername] = useState('');
 
   useEffect(() => {
     if (!open) {
       setLoading(false);
       setError(null);
       setConfirmed(false);
+      setPassword('');
+      setConfirmUsername('');
     }
   }, [open]);
 
@@ -117,17 +124,24 @@ function DeleteGamesModal({
     setLoading(true);
     setError(null);
     try {
-      await usersApi.deleteAllGames();
+      await usersApi.deleteAllGames(
+        hasPassword ? { password } : { confirm_username: confirmUsername },
+      );
       onSuccess();
       onClose();
     } catch (err: unknown) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       const msg =
-        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+        detail ||
+        (err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       setError(msg);
     } finally {
       setLoading(false);
     }
   };
+
+  const stepUpReady = hasPassword ? password.length > 0 : confirmUsername.trim().length > 0;
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -158,7 +172,7 @@ function DeleteGamesModal({
         <li>Streaks reset</li>
       </ul>
 
-      <label className="flex items-center gap-2.5 mb-5 cursor-pointer select-none">
+      <label className="flex items-center gap-2.5 mb-4 cursor-pointer select-none">
         <input
           type="checkbox"
           checked={confirmed}
@@ -169,6 +183,33 @@ function DeleteGamesModal({
           I understand this action is{' '}
           <span className="text-text-primary font-medium">irreversible</span>
         </span>
+      </label>
+
+      <label className="block mb-4">
+        <span className="block text-xs text-text-secondary mb-1.5">
+          {hasPassword
+            ? 'Re-enter your password to confirm'
+            : `Type your username "${user?.username ?? ''}" to confirm`}
+        </span>
+        {hasPassword ? (
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full px-3 py-2 text-sm rounded-lg bg-white/[0.04] border border-white/[0.10] text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-[#e74c3c]/40"
+          />
+        ) : (
+          <input
+            type="text"
+            autoComplete="off"
+            value={confirmUsername}
+            onChange={(e) => setConfirmUsername(e.target.value)}
+            placeholder={user?.username ?? 'username'}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-white/[0.04] border border-white/[0.10] text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-[#e74c3c]/40"
+          />
+        )}
       </label>
 
       {error && (
@@ -187,7 +228,7 @@ function DeleteGamesModal({
         </button>
         <button
           onClick={handleDelete}
-          disabled={!confirmed || loading}
+          disabled={!confirmed || !stepUpReady || loading}
           className="px-4 py-2 text-sm rounded-lg font-medium bg-[#e74c3c] text-white hover:bg-[#c0392b] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {loading ? (
@@ -216,9 +257,12 @@ function DeleteAccountModal({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const hasPassword = user?.has_password !== false;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState('');
+  const [password, setPassword] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -226,24 +270,33 @@ function DeleteAccountModal({
       setLoading(false);
       setError(null);
       setConfirmText('');
+      setPassword('');
     } else {
       setTimeout(() => inputRef.current?.focus(), 80);
     }
   }, [open]);
 
-  const canDelete = confirmText === 'DELETE';
+  const canDelete =
+    confirmText === 'DELETE' && (hasPassword ? password.length > 0 : true);
 
   const handleDelete = async () => {
     if (!canDelete) return;
     setLoading(true);
     setError(null);
     try {
-      await usersApi.deleteAccount();
+      await usersApi.deleteAccount(
+        hasPassword
+          ? { password }
+          : { confirm_username: user?.username ?? '' },
+      );
       localStorage.removeItem('token');
       router.push('/login');
     } catch (err: unknown) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       const msg =
-        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+        detail ||
+        (err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       setError(msg);
       setLoading(false);
     }
@@ -292,8 +345,28 @@ function DeleteAccountModal({
         }}
         placeholder="DELETE"
         disabled={loading}
-        className="w-full mb-5 px-3 py-2 text-sm rounded-lg bg-[#25252a] border border-white/[0.08] text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-[#e74c3c]/50 transition-colors disabled:opacity-40 font-mono tracking-wider"
+        className="w-full mb-3 px-3 py-2 text-sm rounded-lg bg-[#25252a] border border-white/[0.08] text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-[#e74c3c]/50 transition-colors disabled:opacity-40 font-mono tracking-wider"
       />
+
+      {hasPassword && (
+        <label className="block mb-5">
+          <span className="block text-xs text-text-secondary mb-1.5">
+            Re-enter your password to confirm
+          </span>
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canDelete) handleDelete();
+            }}
+            disabled={loading}
+            placeholder="Password"
+            className="w-full px-3 py-2 text-sm rounded-lg bg-[#25252a] border border-white/[0.08] text-text-primary placeholder:text-text-ghost focus:outline-none focus:border-[#e74c3c]/50 transition-colors disabled:opacity-40"
+          />
+        </label>
+      )}
 
       {error && (
         <p className="text-xs text-[#e74c3c] mb-4 px-3 py-2 rounded-lg bg-[#e74c3c]/10 border border-[#e74c3c]/20">
@@ -457,24 +530,6 @@ function NotificationsSection() {
     }
   };
 
-  const handleTest = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const res = await sendTestPush();
-      if (res.sent === 0) {
-        showFeedback('Sent — but no device received it (check OS notification settings).');
-      } else {
-        showFeedback(`Test sent to ${res.sent} device${res.sent === 1 ? '' : 's'}.`);
-      }
-    } catch (err) {
-      console.error('[push] test failed', err);
-      showFeedback('Test failed. See console.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   if (!state) return null;
 
   const isSubscribed = state.status === 'subscribed';
@@ -524,27 +579,6 @@ function NotificationsSection() {
             {busy ? '...' : isSubscribed ? 'Disable' : 'Enable'}
           </button>
         </SettingRow>
-
-        {isSubscribed && (
-          <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-[12px] bg-bg-elevated border border-border-subtle">
-            <p className="text-xs text-text-secondary">
-              Send a test notification to confirm delivery on this device.
-            </p>
-            <button
-              type="button"
-              onClick={handleTest}
-              disabled={busy}
-              className="px-3 py-1.5 rounded-[8px] text-xs font-medium transition-colors duration-150 disabled:opacity-50"
-              style={{
-                backgroundColor: 'var(--bg-muted)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-default)',
-              }}
-            >
-              Send test
-            </button>
-          </div>
-        )}
 
         {isSubscribed && prefs && (
           <div className="flex flex-col gap-2 px-4 py-3 rounded-[12px] bg-bg-elevated border border-border-subtle">
@@ -596,7 +630,23 @@ export default function SettingsPage() {
 
   return (
     <>
-      <div className="max-w-xl mx-auto px-4 py-8">
+      <div
+        style={{
+          background: 'var(--bg-base)',
+          height: 'calc(100dvh - 52px)',
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <ScrollArea
+          style={{
+            width: '100%',
+            maxWidth: '36rem',
+            height: '100%',
+            scrollbarGutter: 'stable',
+            padding: '32px 16px 48px',
+          }}
+        >
         {/* Page header */}
         <div className="flex items-center gap-2.5 mb-7">
           <div className="p-2 rounded-lg bg-bg-elevated border border-border-subtle text-text-secondary">
@@ -604,7 +654,6 @@ export default function SettingsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-text-primary">Settings</h1>
-            <p className="text-xs text-text-secondary mt-0.5">Customize your experience</p>
           </div>
         </div>
 
@@ -641,9 +690,6 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Notifications section */}
-          <NotificationsSection />
-
           {/* Appearance section */}
           <section>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-text-secondary mb-2 px-1">
@@ -663,6 +709,9 @@ export default function SettingsPage() {
               </SettingRow>
             </div>
           </section>
+
+          {/* Notifications section */}
+          <NotificationsSection />
 
           {/* Accessibility section */}
           <section>
@@ -796,6 +845,7 @@ export default function SettingsPage() {
             </div>
           </section>
         </div>
+        </ScrollArea>
       </div>
 
       <DeleteGamesModal

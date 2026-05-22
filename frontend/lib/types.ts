@@ -22,6 +22,7 @@ export interface User {
   current_streak: number;
   max_streak: number;
   is_admin: boolean;
+  has_password?: boolean;
   created_at: string;
 }
 

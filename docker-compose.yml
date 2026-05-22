@@ -26,11 +26,11 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-eloquence}:${POSTGRES_PASSWORD:-eloquence_dev}@db:5432/${POSTGRES_DB:-eloquence}
       DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-eloquence}:${POSTGRES_PASSWORD:-eloquence_dev}@db:5432/${POSTGRES_DB:-eloquence}
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
-      CORS_ORIGINS: http://localhost:3000
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-43178926835-ijupvcom66h7iufnj75i0bdfd0i918bi.apps.googleusercontent.com}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-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}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env or shell env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID must be set in .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set in .env}
       TZ: Europe/Zagreb
     depends_on:
       db:
@@ -45,7 +45,7 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
-      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-43178926835-ijupvcom66h7iufnj75i0bdfd0i918bi.apps.googleusercontent.com}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID must be set in .env}
       WATCHPACK_POLLING: "true"
     depends_on:
       - backend

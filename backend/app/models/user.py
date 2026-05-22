@@ -58,5 +58,10 @@ class User(Base):
         "EloHistory", back_populates="user", lazy="select"
     )
 
+    @property
+    def has_password(self) -> bool:
+        """True when the account has a local password (vs Google-only)."""
+        return bool(self.password_hash)
+
     def __repr__(self) -> str:
         return f"<User id={self.id} username={self.username} elo={self.elo_rating}>"

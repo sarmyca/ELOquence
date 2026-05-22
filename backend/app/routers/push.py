@@ -95,8 +95,11 @@ async def subscribe(
 ) -> dict:
     """Register a browser push subscription for the authenticated user.
 
-    Endpoints are unique, so a re-subscribe from the same browser updates
-    the existing row's keys + ownership rather than creating a duplicate.
+    Endpoints are globally unique. If the same endpoint already exists:
+      - belongs to the current user → update keys + UA (legitimate re-sub)
+      - belongs to a different user → 409 (don't silently steal the
+        subscription; the previous owner's device would then receive
+        notifications intended for the new owner)
     """
     if not settings.push_enabled:
         raise HTTPException(
@@ -120,14 +123,20 @@ async def subscribe(
             user_agent=payload.user_agent,
         )
         db.add(row)
-    else:
-        # Re-bind to the current user (logout/login on the same device) and
-        # refresh the keys in case the browser rotated them.
-        row.user_id = current_user.id
+    elif row.user_id == current_user.id:
+        # Same user re-subscribing on the same browser — refresh keys/UA.
         row.p256dh = sub.keys.p256dh
         row.auth = sub.keys.auth
         if payload.user_agent:
             row.user_agent = payload.user_agent
+    else:
+        # Endpoint claimed by another user. Refuse to re-own it. The new
+        # caller must first DELETE their old subscription (the browser's
+        # PushManager.unsubscribe() does this) before re-subscribing.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This subscription endpoint is already registered to another account.",
+        )
 
     await db.flush()
     return {"id": str(row.id)}

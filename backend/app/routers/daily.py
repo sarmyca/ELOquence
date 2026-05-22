@@ -337,13 +337,20 @@ async def replay_daily(
     dw_result = await db.execute(select(DailyWord).where(DailyWord.date == target_date))
     dw = dw_result.scalar_one_or_none()
     if dw is None:
+        import hashlib
         import random as _random
 
         from app.analysis.engine import ANSWERS
+        from app.config import settings as _settings
         from sqlalchemy.exc import IntegrityError
 
-        # Deterministic per-date pick so every user sees the same word for that date
-        rng = _random.Random(target_date.toordinal())
+        # Deterministic per-date pick — but seeded with a server-side secret
+        # so the mapping (date → answer) is not derivable from the source.
+        # Without this, anyone with the repo could pre-compute every
+        # historical replay answer and inflate streaks/achievements.
+        seed_material = f"{_settings.JWT_SECRET}:{target_date.toordinal()}".encode()
+        seed = int.from_bytes(hashlib.sha256(seed_material).digest()[:8], "big")
+        rng = _random.Random(seed)
         chosen = rng.choice(ANSWERS).upper()
         difficulty = word_to_elo(chosen)
         dw = DailyWord(word=chosen.lower(), date=target_date, difficulty=difficulty)

@@ -9,9 +9,12 @@ class Settings(BaseSettings):
     DATABASE_URL_SYNC: str = "postgresql://eloquence:eloquence_dev@localhost:5432/eloquence"
     JWT_SECRET: str = "dev-secret-change-in-production"
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRATION_HOURS: int = 168  # 7 days
+    JWT_EXPIRATION_HOURS: int = 24  # 1 day — short-lived tokens limit stolen-token blast radius.
     CORS_ORIGINS: str = "http://localhost:3000"
-    ANTHROPIC_API_KEY: str = ""
+    # Gemini powers the AI coach (Tier 1 explain-move, Tier 2 game-summary,
+    # Tier 3 coach-chat). All three use `gemini-2.0-flash` which has a generous
+    # free tier (1500 req/day) — sufficient for a low-traffic uni project.
+    GEMINI_API_KEY: str = ""
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 

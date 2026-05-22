@@ -1,11 +1,15 @@
 """AI coach service — LLM-powered move explanations, game summaries, and chat.
 
+All three tiers run on Gemini 2.0 Flash via the `google-genai` SDK. The free
+tier is generous enough for a low-traffic project (1500 req/day) and the
+quality is on par with Claude Haiku for our short, structured prompts.
+
 All database-backed calls (Tier 1 and Tier 2) accept an ``AsyncSession`` so
 they can be composed inside existing request handlers without opening extra
 connections.
 
-Tier 3 (coach chat) is synchronous because the Anthropic Python SDK performs a
-blocking network call; callers must run it in a thread pool (``asyncio.to_thread``)
+Tier 3 (coach chat) is synchronous because the SDK performs a blocking
+network call; callers must run it in a thread pool (``asyncio.to_thread``)
 if they need to stay async.
 
 Cache policy
@@ -28,39 +32,86 @@ from app.config import settings
 from app.models.ai_cache import AiCache
 
 # ---------------------------------------------------------------------------
-# Lazy Anthropic client
+# Lazy Gemini client
 # ---------------------------------------------------------------------------
 
 try:
-    from anthropic import Anthropic as _Anthropic
+    from google import genai as _genai
+    from google.genai import types as _genai_types
 
-    _anthropic_available = True
+    _genai_available = True
 except ImportError:
-    _anthropic_available = False
+    _genai_available = False
 
 _client: object | None = None
 
+# Single model for all three tiers — keeps prompting + tuning consistent and
+# costs nothing on the free tier. The 2.0-flash quota is restricted on
+# newly-created keys (limit: 0), so we use 2.5-flash which has live free
+# quota. Bump to `gemini-2.5-pro` for the coach-chat tier if you want a
+# smarter conversationalist (pay-as-you-go).
+_MODEL = "gemini-2.5-flash"
 
-def _get_client() -> "_Anthropic":  # type: ignore[name-defined]
-    """Return a module-level singleton Anthropic client.
 
-    Raises:
-        RuntimeError: If the ``anthropic`` package is not installed or no API
-            key is configured.
-    """
+def _get_client() -> "_genai.Client":  # type: ignore[name-defined]
+    """Return a module-level singleton Gemini client."""
     global _client
-    if not _anthropic_available:
-        raise RuntimeError("anthropic package is not installed.")
-    if not settings.ANTHROPIC_API_KEY:
-        raise RuntimeError("AI features unavailable — no API key configured.")
+    if not _genai_available:
+        raise RuntimeError("google-genai package is not installed.")
+    if not settings.GEMINI_API_KEY:
+        raise RuntimeError("AI features unavailable — no GEMINI_API_KEY configured.")
     if _client is None:
-        _client = _Anthropic(api_key=settings.ANTHROPIC_API_KEY)  # type: ignore[operator]
+        _client = _genai.Client(api_key=settings.GEMINI_API_KEY)  # type: ignore[operator]
     return _client  # type: ignore[return-value]
 
 
 def _ai_available() -> bool:
     """Return True when AI features can be used."""
-    return _anthropic_available and bool(settings.ANTHROPIC_API_KEY)
+    return _genai_available and bool(settings.GEMINI_API_KEY)
+
+
+def _call_gemini(
+    system: str,
+    messages: list[dict],
+    *,
+    max_tokens: int,
+    temperature: float,
+) -> str:
+    """Wrap the SDK's `generate_content` call with our message convention.
+
+    `messages` is the Anthropic-style list of `{"role": "user"|"model", "content": str}`
+    entries (we accept "assistant" as an alias for "model" so callers don't
+    have to change). The system prompt is passed via `GenerateContentConfig`.
+    """
+    client = _get_client()
+    contents: list[_genai_types.Content] = []  # type: ignore[name-defined]
+    for m in messages:
+        role = m.get("role", "user")
+        if role == "assistant":
+            role = "model"
+        contents.append(
+            _genai_types.Content(  # type: ignore[attr-defined]
+                role=role,
+                parts=[_genai_types.Part.from_text(text=m.get("content", ""))],  # type: ignore[attr-defined]
+            )
+        )
+
+    response = client.models.generate_content(  # type: ignore[union-attr]
+        model=_MODEL,
+        contents=contents,
+        config=_genai_types.GenerateContentConfig(  # type: ignore[attr-defined]
+            system_instruction=system,
+            max_output_tokens=max_tokens,
+            temperature=temperature,
+            # Gemini 2.5 has a "thinking" phase that consumes max_output_tokens
+            # before writing the response. Disable it so all our budget goes to
+            # the actual reply — our prompts are short and structured, we don't
+            # need extra reasoning steps.
+            thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),  # type: ignore[attr-defined]
+        ),
+    )
+    # The SDK returns `.text` as a convenience accessor over `response.candidates[0]...`.
+    return (response.text or "").strip()
 
 
 # ---------------------------------------------------------------------------
@@ -181,17 +232,6 @@ async def explain_move(
     Results are cached for 30 days keyed on position state + guess + optimal
     word + classification, so identical positions across different games share
     the same response.
-
-    Args:
-        db: Active async session (used for cache read/write).
-        move_data: Dict with keys matching the analysis move schema.
-        player_elo: Player's current ELO rating.
-
-    Returns:
-        Human-readable explanation string.
-
-    Raises:
-        RuntimeError: Propagated if AI is not available.
     """
     key = _cache_key(
         1,
@@ -223,15 +263,12 @@ async def explain_move(
         f" position targeting, partition balance). {_skill_instruction(level)}"
     )
 
-    client = _get_client()
-    response = client.messages.create(  # type: ignore[union-attr]
-        model="claude-haiku-4-5-20251001",
-        max_tokens=150,
-        temperature=0.3,
+    text = _call_gemini(
         system=COACH_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=150,
+        temperature=0.3,
     )
-    text: str = response.content[0].text
     await set_cache(db, key, 1, text)
     return text
 
@@ -250,16 +287,6 @@ async def generate_game_summary(
 
     Cached for 30 days keyed on an MD5 of the full move list plus the
     player's rounded ELO bucket.
-
-    Args:
-        db: Active async session (used for cache read/write).
-        analysis: Full analysis dict as returned by ``analyze_game``.
-        game_data: Flat dict with at least ``target_word``, ``status``,
-            and ``num_guesses``.
-        player_elo: Player's current ELO rating.
-
-    Returns:
-        Human-readable multi-sentence summary string.
     """
     moves_hash = hashlib.md5(
         str(analysis.get("moves", [])).encode()
@@ -299,15 +326,12 @@ async def generate_game_summary(
         f" improvement tip. {_skill_instruction(level)}"
     )
 
-    client = _get_client()
-    response = client.messages.create(  # type: ignore[union-attr]
-        model="claude-haiku-4-5-20251001",
-        max_tokens=300,
-        temperature=0.3,
+    text = _call_gemini(
         system=COACH_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=300,
+        temperature=0.3,
     )
-    text = response.content[0].text
     await set_cache(db, key, 2, text)
     return text
 
@@ -324,8 +348,8 @@ def coach_chat_message(
 ) -> str:
     """Generate a single coach chat response.
 
-    This function is **synchronous** because the Anthropic SDK is blocking.
-    Wrap it with ``asyncio.to_thread`` when calling from an async handler.
+    This function is **synchronous** because the SDK is blocking. Wrap it
+    with ``asyncio.to_thread`` when calling from an async handler.
 
     Results are NOT cached as conversations are ephemeral.
 
@@ -333,7 +357,8 @@ def coach_chat_message(
         game_context: Pre-formatted string describing the current game state
             and analysis (injected into the system prompt).
         conversation_history: List of ``{"role": ..., "content": ...}`` dicts
-            representing the prior turns in this session.
+            representing the prior turns in this session. `assistant` is
+            accepted as a synonym for `model`.
         user_message: The latest message from the player.
         player_elo: Player's current ELO rating.
 
@@ -352,12 +377,9 @@ def coach_chat_message(
         messages.append({"role": msg["role"], "content": msg["content"]})
     messages.append({"role": "user", "content": user_message})
 
-    client = _get_client()
-    response = client.messages.create(  # type: ignore[union-attr]
-        model="claude-sonnet-4-6",
-        max_tokens=500,
-        temperature=0.7,
+    return _call_gemini(
         system=system,
         messages=messages,
+        max_tokens=500,
+        temperature=0.7,
     )
-    return response.content[0].text

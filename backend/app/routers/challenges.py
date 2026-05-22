@@ -87,8 +87,9 @@ async def create_challenge(
         )
 
     word = random.choice(ANSWERS).upper()
-    # 8-character URL-safe code (base64url alphabet, ~47 bits of entropy)
-    code = secrets.token_urlsafe(8)[:8]
+    # 11-character URL-safe code (~66 bits of entropy — token_urlsafe(8)
+    # already returns 11 chars; truncating to 8 dropped 19 bits for no gain).
+    code = secrets.token_urlsafe(8)
     difficulty = word_to_elo(word)
 
     challenge = Challenge(

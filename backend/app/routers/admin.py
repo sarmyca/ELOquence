@@ -385,6 +385,14 @@ async def set_daily_word(
             detail="Word must be exactly 5 alphabetic characters.",
         )
 
+    # Clamp difficulty to a sane ELO range to avoid runaway rating swings
+    # from a typo (e.g. 35000 instead of 3500).
+    if payload.difficulty is not None and not (100 <= payload.difficulty <= 3500):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Difficulty must be between 100 and 3500.",
+        )
+
     word = payload.word.lower()
     difficulty = payload.difficulty if payload.difficulty is not None else word_to_elo(word.upper())
 

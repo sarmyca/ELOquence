@@ -109,8 +109,10 @@ export const usersApi = {
   eloHistory: (days?: number) =>
     api.get('/users/me/elo-history', { params: days ? { days } : undefined }),
   stats: () => api.get('/users/me/stats'),
-  deleteAllGames: () => api.delete('/users/me/games'),
-  deleteAccount: () => api.delete('/users/me'),
+  deleteAllGames: (confirm: { password?: string; confirm_username?: string }) =>
+    api.delete('/users/me/games', { data: confirm }),
+  deleteAccount: (confirm: { password?: string; confirm_username?: string }) =>
+    api.delete('/users/me', { data: confirm }),
 };
 
 // AI

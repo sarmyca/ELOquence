@@ -38,6 +38,7 @@ class UserResponse(BaseModel):
     games_played: int
     is_placement: bool
     is_admin: bool = False
+    has_password: bool = True
     current_streak: int
     max_streak: int
     created_at: datetime
