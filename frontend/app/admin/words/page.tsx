@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Plus, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { adminApi } from '@/lib/api';
+import AdminNav from '@/components/admin/AdminNav';
 
 interface DailyWord {
   id: string;
@@ -113,6 +114,8 @@ export default function AdminWordsPage() {
         <h1 className="font-display font-black text-3xl text-text-primary">Admin · Words</h1>
         <p className="font-sans text-text-secondary mt-0.5">Schedule words for upcoming days.</p>
       </motion.div>
+
+      <AdminNav />
 
       {error && (
         <div className="mb-4 px-4 py-3 rounded-card border text-sm" style={{ background: 'rgba(231,76,60,0.08)', borderColor: 'rgba(231,76,60,0.25)', color: 'var(--red)' }}>

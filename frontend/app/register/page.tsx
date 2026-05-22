@@ -26,8 +26,8 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await register(email, username, password);
-      router.push('/play');
+      const u = await register(email, username, password);
+      router.push(u.is_admin ? '/admin' : '/play');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string | { msg: string }[] } } })
         ?.response?.data?.detail;

@@ -1,5 +1,6 @@
 """ORM model package — import all models so Alembic can discover them."""
 from app.models.achievement import Achievement
+from app.models.admin_audit_log import AdminAuditLog
 from app.models.ai_cache import AiCache
 from app.models.announcement import Announcement
 from app.models.challenge import Challenge
@@ -27,4 +28,5 @@ __all__ = [
     "Challenge",
     "PushSubscription",
     "NotificationPreferences",
+    "AdminAuditLog",
 ]

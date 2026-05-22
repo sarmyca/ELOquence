@@ -63,6 +63,7 @@ export interface Game {
   elo_after: number | null;
   elo_delta: number | null;
   is_placement: boolean;
+  hard_mode: boolean;
   moves: Move[];
   created_at: string;
   completed_at: string | null;

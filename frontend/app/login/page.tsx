@@ -21,8 +21,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      router.push('/play');
+      const u = await login(email, password);
+      router.push(u.is_admin ? '/admin' : '/play');
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { detail?: string } } })?.response?.data

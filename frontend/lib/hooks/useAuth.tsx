@@ -12,11 +12,11 @@ import { User } from '../types';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, username: string, password: string) => Promise<void>;
-  googleLogin: (credential: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (email: string, username: string, password: string) => Promise<User>;
+  googleLogin: (credential: string) => Promise<User>;
   logout: () => void;
-  refreshUser: () => Promise<void>;
+  refreshUser: () => Promise<User | null>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -67,32 +67,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchUser();
   }, [fetchUser]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     const res = await authApi.login({ email, password });
     localStorage.setItem('token', res.data.access_token);
     const meRes = await authApi.me();
     cachedUser = meRes.data;
     setUser(meRes.data);
+    return meRes.data;
   };
 
   const register = async (
     email: string,
     username: string,
     password: string
-  ) => {
+  ): Promise<User> => {
     const res = await authApi.register({ email, username, password });
     localStorage.setItem('token', res.data.access_token);
     const meRes = await authApi.me();
     cachedUser = meRes.data;
     setUser(meRes.data);
+    return meRes.data;
   };
 
-  const googleLogin = async (credential: string) => {
+  const googleLogin = async (credential: string): Promise<User> => {
     const res = await authApi.google(credential);
     localStorage.setItem('token', res.data.access_token);
     const meRes = await authApi.me();
     cachedUser = meRes.data;
     setUser(meRes.data);
+    return meRes.data;
   };
 
   const logout = () => {
@@ -101,10 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const refreshUser = async () => {
+  const refreshUser = async (): Promise<User | null> => {
     cachedUser = null;
     fetchPromise = null;
     await fetchUser();
+    return cachedUser;
   };
 
   return (

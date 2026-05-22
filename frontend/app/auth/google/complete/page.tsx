@@ -17,7 +17,7 @@ export default function GoogleCompletePage() {
 
     if (token) {
       localStorage.setItem('token', token);
-      refreshUser().then(() => router.push('/play'));
+      refreshUser().then((u) => router.push(u?.is_admin ? '/admin' : '/play'));
     } else {
       router.push('/login');
     }

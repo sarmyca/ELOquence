@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { adminApi } from '@/lib/api';
 import { getRatingTier } from '@/lib/types';
+import AdminNav from '@/components/admin/AdminNav';
 
 interface AdminUser {
   id: string;
@@ -36,6 +37,7 @@ export default function AdminUsersPage() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState<string | null>(null);
+  const [confirmAdmin, setConfirmAdmin] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const PER_PAGE = 20;
@@ -44,7 +46,7 @@ export default function AdminUsersPage() {
     (p: number, q: string) => {
       setFetching(true);
       adminApi
-        .users({ page: p, search: q || undefined })
+        .users({ page: p, per_page: PER_PAGE, search: q || undefined })
         .then((res) => {
           const data: UsersResponse = res.data;
           setUsers(data.users);
@@ -92,7 +94,15 @@ export default function AdminUsersPage() {
   };
 
   const handleToggleAdmin = async (userId: string) => {
+    // Two-click confirmation — promoting/demoting an admin is a privileged,
+    // irreversible (until re-toggled) action; a misclick in a busy table
+    // should not be possible.
+    if (confirmAdmin !== userId) {
+      setConfirmAdmin(userId);
+      return;
+    }
     setActionLoading(userId + '-admin');
+    setConfirmAdmin(null);
     try {
       await adminApi.toggleAdmin(userId);
       fetchUsers(page, search);
@@ -137,8 +147,10 @@ export default function AdminUsersPage() {
         </div>
       </motion.div>
 
+      <AdminNav />
+
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-card border text-sm flex items-center justify-between" style={{ background: 'rgba(231,76,60,0.08)', borderColor: 'rgba(231,76,60,0.25)', color: 'var(--red)' }}>
+        <div role="alert" aria-live="assertive" className="mb-4 px-4 py-3 rounded-card border text-sm flex items-center justify-between" style={{ background: 'rgba(231,76,60,0.08)', borderColor: 'rgba(231,76,60,0.25)', color: 'var(--red)' }}>
           <span>{error}</span>
           <button className="ml-2 underline text-xs" onClick={() => setError('')}>Dismiss</button>
         </div>
@@ -186,7 +198,9 @@ export default function AdminUsersPage() {
                       className="border-b border-border-subtle hover:bg-bg-elevated/50 transition-colors"
                     >
                       <td className="px-4 py-3 font-medium text-text-primary">
-                        {u.username}
+                        <Link href={`/admin/users/${u.id}`} className="hover:underline hover:text-tile-correct transition-colors">
+                          {u.username}
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-text-secondary hidden sm:table-cell truncate max-w-[200px]">
                         {u.email}
@@ -230,10 +244,17 @@ export default function AdminUsersPage() {
                           <button
                             onClick={() => handleToggleAdmin(u.id)}
                             disabled={actionLoading === u.id + '-admin'}
-                            className="text-[11px] px-2 py-1 rounded-md border-2 border-border-default text-text-secondary hover:text-text-primary hover:border-border-strong transition-colors font-sans"
+                            className={`text-[11px] px-2 py-1 rounded-md border-2 transition-colors font-sans ${
+                              confirmAdmin === u.id
+                                ? 'bg-transparent text-text-primary'
+                                : 'bg-transparent border-border-default text-text-secondary hover:text-text-primary hover:border-border-strong'
+                            }`}
+                            style={confirmAdmin === u.id ? { borderColor: 'var(--red)', color: 'var(--red)' } : undefined}
                           >
                             {actionLoading === u.id + '-admin' ? (
                               <RefreshCw size={10} className="animate-spin" />
+                            ) : confirmAdmin === u.id ? (
+                              'Confirm?'
                             ) : u.is_admin ? (
                               'Demote'
                             ) : (

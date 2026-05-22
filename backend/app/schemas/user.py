@@ -37,6 +37,7 @@ class UserResponse(BaseModel):
     elo_rating: float
     games_played: int
     is_placement: bool
+    is_admin: bool = False
     current_streak: int
     max_streak: int
     created_at: datetime

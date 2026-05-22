@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,6 +7,26 @@ import { Menu, X, LogOut, ShieldCheck, Settings } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { getRatingTier } from '@/lib/types';
 import clsx from 'clsx';
+
+// Routes an admin should never land on — they're not a player. Hitting one of
+// these (via direct URL, stale tab, bookmark) bounces them to /admin.
+const PLAYER_ROUTE_PREFIXES = [
+  '/play',
+  '/dashboard',
+  '/leaderboard',
+  '/archive',
+  '/learn',
+  '/achievements',
+  '/game/',
+  '/review/',
+  '/challenge/',
+];
+
+function isPlayerRoute(pathname: string): boolean {
+  return PLAYER_ROUTE_PREFIXES.some(
+    (p) => pathname === p || pathname === p.replace(/\/$/, '') || pathname.startsWith(p),
+  );
+}
 
 const GUEST_NAV_LINKS = [
   { href: '/play', label: 'Play' },
@@ -34,7 +54,17 @@ export default function Navigation() {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const tier = user ? getRatingTier(user.elo_rating) : null;
+  const isAdmin = !!user?.is_admin;
+  const tier = user && !isAdmin ? getRatingTier(user.elo_rating) : null;
+
+  // If an admin lands on a player route (or the home page), send them to /admin.
+  // Runs only after auth has resolved so we don't bounce mid-load.
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (pathname === '/' || isPlayerRoute(pathname)) {
+      router.replace('/admin');
+    }
+  }, [isAdmin, pathname, router]);
 
   const handleLogout = () => {
     logout();
@@ -42,10 +72,17 @@ export default function Navigation() {
     setMobileOpen(false);
   };
 
-  const navLinks = [
-    ...(user ? AUTH_NAV_LINKS : GUEST_NAV_LINKS),
-    ...(user ? [{ href: '/achievements', label: 'Achievements' }] : []),
-  ];
+  // Admin users get a stripped shell — no player nav items, no ELO badge.
+  // They are not players; the only navigation that makes sense is between
+  // admin sections (handled by AdminNav inside each /admin/* page).
+  const navLinks = isAdmin
+    ? []
+    : [
+        ...(user ? AUTH_NAV_LINKS : GUEST_NAV_LINKS),
+        ...(user ? [{ href: '/achievements', label: 'Achievements' }] : []),
+      ];
+
+  const logoHref = isAdmin ? '/admin' : '/';
 
   return (
     <header
@@ -56,11 +93,20 @@ export default function Navigation() {
 
         {/* Logo */}
         <Link
-          href="/"
-          className="font-display font-black text-xl text-text-primary tracking-tight transition-opacity duration-150 hover:opacity-70"
-          aria-label="ELOquence home"
+          href={logoHref}
+          className="font-display font-black text-xl text-text-primary tracking-tight transition-opacity duration-150 hover:opacity-70 flex items-center gap-2"
+          aria-label={isAdmin ? 'Admin home' : 'ELOquence home'}
         >
           ELOquence
+          {isAdmin && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold font-sans uppercase tracking-wider"
+              style={{ background: 'rgba(201,162,39,0.14)', color: 'var(--gold)' }}
+            >
+              <ShieldCheck size={9} />
+              Admin
+            </span>
+          )}
         </Link>
 
         {/* Desktop nav links */}
@@ -82,49 +128,32 @@ export default function Navigation() {
               </Link>
             );
           })}
-          {user?.is_admin && (
-            <Link
-              href="/admin"
-              className={clsx(
-                'relative px-3 py-1.5 text-sm transition-colors duration-150 flex items-center gap-1.5',
-                pathname.startsWith('/admin')
-                  ? 'text-text-primary underline underline-offset-8 decoration-2'
-                  : 'text-text-secondary hover:text-text-primary no-underline'
-              )}
-              style={
-                pathname.startsWith('/admin')
-                  ? { textDecorationColor: 'var(--gold)' }
-                  : undefined
-              }
-            >
-              <ShieldCheck size={13} aria-hidden="true" />
-              Admin
-            </Link>
-          )}
         </nav>
 
         {/* Desktop right side */}
         <div className="hidden md:flex items-center gap-2">
           {user ? (
             <>
-              {/* ELO rating with tier dot */}
-              <div className="flex items-center gap-1.5">
-                <span
-                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: tier?.color }}
-                  aria-hidden="true"
-                />
-                <span
-                  className="font-mono text-sm"
-                  style={{ color: tier?.color }}
-                  aria-label={`ELO rating ${Math.round(user.elo_rating)}, ${tier?.name}`}
-                >
-                  {Math.round(user.elo_rating)}
-                </span>
-              </div>
-
-              {/* Thin divider */}
-              <div className="w-px h-3.5 bg-border-subtle mx-0.5" aria-hidden="true" />
+              {/* ELO rating with tier dot — players only (admins are not players) */}
+              {!isAdmin && tier && (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: tier.color }}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className="font-mono text-sm"
+                      style={{ color: tier.color }}
+                      aria-label={`ELO rating ${Math.round(user.elo_rating)}, ${tier.name}`}
+                    >
+                      {Math.round(user.elo_rating)}
+                    </span>
+                  </div>
+                  <div className="w-px h-3.5 bg-border-subtle mx-0.5" aria-hidden="true" />
+                </>
+              )}
 
               {/* Username */}
               <span className="text-sm text-text-secondary">{user.username}</span>
@@ -213,22 +242,6 @@ export default function Navigation() {
                 );
               })}
 
-              {user?.is_admin && (
-                <Link
-                  href="/admin"
-                  onClick={() => setMobileOpen(false)}
-                  className={clsx(
-                    'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors duration-150',
-                    pathname.startsWith('/admin')
-                      ? 'text-text-primary font-medium'
-                      : 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated'
-                  )}
-                >
-                  <ShieldCheck size={13} aria-hidden="true" />
-                  Admin
-                </Link>
-              )}
-
               {/* Divider */}
               <div className="my-1.5 border-t border-border-subtle" aria-hidden="true" />
 
@@ -237,19 +250,32 @@ export default function Navigation() {
                 <>
                   {/* User info row */}
                   <div className="px-3 py-2 flex items-center gap-2">
-                    <span
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: tier?.color }}
-                      aria-hidden="true"
-                    />
+                    {!isAdmin && tier && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: tier.color }}
+                        aria-hidden="true"
+                      />
+                    )}
                     <span className="text-sm text-text-secondary">{user.username}</span>
-                    <span
-                      className="ml-auto font-mono text-sm"
-                      style={{ color: tier?.color }}
-                      aria-label={`ELO ${Math.round(user.elo_rating)}`}
-                    >
-                      {Math.round(user.elo_rating)}
-                    </span>
+                    {!isAdmin && tier && (
+                      <span
+                        className="ml-auto font-mono text-sm"
+                        style={{ color: tier.color }}
+                        aria-label={`ELO ${Math.round(user.elo_rating)}`}
+                      >
+                        {Math.round(user.elo_rating)}
+                      </span>
+                    )}
+                    {isAdmin && (
+                      <span
+                        className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold font-sans uppercase tracking-wider"
+                        style={{ color: 'var(--gold)' }}
+                      >
+                        <ShieldCheck size={10} />
+                        Admin
+                      </span>
+                    )}
                   </div>
 
                   <Link

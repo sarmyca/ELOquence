@@ -131,7 +131,7 @@ export const achievementsApi = {
 
 // Admin
 export const adminApi = {
-  users: (params?: { page?: number; search?: string }) =>
+  users: (params?: { page?: number; per_page?: number; search?: string; role?: string; order_by?: string; order?: string }) =>
     api.get('/admin/users', { params }),
   user: (userId: string) => api.get(`/admin/users/${userId}`),
   resetElo: (userId: string) => api.post(`/admin/users/${userId}/reset-elo`),
@@ -140,11 +140,22 @@ export const adminApi = {
   setDailyWord: (data: { word: string; date: string; difficulty?: number }) =>
     api.post('/admin/daily-words', data),
   analytics: () => api.get('/admin/analytics'),
+  timeseries: (days?: number) =>
+    api.get('/admin/analytics/timeseries', { params: { days } }),
+  distributions: () => api.get('/admin/analytics/distributions'),
   announcements: () => api.get('/admin/announcements'),
   createAnnouncement: (text: string) => api.post('/admin/announcements', { text }),
   updateAnnouncement: (id: string, data: { text?: string; active?: boolean }) =>
     api.patch(`/admin/announcements/${id}`, data),
   deleteAnnouncement: (id: string) => api.delete(`/admin/announcements/${id}`),
+  userGames: (userId: string, params?: { page?: number; per_page?: number; mode?: string; status?: string }) =>
+    api.get(`/admin/users/${userId}/games`, { params }),
+  games: (params?: { page?: number; per_page?: number; user_id?: string; mode?: string; status?: string; from?: string; to?: string }) =>
+    api.get('/admin/games', { params }),
+  game: (gameId: string) => api.get(`/admin/games/${gameId}`),
+  auditLog: (params?: { page?: number; per_page?: number; action?: string; admin_id?: string }) =>
+    api.get('/admin/audit-log', { params }),
+  health: () => api.get('/admin/health'),
 };
 
 // Announcements (public)

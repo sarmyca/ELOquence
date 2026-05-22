@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { adminApi } from '@/lib/api';
+import AdminNav from '@/components/admin/AdminNav';
 
 interface Announcement {
   id: string;
@@ -139,6 +140,8 @@ export default function AdminAnnouncementsPage() {
           Manage banners shown to all users.
         </p>
       </motion.div>
+
+      <AdminNav />
 
       {error && (
         <div className="mb-4 px-4 py-3 rounded-card border text-sm flex items-center justify-between font-sans" style={{ background: 'rgba(231,76,60,0.08)', borderColor: 'rgba(231,76,60,0.25)', color: 'var(--red)' }}>
