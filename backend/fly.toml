@@ -1,0 +1,51 @@
+# Fly.io app config for the ELOquence backend.
+#
+# Free-tier-friendly: 1 shared-cpu-1x VM at 256MB, auto-stops on idle so
+# you pay $0 for a low-traffic uni project. Cold start is ~5–10s on the
+# first request after idle — acceptable for demos.
+#
+# Deploy: `fly deploy` from this directory after `fly launch --no-deploy`
+# has created the app on Fly's side.
+
+app = "eloquence-api"
+primary_region = "fra"  # Frankfurt — lowest latency from Croatia
+
+[build]
+  dockerfile = "Dockerfile"
+
+# Alembic runs once before each release. If the migration fails Fly will
+# refuse to roll out the new version, so the API never starts against a
+# DB it can't read.
+[deploy]
+  release_command = "alembic upgrade head"
+
+[env]
+  PORT = "8000"
+  # Pin the CMD entrypoint behaviour explicitly so future Dockerfile
+  # changes don't accidentally re-enable --reload in prod.
+  PYTHONUNBUFFERED = "1"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"   # idle = $0
+  auto_start_machines = true     # wake on first request
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256

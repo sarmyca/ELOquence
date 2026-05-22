@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import CoachChat from '@/components/CoachChat';
 import EloProjection from '@/components/EloProjection';
-import { gamesApi, analysisApi, communityApi, dailyApi, aiApi } from '@/lib/api';
+import { gamesApi, analysisApi, communityApi, aiApi } from '@/lib/api';
 import {
   Game,
   AnalysisResult,
@@ -1421,9 +1421,6 @@ function StepFinal({
           <ArrowLeft size={14} />
           Back to play
         </button>
-        {game?.mode === 'daily' && (
-          <ReplayLink createdAt={game.created_at} router={router} />
-        )}
       </footer>
     </div>
   );
@@ -1936,45 +1933,6 @@ function ReviewPage() {
         />
       )}
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Replay link (daily only)                                            */
-/* ------------------------------------------------------------------ */
-
-function ReplayLink({
-  createdAt,
-  router,
-}: {
-  createdAt: string;
-  router: ReturnType<typeof useRouter>;
-}) {
-  const [loading, setLoading] = useState(false);
-
-  async function handleReplay() {
-    setLoading(true);
-    try {
-      const date = createdAt.slice(0, 10);
-      const res = await dailyApi.replay(date);
-      const newId: string = res.data?.id ?? res.data?.game_id ?? '';
-      if (newId) router.push(`/play?game=${newId}`);
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <button
-      onClick={handleReplay}
-      disabled={loading}
-      className="font-sans text-sm underline disabled:opacity-50"
-      style={{ color: 'var(--tile-correct)' }}
-    >
-      {loading ? 'Starting…' : 'Replay this puzzle'}
-    </button>
   );
 }
 
