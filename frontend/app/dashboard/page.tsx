@@ -242,7 +242,12 @@ export default function DashboardPage() {
       ? 'var(--green)'
       : tier.color;
 
-  const allCompletedGames = games.filter((g) => g.status === 'won' || g.status === 'lost');
+  const allCompletedGames = games.filter(
+    (g) =>
+      g.status === 'won' ||
+      g.status === 'lost' ||
+      (g.status === 'abandoned' && g.rated),
+  );
   const completedGames =
     gameFilter === 'all'
       ? allCompletedGames
