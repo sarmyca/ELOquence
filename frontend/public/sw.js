@@ -10,7 +10,7 @@
  * old cache is purged on activate.
  */
 
-const SW_VERSION = 'v4';
+const SW_VERSION = 'v5';
 
 // Next.js dev keeps stable URLs for static chunks (no hash), so an
 // aggressive Cache-First strategy would freeze any code change forever
@@ -234,7 +234,7 @@ self.addEventListener('push', (event) => {
 
   const title = data.title || 'ELOquence';
   const options = {
-    body: data.body || '',
+    body: data.body || 'You have a new notification.',
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/icon-192.png',
     tag: data.tag || undefined,
@@ -243,7 +243,18 @@ self.addEventListener('push', (event) => {
     renotify: Boolean(data.tag),
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  // Chrome enforces userVisibleOnly=true — every push MUST produce a visible
+  // notification or Chrome shows its own "Site updated in background"
+  // fallback. If the rich notification call rejects for any reason (corrupted
+  // payload, invalid icon URL, etc.), fall back to a stripped-down version
+  // so the user never gets total silence.
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(() =>
+      self.registration.showNotification('ELOquence', {
+        body: 'You have a new notification.',
+      }),
+    ),
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {
@@ -275,9 +286,26 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // `pushsubscriptionchange` fires when the browser rotates the endpoint
-// (rare — e.g. after a quota refresh). We can't re-register here without
-// an auth token, so we just clear the local state; the next time the page
-// loads it'll see no subscription and re-subscribe via the UI.
-self.addEventListener('pushsubscriptionchange', () => {
-  // no-op for now — handled when the user next visits the app
+// (rare — e.g. after a quota refresh). We re-subscribe immediately using the
+// VAPID key from the old subscription so a fresh endpoint exists in the
+// browser. The server-side row stays out of sync until the user next opens
+// the app — `getPushState()` in lib/push.ts then POSTs the new endpoint to
+// /push/subscribe (it upserts on the endpoint uniqueness constraint).
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      const applicationServerKey = event.oldSubscription?.options?.applicationServerKey;
+      if (!applicationServerKey) return;
+      try {
+        await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      } catch {
+        // Resubscribe can fail if VAPID rotates or the user has revoked
+        // permission — nothing we can do from the SW context. The next page
+        // load surfaces it as `status: 'unsubscribed'` for the UI to recover.
+      }
+    })(),
+  );
 });
