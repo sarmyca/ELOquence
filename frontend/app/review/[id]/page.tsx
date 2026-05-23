@@ -668,21 +668,30 @@ function GuessCard({
   activeRow,
   targetWord,
   gameId,
+  aiCacheRef,
 }: {
   move: MoveAnalysis;
   moveIndex: number;
   activeRow: number;
   targetWord: string | null;
   gameId: string | null;
+  aiCacheRef: { current: Map<number, string> };
 }) {
   const n = move.move_number;
   // AI-written per-move commentary. Falls back to the rule-based commentary
   // (`buildCommentary`) if the LLM is unavailable or the request fails.
-  const [aiCommentary, setAiCommentary] = useState<string | null>(null);
-  const [aiCommentaryLoading, setAiCommentaryLoading] = useState(true);
+  // Cache lives on the page so flipping between slides doesn't re-hit Gemini.
+  const cachedAi = aiCacheRef.current.get(n) ?? null;
+  const [aiCommentary, setAiCommentary] = useState<string | null>(cachedAi);
+  const [aiCommentaryLoading, setAiCommentaryLoading] = useState(!cachedAi && !!gameId);
 
   useEffect(() => {
     if (!gameId) {
+      setAiCommentaryLoading(false);
+      return;
+    }
+    if (aiCacheRef.current.has(n)) {
+      setAiCommentary(aiCacheRef.current.get(n)!);
       setAiCommentaryLoading(false);
       return;
     }
@@ -691,7 +700,9 @@ function GuessCard({
     aiApi
       .explainMove(gameId, n)
       .then((res) => {
-        if (!cancelled) setAiCommentary((res.data as { explanation: string }).explanation);
+        const text = (res.data as { explanation: string }).explanation;
+        aiCacheRef.current.set(n, text);
+        if (!cancelled) setAiCommentary(text);
       })
       .catch(() => {
         /* leave aiCommentary null; the render path falls back to buildCommentary */
@@ -702,7 +713,7 @@ function GuessCard({
     return () => {
       cancelled = true;
     };
-  }, [gameId, n]);
+  }, [gameId, n, aiCacheRef]);
   const isSolving = move.pattern === 242;
   const optimalWord = move.optimal_word ?? move.bot_pick ?? '—';
   const skill = move.skill_score ?? 0;
@@ -1445,6 +1456,9 @@ function ReviewPage() {
   //   N+1         — Final (community + actions)
   const [currentStep, setCurrentStep] = useState(0);
   const [stepDir, setStepDir] = useState<1 | -1>(1);
+  // Per-move AI commentary survives slide nav so flipping back to a guess
+  // doesn't re-call Gemini. Keyed by move_number.
+  const aiCacheRef = useRef<Map<number, string>>(new Map());
   const moveCount = analysis?.moves.length ?? 0;
   const totalSteps = moveCount > 0 ? moveCount + 2 : 1;
   // -1 = no row is "current" (e.g. on the Overview or Final step). Per-move
@@ -1841,6 +1855,7 @@ function ReviewPage() {
                     activeRow={activeRow}
                     targetWord={game?.target_word ?? null}
                     gameId={game?.id ?? null}
+                    aiCacheRef={aiCacheRef}
                   />
                 )}
                 {currentStep === moveCount + 1 && (
