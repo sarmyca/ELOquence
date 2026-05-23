@@ -1,51 +1,46 @@
-# Fly.io app config for the ELOquence backend.
+# fly.toml app configuration file generated for eloquence-api on 2026-05-23T01:14:33+02:00
 #
-# Free-tier-friendly: 1 shared-cpu-1x VM at 256MB, auto-stops on idle so
-# you pay $0 for a low-traffic uni project. Cold start is ~5–10s on the
-# first request after idle — acceptable for demos.
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
-# Deploy: `fly deploy` from this directory after `fly launch --no-deploy`
-# has created the app on Fly's side.
 
-app = "eloquence-api"
-primary_region = "fra"  # Frankfurt — lowest latency from Croatia
+app = 'eloquence-api'
+primary_region = 'fra'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
-# Alembic runs once before each release. If the migration fails Fly will
-# refuse to roll out the new version, so the API never starts against a
-# DB it can't read.
 [deploy]
-  release_command = "alembic upgrade head"
+  release_command = 'alembic upgrade head'
 
 [env]
-  PORT = "8000"
-  # Pin the CMD entrypoint behaviour explicitly so future Dockerfile
-  # changes don't accidentally re-enable --reload in prod.
-  PYTHONUNBUFFERED = "1"
+  PORT = '8000'
+  PYTHONUNBUFFERED = '1'
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = "stop"   # idle = $0
-  auto_start_machines = true     # wake on first request
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
 
   [http_service.concurrency]
-    type = "requests"
-    soft_limit = 200
+    type = 'requests'
     hard_limit = 250
+    soft_limit = 200
 
   [[http_service.checks]]
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "10s"
-    method = "GET"
-    path = "/health"
+    interval = '30s'
+    timeout = '5s'
+    # Pattern matrix + word lists take ~10s to load on first boot, so we give
+    # the app a wide grace before the health check counts a failure.
+    grace_period = '60s'
+    method = 'GET'
+    path = '/health'
 
 [[vm]]
-  cpu_kind = "shared"
+  cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 256
+  # 256MB OOM-kills the worker during pattern matrix build. 512MB has plenty
+  # of headroom and is still pennies/month with auto-stop on idle.
+  memory_mb = 512

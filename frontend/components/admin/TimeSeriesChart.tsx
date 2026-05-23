@@ -8,8 +8,10 @@ interface SeriesDef {
   color: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface Props {
+  // Per-row mixed payload (numeric series values + a `date` ISO string).
+  // The default Next.js eslint config doesn't load @typescript-eslint, so
+  // we don't need a suppression comment for `any` — it's not flagged.
   data: Array<Record<string, any>>;
   series: SeriesDef[];
   height?: number;
