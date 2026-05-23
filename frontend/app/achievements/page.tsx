@@ -38,6 +38,7 @@ import {
   Rocket,
   Sunrise,
   Moon,
+  type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { achievementsApi } from '@/lib/api';
@@ -108,7 +109,7 @@ const CATEGORY_FOR_TYPE: Record<string, Category> = {
   night_owl:         'timing',
 };
 
-const ICON_FOR_TYPE: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>> = {
+const ICON_FOR_TYPE: Record<string, LucideIcon> = {
   // Solving
   first_win:    Flag,
   quick_solve:  Zap,
