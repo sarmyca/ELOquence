@@ -124,7 +124,11 @@ export async function subscribeToPush(): Promise<PushState> {
   if (!sub) {
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(keyRes.data.public_key),
+      // BufferSource cast: TS 5.7's DOM types narrowed the field to
+      // ArrayBufferView<ArrayBuffer>, but a Uint8Array's buffer is typed
+      // as ArrayBufferLike (which could be SharedArrayBuffer). Our atob
+      // path always produces a regular ArrayBuffer, so the cast is safe.
+      applicationServerKey: urlBase64ToUint8Array(keyRes.data.public_key) as BufferSource,
     });
   }
 
