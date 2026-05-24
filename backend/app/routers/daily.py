@@ -180,11 +180,41 @@ async def guest_guess(
     db.add(move)
     game.num_guesses = move_number
 
-    # Check win/loss
-    if guess == game.target_word:
+    won = guess == game.target_word
+    if won:
         game.status = "won"
+        game.completed_at = datetime.now(timezone.utc)
     elif move_number >= 6:
         game.status = "lost"
+        game.completed_at = datetime.now(timezone.utc)
+
+    # Completion side-effects — without these, guest daily plays never
+    # contribute to the community word_stats table or the uniqueness
+    # fingerprint pool, so signed-in players see misleading "no one else
+    # has played this word" panels even when guests have completed it.
+    if game.status in ("won", "lost"):
+        from app.services.uniqueness import compute_move_fingerprint
+        from app.services.word_stats import update_word_stats
+
+        existing_nums = {m.move_number for m in game.moves}
+        completed_moves = sorted(
+            [*game.moves] + ([move] if move.move_number not in existing_nums else []),
+            key=lambda m: m.move_number,
+        )
+        game.move_fingerprint = compute_move_fingerprint(
+            game.target_word,
+            [m.guess_word for m in completed_moves],
+        )
+
+        # word_stats write is best-effort — the game completion response
+        # must not fail if the stats update errors out.
+        try:
+            async with db.begin_nested():
+                await update_word_stats(
+                    db, game.target_word, game.num_guesses, won, None
+                )
+        except Exception:
+            pass
 
     await db.flush()
     await db.refresh(game, ["moves"])

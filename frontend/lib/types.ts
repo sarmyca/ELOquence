@@ -135,6 +135,10 @@ export interface AnalysisResult {
   skill_avg_excluding_opener?: number;
   luck_avg?: number;
   uniqueness_percentile?: number;
+  opener_word?: string;
+  opener_rarity_pct?: number;
+  opener_same_count?: number;
+  opener_total_games?: number;
   bot_solve_path?: string[];
   failure_score?: number | null;
   standard_mode_starter?: string;

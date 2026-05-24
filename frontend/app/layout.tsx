@@ -7,6 +7,7 @@ import AnnouncementBanner from '@/components/AnnouncementBanner';
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 import InstallPrompt from '@/components/InstallPrompt';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const libreFranklin = Libre_Franklin({
   subsets: ['latin'],
@@ -92,6 +93,7 @@ export default function RootLayout({
         </AuthProvider>
         <ServiceWorkerRegister />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

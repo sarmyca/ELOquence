@@ -457,16 +457,15 @@ const SECTIONS: SectionDef[] = [
         ),
       },
       {
-        q: 'What does the Uniqueness score mean?',
+        q: 'What does the Opener stat mean?',
         plain:
-          'Uniqueness is expressed as "1 in N" — out of everyone who solved the same word, how many took the exact same sequence of guesses you did? A 1 in 500 rating means your specific path was extremely unusual. It is not a quality judgment — it just means your route was uncommon.',
+          'It shows your first guess and the percentage of other completed games that started with a different word. CRANE, SLATE and SALET are the heavy favourites — open with something unusual and the rarity climbs. It is not a quality judgment, just a measure of how off-piste your opening choice was.',
         a: (
           <p className="font-sans text-sm text-text-secondary leading-relaxed">
-            Uniqueness is expressed as &quot;1 in N.&quot; Out of everyone who solved the same
-            word, how many took the exact same sequence of guesses you did? A 1-in-500 rating means
-            your specific path was extremely unusual. It is not a quality judgment — rarer is not
-            better or worse. It just means you arrived at the answer by a road less traveled. Use
-            it as a talking point: &quot;I solved today&apos;s in a way only 1 in 400 people did.&quot;
+            The Opener stat shows your first guess and what fraction of other completed games
+            started with a different word. Openers cluster heavily around CRANE, SLATE and SALET,
+            so playing anything else pushes your rarity toward 100%. It&apos;s descriptive, not
+            evaluative — &quot;different&quot; doesn&apos;t mean &quot;better.&quot;
           </p>
         ),
       },
@@ -553,24 +552,6 @@ const SECTIONS: SectionDef[] = [
               <span className="font-semibold text-text-secondary">Brilliant</span> is genuinely
               rare — it means you identified an option the algorithm under-ranked. When you see
               it, it&apos;s real.
-            </p>
-          </div>
-        ),
-      },
-      {
-        q: "Why didn't my opener count toward my skill score?",
-        plain:
-          'Your opening guess happens before any feedback exists, so there is no right or wrong answer — every five-letter word is equally valid as a first guess. Go ahead, start with FUZZY, we will not stop you. Because all openers are equivalent in terms of available information, the analysis skips it. Your skill score only counts moves where you actually had something to work with.',
-        a: (
-          <div className="space-y-3">
-            <p className="font-sans text-sm text-text-secondary leading-relaxed">
-              Your opening guess happens before any feedback exists, so there is no right or wrong
-              answer — every five-letter word is equally valid as a first move. Go ahead, start with
-              FUZZY, we won&apos;t stop you. Your opener doesn&apos;t count toward your skill score.
-            </p>
-            <p className="font-sans text-sm text-text-secondary leading-relaxed">
-              From the second guess onward, you have real information to work with. That&apos;s
-              when skill kicks in — and when the analysis starts keeping score.
             </p>
           </div>
         ),

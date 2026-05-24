@@ -102,6 +102,8 @@ export const leaderboardApi = {
   get: (params?: { page?: number; per_page?: number }) =>
     api.get('/leaderboard', { params }),
   nearMe: () => api.get('/leaderboard/near-me'),
+  openers: (limit?: number) =>
+    api.get('/leaderboard/openers', { params: limit ? { limit } : undefined }),
 };
 
 // Users

@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.game import Game
+from app.models.move import Move
 
 
 def compute_move_fingerprint(target_word: str, guesses: list[str]) -> str:
@@ -48,3 +49,51 @@ async def count_grid_occurrences(db: AsyncSession, fingerprint: str) -> int:
         )
     )
     return max(1, result.scalar_one() or 1)
+
+
+async def compute_opener_rarity(
+    db: AsyncSession, opener_word: str
+) -> tuple[int, int, int]:
+    """How rare was this opening word across all completed games.
+
+    Whole-grid uniqueness is too granular — every distinct guess sequence
+    is its own grid, so the count is almost always 1, which makes the
+    panel useless. Openers, on the other hand, cluster heavily (CRANE,
+    SLATE, SALET) so this metric actually shows variance.
+
+    Returns:
+        (rarity_pct, same_count, total_count)
+        - rarity_pct: percent of completed games that started with a
+          DIFFERENT opener (0 = everyone uses your opener, 100 = no one
+          else did).
+        - same_count: completed games whose first move == this opener.
+        - total_count: completed games with at least one recorded move.
+    """
+    if not opener_word:
+        return 0, 0, 0
+    opener_upper = opener_word.strip().upper()
+
+    total_result = await db.execute(
+        select(func.count(func.distinct(Game.id)))
+        .select_from(Game)
+        .join(Move, Move.game_id == Game.id)
+        .where(Game.status.in_(("won", "lost")))
+    )
+    total = int(total_result.scalar_one() or 0)
+    if total == 0:
+        return 0, 0, 0
+
+    same_result = await db.execute(
+        select(func.count(func.distinct(Game.id)))
+        .select_from(Game)
+        .join(Move, Move.game_id == Game.id)
+        .where(
+            Game.status.in_(("won", "lost")),
+            Move.move_number == 1,
+            func.upper(Move.guess_word) == opener_upper,
+        )
+    )
+    same = int(same_result.scalar_one() or 0)
+
+    rarity_pct = round((total - same) / total * 100) if total > 0 else 0
+    return rarity_pct, same, total
