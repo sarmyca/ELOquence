@@ -47,13 +47,17 @@ function SingleTile({ tile, index, bootDone, onBootComplete }: SingleTileProps) 
       }}
       className="relative flex items-center justify-center rounded-lg text-white select-none cursor-default font-display font-black"
       style={{
-        // 9 tiles + 8 gaps must fit inside the viewport even on narrow phones
-        // (iPhone 402px viewport - 32px container padding ≈ 370px). The min
-        // here used to be 2.75rem (44px), which floored the row at ~444px
-        // and clipped the first and last tile off-screen.
-        width: 'clamp(2rem, 8vw, 5.25rem)',
-        height: 'clamp(2rem, 8vw, 5.25rem)',
-        fontSize: 'clamp(1.1rem, 4vw, 2.75rem)',
+        // The row holds 9 tiles + 8 gaps and must fit any viewport.
+        // We compute tile width as: (available viewport - container padding
+        // (32px from px-4) - safety buffer (8px) - 8 gaps * 4px) / 9, then
+        // clamp between a legible floor (2rem) and the desktop ceiling
+        // (5.25rem). This lets the tiles grow to fill the row on every
+        // phone width instead of pinning to a single min that was either
+        // too big (overflow on 360-402px) or too small (looked dwarfed
+        // by the "Competitive Wordle" subtitle on bigger phones).
+        width: 'max(2rem, min(calc((100vw - 72px) / 9), 5.25rem))',
+        height: 'max(2rem, min(calc((100vw - 72px) / 9), 5.25rem))',
+        fontSize: 'max(1.3rem, min(calc((100vw - 72px) / 9 * 0.62), 2.75rem))',
         backgroundColor: tile.color,
         letterSpacing: '-0.02em',
         transformStyle: 'preserve-3d',
@@ -102,7 +106,7 @@ function TitleRow() {
   return (
     <motion.div
       ref={rowScope}
-      className="relative flex gap-1.5 sm:gap-2"
+      className="relative flex gap-1"
       inherit={false}
       style={{ perspective: 900 }}
     >
