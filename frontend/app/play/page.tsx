@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { gamesApi, dailyApi, challengesApi } from '@/lib/api';
 import { getRatingTier, patternToTiles, TileState } from '@/lib/types';
 import { springs, stagger } from '@/lib/animations';
+import TileLoader from '@/components/TileLoader';
 
 /** Returns ms until local midnight (server TZ matches client TZ). */
 function msUntilMidnight(): number {
@@ -324,7 +325,7 @@ export default function PlayPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin border-tile-correct" />
+        <TileLoader size={22} />
       </div>
     );
   }

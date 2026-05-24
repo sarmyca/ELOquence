@@ -18,6 +18,7 @@ import { Search, X } from 'lucide-react';
 import GameStateNode, { type GameStateNodeData, type GameStateRfNode } from './GameStateNode';
 import GuessEdge, { type GuessEdgeData, type GuessRfEdge } from './GuessEdge';
 import { useElkLayout } from '@/lib/hooks/useElkLayout';
+import TileLoader from '@/components/TileLoader';
 import api from '@/lib/api';
 
 interface GraphData {
@@ -205,10 +206,7 @@ function GraphInner({ gameId }: Props) {
     return (
       <div className="flex items-center justify-center h-[500px]">
         <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
-            style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }}
-          />
+          <TileLoader size={22} />
           <span className="text-xs text-text-secondary">Building game graph...</span>
         </div>
       </div>

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import CoachChat from '@/components/CoachChat';
 import EloProjection from '@/components/EloProjection';
+import TileLoader from '@/components/TileLoader';
 import { gamesApi, analysisApi, communityApi, aiApi } from '@/lib/api';
 import {
   Game,
@@ -1589,10 +1590,7 @@ function ReviewPage() {
   if (loadingGame) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div
-          className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }}
-        />
+        <TileLoader size={22} />
       </div>
     );
   }
@@ -1967,10 +1965,7 @@ export default function ReviewPageWrapper() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-          <div
-            className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
-            style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }}
-          />
+          <TileLoader size={22} />
         </div>
       }
     >

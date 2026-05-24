@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, useAnimate } from 'framer-motion';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { springs, stagger } from '@/lib/animations';
+import TileLoader from '@/components/TileLoader';
 
 // ---------------------------------------------------------------------------
 // Data
@@ -140,10 +141,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-dvh" style={{ backgroundColor: 'var(--bg-base)' }}>
-        <div
-          className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }}
-        />
+        <TileLoader size={22} />
       </div>
     );
   }

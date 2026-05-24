@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
+import TileLoader from '@/components/TileLoader';
 import {
   TrendingUp,
   BarChart2,
@@ -212,10 +213,7 @@ export default function DashboardPage() {
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-56px)]">
-        <div
-          className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
-          style={{ borderColor: 'var(--tile-correct)', borderTopColor: 'transparent' }}
-        />
+        <TileLoader size={20} />
       </div>
     );
   }
