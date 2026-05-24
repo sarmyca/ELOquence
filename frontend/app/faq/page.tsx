@@ -352,13 +352,13 @@ const SECTIONS: SectionDef[] = [
     title: 'Your Scores',
     icon: <BarChart2 size={16} />,
     partLabel: 'PART 02',
-    intro: 'Skill, luck, uniqueness — what they measure and why they are separate.',
+    intro: 'Skill, luck, opener — what they measure and why they are separate.',
     guestUnlocked: true,
     items: [
       {
-        q: 'What are skill, luck, and uniqueness?',
+        q: 'What are skill, luck, and opener?',
         plain:
-          'Skill measures the quality of your guesses — how close each one came to the theoretical best. Luck measures how favorable the feedback was — you can make a perfect guess and still get unlucky if it produces a terrible pattern. Uniqueness measures how unusual your path to the answer was compared to everyone else who solved it.',
+          'Skill measures the quality of your guesses — how close each one came to the theoretical best. Luck measures how favorable the feedback was — you can make a perfect guess and still get unlucky if it produces a terrible pattern. Opener shows how rare your first guess was compared to everyone else who played.',
         a: (
           <div className="space-y-3">
             <p className="font-sans text-sm text-text-secondary leading-relaxed">
@@ -377,9 +377,9 @@ const SECTIONS: SectionDef[] = [
                   desc: 'How favorable was the feedback? A guess can be brilliant and still give you an ugly, unhelpful pattern. Luck captures that variance.',
                 },
                 {
-                  label: 'Uniqueness',
+                  label: 'Opener',
                   color: '#c9a227',
-                  desc: "How unusual was your solve path? If you're 1 in 200, fewer than 0.5% of solvers took the same route. Rare paths aren't better or worse — just interesting.",
+                  desc: 'How rare was your first guess? Most players open with CRANE, SLATE or SALET, so anything else pushes your rarity up. Not better or worse — just how off-piste you started.',
                 },
               ].map((s) => (
                 <InnerCard key={s.label} className="flex gap-3 items-start">
@@ -968,8 +968,8 @@ const SECTIONS: SectionDef[] = [
         a: (
           <div className="space-y-3">
             <p className="font-sans text-sm text-text-secondary leading-relaxed">
-              The review page is your main post-game tool. Your overall skill, luck, and uniqueness
-              scores appear at the top. Below that, clicking any row in the guess board loads that
+              The review page is your main post-game tool. Your overall skill, luck, and opener
+              stats appear at the top. Below that, clicking any row in the guess board loads that
               move&apos;s analysis across six tabs.
             </p>
             <div className="grid gap-2">
@@ -1276,14 +1276,16 @@ const SECTIONS: SectionDef[] = [
       {
         q: 'How is word difficulty computed?',
         plain:
-          'Each word gets a difficulty score based on letter frequencies, vowel count, and duplicate letters. Rare-letter words with few vowels and double letters tend to be harder. The difficulty feeds directly into how much ELO you gain or lose for that word.',
+          'Each word gets a difficulty score from how common its letters are, how typical those letters are in their positions, whether it repeats letters, and how everyday the word itself is. Rare letters, unusual placements, duplicates, and words outside the common answer list all push difficulty up. The score (roughly 600–1800) feeds directly into how much ELO you gain or lose for that word.',
         a: (
           <p className="font-sans text-sm text-text-secondary leading-relaxed">
-            Each word gets a difficulty score based on letter frequencies, vowel count, and whether
-            it contains duplicate letters. Rare-letter words with few vowels and double letters tend
-            to score higher — they are genuinely harder to solve. The difficulty feeds directly into
-            how much ELO you gain or lose: beat a difficulty-1600 word and you gain significantly
-            more than beating a difficulty-900 word.
+            Each word gets a difficulty score from how common its letters are, how typical those
+            letters are in their positions, whether it repeats letters, and how everyday the word
+            itself is. Rare letters, unusual placements, duplicates, and words outside the common
+            answer list all push it up — those words are genuinely harder to solve. Scores span
+            roughly 600–1800, and the number feeds directly into how much ELO you gain or lose:
+            beat a difficulty-1500 word and you gain significantly more than beating a
+            difficulty-700 word.
           </p>
         ),
       },

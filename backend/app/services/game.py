@@ -103,21 +103,33 @@ async def _get_streak_shift(db: AsyncSession, user_id, user_elo: float) -> float
 async def _pick_competitive_word(
     db: AsyncSession, user_id, user_elo: float, pool: list[str]
 ) -> tuple[str, float]:
-    """Pick a word whose difficulty matches the player's ELO ± streak shift.
+    """Pick a word whose difficulty stays near the player's ELO.
 
-    The base range is ±200 ELO around the player's rating, shifted by up to
-    ±200 based on winning/losing streak (positive streak → harder words,
-    negative streak → easier words).
+    The word is drawn from a difficulty envelope around the player's rating
+    (≈ ``elo-90`` … ``elo+125``), calibrated so the ELO delta distribution
+    stays sensible: a loss costs rating and a 1-3 guess win gains it. A
+    win/lose streak nudges difficulty *within* that envelope (winning →
+    harder), but can no longer push words far enough away to invert the
+    distribution the way the old ±200 base + ±200 streak window could (that
+    let a word land ~400 ELO from the player, so even losing gained rating).
 
     Falls back to heuristic difficulty when no calibrated DB entry exists.
 
     Returns:
         (word, difficulty_elo) tuple.
     """
+    # Difficulty envelope around the player's own rating. The offsets are
+    # derived from the performance/expected model in services.elo so that,
+    # at typical accuracy, X/6 stays negative and a 1-3 guess win stays
+    # positive across the whole band.
+    floor_elo = user_elo - 90.0
+    ceil_elo = user_elo + 125.0
+    # Streak still nudges difficulty, but damped (×0.35) and clamped into the
+    # envelope rather than pushing the whole ±200 window off the player.
     shift = await _get_streak_shift(db, user_id, user_elo)
-    center = user_elo + shift
-    lo = center - 200
-    hi = center + 200
+    center = min(ceil_elo, max(floor_elo, user_elo + shift * 0.35))
+    lo = max(floor_elo, center - 80.0)
+    hi = min(ceil_elo, center + 80.0)
 
     result = await db.execute(
         select(WordStats)

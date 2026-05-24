@@ -114,6 +114,31 @@ def calculate_elo_delta(
     return k * (performance_score - expected)
 
 
+# Minimum magnitude of a sense-guaranteed ELO move (see _apply_outcome_floor).
+_OUTCOME_FLOOR = 1.0
+
+
+def _apply_outcome_floor(delta: float, won: bool, num_guesses: int) -> float:
+    """Guarantee the ELO move's sign matches the game result.
+
+    The raw expected-score formula can invert against extreme word ratings:
+    a word rated far above the player makes ``expected`` tiny, so even a loss
+    beats expectation and would net *positive* ELO (and the inverse for very
+    easy words — winning could cost rating). Word selection keeps difficulty
+    near the player, but this is the hard guarantee on top of that:
+
+      - a loss (X/6) always costs rating
+      - a win in ≤3 guesses always gains rating
+
+    Wins in 4-6 guesses keep their natural (possibly small or negative) value.
+    """
+    if not won:
+        return min(delta, -_OUTCOME_FLOOR)
+    if num_guesses <= 3:
+        return max(delta, _OUTCOME_FLOOR)
+    return delta
+
+
 async def apply_elo_update(
     db: AsyncSession,
     user: User,
@@ -151,6 +176,8 @@ async def apply_elo_update(
         performance_score=performance,
         is_placement=is_placement,
     )
+    # Sign guarantee: losing never gains rating, a 1-3 guess win never loses it.
+    delta = _apply_outcome_floor(delta, won, game.num_guesses)
 
     elo_before = user.elo_rating
     elo_after = round(max(ELO_FLOOR, elo_before + delta))

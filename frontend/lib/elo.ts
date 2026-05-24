@@ -56,6 +56,27 @@ export function calculateEloDelta(opts: {
   return k * (performanceScore - expected);
 }
 
+// Minimum magnitude of a sense-guaranteed ELO move. Mirrors _OUTCOME_FLOOR
+// in elo.py.
+const OUTCOME_FLOOR = 1.0;
+
+/**
+ * Guarantee the ELO move's sign matches the game result — mirrors
+ * `_apply_outcome_floor` in elo.py:
+ *  - a loss (X/6) always costs rating
+ *  - a win in ≤3 guesses always gains rating
+ * Wins in 4-6 keep their natural value.
+ */
+export function applyOutcomeFloor(
+  delta: number,
+  won: boolean,
+  numGuesses: number,
+): number {
+  if (!won) return Math.min(delta, -OUTCOME_FLOOR);
+  if (numGuesses <= 3) return Math.max(delta, OUTCOME_FLOOR);
+  return delta;
+}
+
 /**
  * For each hypothetical guess count 1..6 plus the X (loss) outcome,
  * compute the ELO delta the player WOULD have received if they had
@@ -92,12 +113,16 @@ export function projectEloByOutcome(opts: {
       timeSeconds: opts.timeSeconds,
       includeTime: opts.includeTime,
     });
-    const delta = calculateEloDelta({
-      playerElo: opts.playerElo,
-      wordElo: opts.wordElo,
-      performanceScore: performance,
-      isPlacement: opts.isPlacement,
-    });
+    const delta = applyOutcomeFloor(
+      calculateEloDelta({
+        playerElo: opts.playerElo,
+        wordElo: opts.wordElo,
+        performanceScore: performance,
+        isPlacement: opts.isPlacement,
+      }),
+      true,
+      n,
+    );
     rows.push({
       label: `${n}/6`,
       numGuesses: n,
@@ -115,12 +140,16 @@ export function projectEloByOutcome(opts: {
     timeSeconds: opts.timeSeconds,
     includeTime: opts.includeTime,
   });
-  const lossDelta = calculateEloDelta({
-    playerElo: opts.playerElo,
-    wordElo: opts.wordElo,
-    performanceScore: lossPerf,
-    isPlacement: opts.isPlacement,
-  });
+  const lossDelta = applyOutcomeFloor(
+    calculateEloDelta({
+      playerElo: opts.playerElo,
+      wordElo: opts.wordElo,
+      performanceScore: lossPerf,
+      isPlacement: opts.isPlacement,
+    }),
+    false,
+    6,
+  );
   rows.push({
     label: 'X/6',
     numGuesses: 6,

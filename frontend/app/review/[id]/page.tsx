@@ -345,7 +345,7 @@ function StatsTable({
           { full: 'SKILL', short: 'SKILL' },
           { full: 'LUCK', short: 'LUCK' },
           { full: 'WORDS LEFT', short: 'LEFT' },
-          { full: 'INFO GAINED', short: 'INFO' },
+          { full: 'INFO (BITS)', short: 'BITS' },
         ].map((h) => (
           <span
             key={h.full}
@@ -360,7 +360,7 @@ function StatsTable({
       <div className="flex flex-col gap-0.5">
         {moves.map((m, i) => {
           const isActive = i === activeRow;
-          const pct = infoPct(m);
+          const bitsGained = m.info_gained ?? 0;
           const wordsLeft = m.pattern === 242 ? '—' : String(m.remaining_after ?? '—');
           return (
             <div
@@ -377,7 +377,7 @@ function StatsTable({
                 String(m.skill_score ?? '—'),
                 String(m.luck_score ?? '—'),
                 wordsLeft,
-                `${pct}%`,
+                bitsGained.toFixed(1),
               ].map((val, j) => (
                 <span
                   key={j}
@@ -1387,7 +1387,7 @@ function StepOverview({
                   },
                   {
                     term: 'Info gained',
-                    def: 'What share of the puzzle’s remaining uncertainty this guess cleared up. 100% would mean you solved it. 50% means you cut the possibilities roughly in half. A great guess clears a lot; a wasted guess clears little.',
+                    def: 'How many bits of information this guess revealed. Each bit cuts the remaining possibilities in half — 1 bit ≈ half the words gone, 2 bits ≈ three-quarters gone, and so on. A strong guess gains several bits; a wasted guess gains almost none.',
                   },
                 ].map(({ term, def }) => (
                   <p
@@ -1733,6 +1733,17 @@ function ReviewPage() {
                       day: 'numeric',
                       year: 'numeric',
                     })}
+                  </span>
+                </>
+              )}
+              {game?.word_difficulty != null && (
+                <>
+                  <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+                  <span title="Difficulty rating of the solved word">
+                    Word ELO{' '}
+                    <span className="font-mono tabular-nums font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {Math.round(game.word_difficulty)}
+                    </span>
                   </span>
                 </>
               )}

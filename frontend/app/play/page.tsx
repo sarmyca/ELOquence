@@ -19,6 +19,7 @@ import { gamesApi, dailyApi, challengesApi } from '@/lib/api';
 import { getRatingTier, patternToTiles, TileState } from '@/lib/types';
 import { springs, stagger } from '@/lib/animations';
 import TileLoader from '@/components/TileLoader';
+import FirstTimeTutorial from '@/components/FirstTimeTutorial';
 
 /** Returns ms until local midnight (server TZ matches client TZ). */
 function msUntilMidnight(): number {
@@ -621,6 +622,7 @@ export default function PlayPage() {
         </motion.div>
 
         {challengeModal}
+        <FirstTimeTutorial />
       </div>
     );
   }
@@ -884,6 +886,7 @@ export default function PlayPage() {
       </motion.div>
 
       {challengeModal}
+      <FirstTimeTutorial />
     </div>
   );
 }
