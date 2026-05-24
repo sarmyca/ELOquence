@@ -135,9 +135,87 @@ function SkeletonRow({ index }: { index: number }) {
   );
 }
 
+// ─── Openers tab ──────────────────────────────────────────────────────────────
+interface OpenerRow {
+  rank: number;
+  opener: string;
+  plays: number;
+  wins: number;
+  solve_rate: number;
+  avg_guesses_win: number | null;
+  popularity_pct: number;
+}
+
+function OpenersPanel() {
+  const [rows, setRows] = useState<OpenerRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    leaderboardApi
+      .openers(20)
+      .then((res) => {
+        const data = res.data as { total_games: number; openers: OpenerRow[] };
+        setRows(data.openers ?? []);
+        setTotal(data.total_games ?? 0);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ...springs.slide, delay: 0.1 }}
+      className="bg-bg-base border border-border-default rounded-card-lg overflow-hidden"
+    >
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle">
+        <span className="w-7 text-right font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider shrink-0">#</span>
+        <span className="flex-1 font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider">Opener</span>
+        <span className="w-14 text-right font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider shrink-0">Used</span>
+        <span className="w-14 text-right font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider shrink-0">Solve%</span>
+        <span className="w-12 text-right font-sans text-[10px] font-semibold text-text-ghost uppercase tracking-wider shrink-0">Avg</span>
+      </div>
+      <div className="overflow-y-auto" style={{ maxHeight: 'max(280px, calc(100dvh - 420px))', scrollbarGutter: 'stable' }}>
+        {loading ? (
+          <div className="py-12 text-center font-sans text-sm text-text-secondary">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="py-12 text-center font-sans text-sm text-text-secondary">No completed games yet.</div>
+        ) : (
+          rows.map((r) => (
+            <div
+              key={r.opener}
+              className="flex items-center gap-3 px-4 py-3 border-b border-border-subtle last:border-0 hover:bg-bg-elevated/50 transition-colors"
+            >
+              <span className="w-7 text-right font-display font-bold text-sm tabular-nums shrink-0 text-text-ghost">{r.rank}</span>
+              <span className="flex-1 font-mono text-sm font-semibold text-text-primary tracking-wider">{r.opener}</span>
+              <span className="w-14 text-right font-mono text-xs text-text-secondary tabular-nums shrink-0">{r.popularity_pct}%</span>
+              <span className="w-14 text-right font-mono text-xs text-text-secondary tabular-nums shrink-0">{r.solve_rate}%</span>
+              <span className="w-12 text-right font-mono text-xs text-text-secondary tabular-nums shrink-0">
+                {r.avg_guesses_win != null ? r.avg_guesses_win.toFixed(1) : '—'}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+      {!loading && total > 0 && (
+        <div className="px-4 py-2.5 border-t border-border-subtle">
+          <span className="font-sans text-[11px] text-text-ghost">
+            From {total.toLocaleString()} completed games. Avg = guesses to win when this opener led.
+          </span>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
+type LeaderboardTab = 'players' | 'openers';
+
 export default function LeaderboardPage() {
   const { user } = useAuth();
+  const [tab, setTab] = useState<LeaderboardTab>('players');
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -145,6 +223,7 @@ export default function LeaderboardPage() {
   const PER_PAGE = 20;
 
   useEffect(() => {
+    if (tab !== 'players') return;
     setLoading(true);
     leaderboardApi
       .get({ page, per_page: PER_PAGE })
@@ -155,7 +234,7 @@ export default function LeaderboardPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [page]);
+  }, [page, tab]);
 
   const rowVariants: Variants = {
     hidden:  { opacity: 0, y: 6 },
@@ -249,13 +328,40 @@ export default function LeaderboardPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ ...springs.slide, delay: 0.08 }}
-        className="font-sans text-sm text-text-secondary mb-7"
+        className="font-sans text-sm text-text-secondary mb-4"
       >
-        Top players ranked by ELO rating
+        {tab === 'players'
+          ? 'Top players ranked by ELO rating'
+          : 'Most-played opening words across all completed games'}
       </motion.p>
 
+      {/* Tab switcher */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ ...springs.slide, delay: 0.09 }}
+        className="flex gap-1 mb-5 border-b border-border-subtle"
+      >
+        {(['players', 'openers'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={clsx(
+              'px-4 py-2 font-sans text-sm font-medium border-b-2 -mb-px transition-colors',
+              tab === t
+                ? 'border-tile-correct text-text-primary'
+                : 'border-transparent text-text-secondary hover:text-text-primary'
+            )}
+          >
+            {t === 'players' ? 'Players' : 'Openers'}
+          </button>
+        ))}
+      </motion.div>
+
+      {tab === 'openers' && <OpenersPanel />}
+
       {/* Top-3 podium — simple cards with accent borders */}
-      {!loading && topThree.length > 0 && (
+      {tab === 'players' && !loading && topThree.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -273,7 +379,7 @@ export default function LeaderboardPage() {
       )}
 
       {/* Main list card */}
-      {(loading || rest.length > 0 || (page === 1 && !loading && entries.length === 0)) && (
+      {tab === 'players' && (loading || rest.length > 0 || (page === 1 && !loading && entries.length === 0)) && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -333,7 +439,7 @@ export default function LeaderboardPage() {
       )}
 
       {/* Pagination — ghost buttons matching play-page style */}
-      {!loading && (entries.length > 0 || page > 1) && (
+      {tab === 'players' && !loading && (entries.length > 0 || page > 1) && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

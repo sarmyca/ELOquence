@@ -2,11 +2,12 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.game import Game
+from app.models.move import Move
 from app.models.user import User
 from app.services.auth import get_current_user
 
@@ -141,3 +142,61 @@ async def near_me(
         entries.append(_row_to_entry(row, my_rank + i + 1))
 
     return entries
+
+
+@router.get("/openers")
+async def opener_leaderboard(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict:
+    """Most-played opening words across all completed games.
+
+    Returns popularity, solve rate, and average win-length so players can
+    benchmark their own opener choice against what the community uses.
+    """
+    total_q = await db.execute(
+        select(func.count(func.distinct(Game.id)))
+        .select_from(Game)
+        .join(Move, Move.game_id == Game.id)
+        .where(Game.status.in_(("won", "lost")))
+    )
+    total = int(total_q.scalar_one() or 0)
+    if total == 0:
+        return {"total_games": 0, "openers": []}
+
+    rows_q = (
+        select(
+            func.upper(Move.guess_word).label("opener"),
+            func.count(func.distinct(Game.id)).label("plays"),
+            func.sum(case((Game.status == "won", 1), else_=0)).label("wins"),
+            func.avg(
+                case((Game.status == "won", Game.num_guesses), else_=None)
+            ).label("avg_guesses_win"),
+        )
+        .select_from(Game)
+        .join(Move, Move.game_id == Game.id)
+        .where(
+            Game.status.in_(("won", "lost")),
+            Move.move_number == 1,
+        )
+        .group_by(func.upper(Move.guess_word))
+        .order_by(func.count(func.distinct(Game.id)).desc())
+        .limit(limit)
+    )
+    result = await db.execute(rows_q)
+
+    openers = []
+    for rank, row in enumerate(result.all(), 1):
+        plays = int(row.plays)
+        wins = int(row.wins or 0)
+        avg = float(row.avg_guesses_win) if row.avg_guesses_win is not None else None
+        openers.append({
+            "rank": rank,
+            "opener": row.opener,
+            "plays": plays,
+            "wins": wins,
+            "solve_rate": round(wins / plays * 100, 1) if plays else 0.0,
+            "avg_guesses_win": round(avg, 2) if avg is not None else None,
+            "popularity_pct": round(plays / total * 100, 1),
+        })
+    return {"total_games": total, "openers": openers}

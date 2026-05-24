@@ -118,7 +118,11 @@ class AnalysisResponse(BaseModel):
     skill_avg: float = 0.0
     skill_avg_excluding_opener: float = 0.0  # alias for older clients
     luck_avg: float = 0.0
-    uniqueness_percentile: int = 1
+    uniqueness_percentile: int = 1  # legacy: grid fingerprint match count
+    opener_word: str = ""
+    opener_rarity_pct: int = 0  # % of players who opened differently
+    opener_same_count: int = 0  # players who opened with the same word (incl. self)
+    opener_total_games: int = 0  # total completed games considered
     bot_solve_path: list[str] = []
     failure_score: float | None = None
     standard_mode_starter: str = "SLATE"

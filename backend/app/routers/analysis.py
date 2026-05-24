@@ -22,7 +22,11 @@ from app.schemas.analysis import (
     TopPick,
 )
 from app.services.auth import get_current_user
-from app.services.uniqueness import compute_move_fingerprint, count_grid_occurrences
+from app.services.uniqueness import (
+    compute_move_fingerprint,
+    compute_opener_rarity,
+    count_grid_occurrences,
+)
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
@@ -111,6 +115,18 @@ async def analyze_game_endpoint(
         db, game.move_fingerprint or ""
     )
 
+    # Opener rarity — what % of completed games started with a different
+    # word than this player's first guess. More useful than grid-level
+    # uniqueness because openers actually cluster.
+    opener_word = moves_data[0]["guess_word"] if moves_data else ""
+    opener_rarity, opener_same, opener_total = await compute_opener_rarity(
+        db, opener_word
+    )
+    analysis["opener_word"] = opener_word.upper()
+    analysis["opener_rarity_pct"] = opener_rarity
+    analysis["opener_same_count"] = opener_same
+    analysis["opener_total_games"] = opener_total
+
     raw_patterns = detect_strategic_patterns(analysis["moves"], current_user.elo_rating)
 
     ds = analysis.get("dictionary_sizes", {})
@@ -125,6 +141,10 @@ async def analyze_game_endpoint(
         skill_avg_excluding_opener=analysis.get("skill_avg", 0.0),
         luck_avg=analysis.get("luck_avg", 0.0),
         uniqueness_percentile=analysis.get("uniqueness_percentile", 1),
+        opener_word=analysis.get("opener_word", ""),
+        opener_rarity_pct=analysis.get("opener_rarity_pct", 0),
+        opener_same_count=analysis.get("opener_same_count", 0),
+        opener_total_games=analysis.get("opener_total_games", 0),
         bot_solve_path=analysis.get("bot_solve_path", []),
         failure_score=analysis.get("failure_score"),
         standard_mode_starter=analysis.get("standard_mode_starter", "SLATE"),

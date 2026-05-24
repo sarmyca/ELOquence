@@ -1295,7 +1295,14 @@ function StepOverview({
               sub: 'your decisions',
             },
             { label: 'Luck', value: String(Math.round(analysis.luck_avg ?? 0)), sub: 'your outcomes' },
-            { label: 'Uniqueness', value: `1 in ${analysis.uniqueness_percentile ?? 1}`, sub: 'players this game' },
+            {
+              label: 'Opener',
+              value: analysis.opener_word || '—',
+              sub:
+                (analysis.opener_total_games ?? 0) > 1
+                  ? `${analysis.opener_rarity_pct ?? 0}% chose differently`
+                  : 'first play of this opener',
+            },
           ].map(({ label, value, sub }) => (
             <div key={label} className="flex flex-col gap-0.5">
               <span
