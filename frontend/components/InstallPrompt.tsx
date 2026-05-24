@@ -1,18 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Share, X, Plus } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import {
+  subscribeInstall,
+  getDeferredPrompt,
+  consumeDeferredPrompt,
+} from '@/lib/pwaInstall';
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-}
-
-// Per-account, per-device flag. Once set the install prompt never shows
-// again on this browser for this user (regardless of TTL). Different
-// accounts on the same browser get independent flags.
+// Per-account, per-device flag. Once set the install card never shows again
+// on this browser for this user. Different accounts on the same browser get
+// independent flags.
 const seenKey = (userId: string) => `eloquence_install_seen_${userId}`;
 
 function isStandalone(): boolean {
@@ -47,104 +47,78 @@ function markSeen(userId: string) {
   }
 }
 
+// Inline install card. Rendered inside the dashboard (not the global layout),
+// so the prompt lives on the dashboard rather than floating over every page.
+// The browser install event itself is captured app-wide by InstallCapture and
+// read here via the shared store.
 export default function InstallPrompt() {
   const { user } = useAuth();
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  const deferred = useSyncExternalStore(
+    subscribeInstall,
+    getDeferredPrompt,
+    () => null,
+  );
+
+  // Defer all window/localStorage reads to after mount so SSR and the first
+  // client render agree (both render nothing).
+  const [mounted, setMounted] = useState(false);
   const [showIosHint, setShowIosHint] = useState(false);
-  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
+  useEffect(() => setMounted(true), []);
+
+  // iOS Safari never fires beforeinstallprompt — surface a manual "Add to
+  // Home Screen" hint shortly after the dashboard loads instead.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!mounted || !user) return;
+    if (isStandalone() || alreadySeen(user.id) || !isIosSafari()) return;
+    const t = window.setTimeout(() => setShowIosHint(true), 1500);
+    return () => window.clearTimeout(t);
+  }, [mounted, user]);
 
-    // Logged-out, already-installed, or already-seen → no prompt this session.
-    if (!user) {
-      setVisible(false);
-      setDeferred(null);
-      return;
-    }
-    if (isStandalone()) return;
-    if (alreadySeen(user.id)) return;
+  if (!mounted || !user) return null;
 
-    const onBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-      setVisible(true);
-    };
-    window.addEventListener('beforeinstallprompt', onBeforeInstall);
-
-    const onInstalled = () => {
-      // App was installed (from our banner or browser menu). Mark seen
-      // so we don't try to show the banner if the user opens the web
-      // tab again before deleting it.
-      markSeen(user.id);
-      setVisible(false);
-      setDeferred(null);
-    };
-    window.addEventListener('appinstalled', onInstalled);
-
-    // iOS Safari never fires beforeinstallprompt — show a manual hint
-    // a few seconds after first login.
-    let iosTimer: number | undefined;
-    if (isIosSafari()) {
-      iosTimer = window.setTimeout(() => {
-        setShowIosHint(true);
-        setVisible(true);
-      }, 4000);
-    }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
-      window.removeEventListener('appinstalled', onInstalled);
-      if (iosTimer !== undefined) window.clearTimeout(iosTimer);
-    };
-  }, [user]);
+  const eligible =
+    !dismissed && !isStandalone() && !alreadySeen(user.id);
+  const visible = eligible && (!!deferred || showIosHint);
 
   const dismiss = () => {
-    if (user) markSeen(user.id);
-    setVisible(false);
-    setDeferred(null);
+    markSeen(user.id);
+    setDismissed(true);
+    consumeDeferredPrompt();
   };
 
   const install = async () => {
     if (!deferred) return;
     try {
       await deferred.prompt();
-      const choice = await deferred.userChoice;
-      // Regardless of outcome, the user has been shown the prompt once
-      // and made a decision — never auto-show again on this device for
-      // this account. If they accepted, `appinstalled` would have fired
-      // and we'd already be marked.
-      if (user) markSeen(user.id);
-      if (choice.outcome === 'dismissed') {
-        // already marked above; just hide
-      }
+      await deferred.userChoice;
     } catch (err) {
       console.warn('[install] prompt failed', err);
     } finally {
-      setDeferred(null);
-      setVisible(false);
+      markSeen(user.id);
+      consumeDeferredPrompt();
+      setDismissed(true);
     }
   };
 
   return (
-    <AnimatePresence>
+    <AnimatePresence initial={false}>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 16 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-          className="fixed left-1/2 -translate-x-1/2 z-40 px-4"
-          style={{ bottom: 'max(16px, env(safe-area-inset-bottom))', maxWidth: '420px', width: '100%' }}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1] }}
+          className="overflow-hidden"
           role="dialog"
           aria-label="Install ELOquence"
         >
           <div
             className="rounded-card-lg p-4 flex items-start gap-3"
             style={{
-              backgroundColor: 'var(--bg-base)',
+              backgroundColor: 'var(--bg-elevated)',
               border: '1px solid var(--border-default)',
-              boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
             }}
           >
             <div

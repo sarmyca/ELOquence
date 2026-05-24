@@ -27,6 +27,7 @@ import { Game, getRatingTier, RATING_TIERS, EloHistoryEntry } from '@/lib/types'
 import { springs, stagger, easings } from '@/lib/animations';
 import EloSparkline from '@/components/EloSparkline';
 import GuessDistribution from '@/components/GuessDistribution';
+import InstallPrompt from '@/components/InstallPrompt';
 import clsx from 'clsx';
 
 // ─── Mode icon map (Lucide, no emoji) ─────────────────────────────────────────
@@ -312,6 +313,9 @@ export default function DashboardPage() {
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+
+      {/* ── INSTALL NUDGE (first login, this device) ───────────────────── */}
+      <InstallPrompt />
 
       {/* ── HERO: ELO + tier + streaks ─────────────────────────────────── */}
       <motion.section {...fadeUp(0)} aria-label="Rating overview">

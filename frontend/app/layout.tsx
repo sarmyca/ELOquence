@@ -5,7 +5,7 @@ import { AuthProvider } from '@/lib/hooks/useAuth';
 import Navigation from '@/components/Navigation';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
-import InstallPrompt from '@/components/InstallPrompt';
+import InstallCapture from '@/components/InstallCapture';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
@@ -89,7 +89,7 @@ export default function RootLayout({
           <Navigation />
           <AnnouncementBanner />
           <main className="relative z-10">{children}</main>
-          <InstallPrompt />
+          <InstallCapture />
         </AuthProvider>
         <ServiceWorkerRegister />
         <Analytics />
