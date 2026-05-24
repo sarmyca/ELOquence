@@ -40,15 +40,15 @@ const STEPS: Step[] = [
     title: 'Guess the word',
     body: 'ELOquence is Wordle. Find the hidden 5-letter word in 6 tries. Type any real word to make a guess.',
     visual: (
-      <div className="flex gap-1.5">
+      <div className="flex gap-1">
         {'GUESS'.split('').map((c, i) => (
           <span
             key={i}
             className="inline-flex items-center justify-center rounded-md font-display font-black"
             style={{
-              width: 40,
-              height: 40,
-              fontSize: 20,
+              width: 36,
+              height: 36,
+              fontSize: 18,
               border: '2px solid var(--border-default)',
               color: 'var(--text-primary)',
             }}
@@ -84,14 +84,14 @@ const STEPS: Step[] = [
     body: 'Use the clues to rule words out, then land the answer before your six guesses run out. That’s the whole game.',
     visual: (
       <div className="flex flex-col gap-1.5">
-        <div className="flex gap-1.5">
+        <div className="flex gap-1">
           {([
             ['S', 'absent'], ['L', 'absent'], ['A', 'present'], ['T', 'absent'], ['E', 'correct'],
           ] as [string, TileState][]).map(([c, s], i) => (
             <Tile key={i} ch={c} state={s} size={36} />
           ))}
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1">
           {([
             ['A', 'present'], ['B', 'absent'], ['I', 'correct'], ['D', 'absent'], ['E', 'correct'],
           ] as [string, TileState][]).map(([c, s], i) => (
@@ -195,7 +195,7 @@ export default function FirstTimeTutorial() {
                     transition={{ duration: 0.18 }}
                     className="flex flex-col gap-4"
                   >
-                    <div className="flex items-center justify-center py-3 rounded-card bg-bg-elevated border border-border-subtle min-h-[96px]">
+                    <div className="flex items-center justify-center px-4 py-3 rounded-card bg-bg-elevated border border-border-subtle min-h-[96px]">
                       {current.visual}
                     </div>
                     <p className="text-sm font-sans leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
