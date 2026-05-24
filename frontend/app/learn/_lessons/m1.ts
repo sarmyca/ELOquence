@@ -41,7 +41,7 @@ export const MODULE_1: Module = {
           prompt: 'SALET vs SOLAR — tap a tile that should be GREEN.',
           guess: 'SALET',
           target: 'SOLAR',
-          correctIdx: 0,
+          correctIdx: [0, 2],
           correctState: 'correct',
           successNote: 'Either S at pos 1 or L at pos 3 — both lock in.',
         },

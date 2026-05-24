@@ -28,9 +28,9 @@ export const MODULE_2: Module = {
           prompt: 'CRANE vs ARISE — tap a tile that ends up GREEN.',
           guess: 'CRANE',
           target: 'ARISE',
-          correctIdx: 1,
+          correctIdx: [1, 4],
           correctState: 'correct',
-          successNote: 'R locks in at position 2.',
+          successNote: 'Both lock in — R at position 2 and E at position 5.',
         },
         {
           kind: 'word-survivors',

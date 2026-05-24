@@ -28,7 +28,9 @@ export default function TileTap({
   function handleTap(i: number) {
     if (outcome === 'correct') return;
     setTapped(i);
-    const ok = i === challenge.correctIdx;
+    const ok = Array.isArray(challenge.correctIdx)
+      ? challenge.correctIdx.includes(i)
+      : i === challenge.correctIdx;
     setOutcome(ok ? 'correct' : 'wrong');
     setTimeout(() => onResolve(ok), ok ? 900 : 700);
   }

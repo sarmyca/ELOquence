@@ -29,8 +29,9 @@ export interface TileTapChallenge {
   prompt: string;
   guess: string;
   target: string;
-  /** which tile is the right answer (0-indexed) */
-  correctIdx: number;
+  /** which tile is the right answer (0-indexed). Pass an array when multiple
+   *  positions satisfy the prompt (e.g. two greens in the same row). */
+  correctIdx: number | number[];
   /** what colour the correct tile should be */
   correctState: TileState;
   /** the tiles already revealed before this challenge (e.g. previously known greens) */
