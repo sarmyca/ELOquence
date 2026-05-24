@@ -13,6 +13,7 @@ import {
   X,
   ArrowRight,
   LogIn,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { gamesApi, dailyApi, challengesApi } from '@/lib/api';
@@ -103,6 +104,8 @@ export default function PlayPage() {
   const [dailyGameId, setDailyGameId] = useState<string | null>(null);
   const [dailyPatterns, setDailyPatterns] = useState<TileState[][] | null>(null);
   const [dailyRefreshKey, setDailyRefreshKey] = useState(0);
+  // Bumped by the "?" help button to (re)open the how-to-play tutorial.
+  const [helpSignal, setHelpSignal] = useState(0);
 
   const tier = user ? getRatingTier(user.elo_rating) : null;
 
@@ -450,12 +453,24 @@ export default function PlayPage() {
           transition={{ duration: 0.25 }}
           className="w-full max-w-md mb-8"
         >
-          <h1 className="font-display font-black text-4xl tracking-tight text-text-primary">
-            Play
-          </h1>
-          <p className="font-sans text-base text-text-secondary mt-2">
-            One word per day — or practice anytime.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="font-display font-black text-4xl tracking-tight text-text-primary">
+                Play
+              </h1>
+              <p className="font-sans text-base text-text-secondary mt-2">
+                One word per day — or practice anytime.
+              </p>
+            </div>
+            <button
+              onClick={() => setHelpSignal((s) => s + 1)}
+              className="mt-1 inline-flex items-center justify-center w-7 h-7 rounded-full border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default transition-colors shrink-0"
+              aria-label="How to play"
+              title="How to play"
+            >
+              <HelpCircle size={15} />
+            </button>
+          </div>
         </motion.div>
 
         {/* Error */}
@@ -622,7 +637,7 @@ export default function PlayPage() {
         </motion.div>
 
         {challengeModal}
-        <FirstTimeTutorial />
+        <FirstTimeTutorial openSignal={helpSignal} />
       </div>
     );
   }
@@ -704,6 +719,14 @@ export default function PlayPage() {
                 {user.current_streak}
               </span>
             )}
+            <button
+              onClick={() => setHelpSignal((s) => s + 1)}
+              className="ml-auto inline-flex items-center justify-center w-7 h-7 rounded-full border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-default transition-colors shrink-0"
+              aria-label="How to play"
+              title="How to play"
+            >
+              <HelpCircle size={15} />
+            </button>
           </div>
         </motion.div>
 
@@ -886,7 +909,7 @@ export default function PlayPage() {
       </motion.div>
 
       {challengeModal}
-      <FirstTimeTutorial />
+      <FirstTimeTutorial openSignal={helpSignal} />
     </div>
   );
 }

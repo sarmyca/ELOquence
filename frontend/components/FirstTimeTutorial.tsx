@@ -103,7 +103,7 @@ const STEPS: Step[] = [
   },
 ];
 
-export default function FirstTimeTutorial() {
+export default function FirstTimeTutorial({ openSignal }: { openSignal?: number }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -114,6 +114,15 @@ export default function FirstTimeTutorial() {
       // private mode / quota — just don't show
     }
   }, []);
+
+  // Manual re-open from the play screen's "?" help button. openSignal starts
+  // at 0 (no-op on mount) and increments on each click, re-opening at step 1.
+  useEffect(() => {
+    if (openSignal && openSignal > 0) {
+      setStep(0);
+      setOpen(true);
+    }
+  }, [openSignal]);
 
   const close = useCallback(() => {
     try {
