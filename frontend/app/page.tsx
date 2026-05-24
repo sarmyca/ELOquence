@@ -47,9 +47,13 @@ function SingleTile({ tile, index, bootDone, onBootComplete }: SingleTileProps) 
       }}
       className="relative flex items-center justify-center rounded-lg text-white select-none cursor-default font-display font-black"
       style={{
-        width: 'clamp(2.75rem, 8vw, 5.25rem)',
-        height: 'clamp(2.75rem, 8vw, 5.25rem)',
-        fontSize: 'clamp(1.4rem, 4vw, 2.75rem)',
+        // 9 tiles + 8 gaps must fit inside the viewport even on narrow phones
+        // (iPhone 402px viewport - 32px container padding ≈ 370px). The min
+        // here used to be 2.75rem (44px), which floored the row at ~444px
+        // and clipped the first and last tile off-screen.
+        width: 'clamp(2rem, 8vw, 5.25rem)',
+        height: 'clamp(2rem, 8vw, 5.25rem)',
+        fontSize: 'clamp(1.1rem, 4vw, 2.75rem)',
         backgroundColor: tile.color,
         letterSpacing: '-0.02em',
         transformStyle: 'preserve-3d',
