@@ -6,7 +6,7 @@ import hashlib
 import logging
 import random
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
@@ -172,8 +172,31 @@ async def _fetch_nyt_wordle(today: date) -> str | None:
         return None
 
 
-async def _get_or_create_daily_word(db: AsyncSession) -> tuple[str, float]:
-    """Return today's daily word, creating it if not yet assigned.
+def resolve_daily_date(local_date: str | None) -> date:
+    """Resolve the puzzle date from a client-supplied local date (YYYY-MM-DD).
+
+    Wordle-style: the daily word tracks the player's *local* calendar date, so
+    everyone gets the same word for a given date but at their own midnight. The
+    client date is trusted, clamped to ±1 day of the server's UTC date — any
+    real timezone is within ±14h of UTC, so a legitimate local date can differ
+    by at most one calendar day. Unparseable or out-of-range input falls back
+    to the UTC date.
+    """
+    utc_today = datetime.now(timezone.utc).date()
+    if not local_date:
+        return utc_today
+    try:
+        d = date.fromisoformat(local_date)
+    except (ValueError, TypeError):
+        return utc_today
+    return d if abs((d - utc_today).days) <= 1 else utc_today
+
+
+async def _get_or_create_daily_word(
+    db: AsyncSession, on_date: date | None = None
+) -> tuple[str, float]:
+    """Return the daily word for ``on_date`` (default: server UTC date),
+    creating it if not yet assigned.
 
     Fetches the official NYT Wordle answer first; falls back to random
     if the API is unavailable.
@@ -183,7 +206,7 @@ async def _get_or_create_daily_word(db: AsyncSession) -> tuple[str, float]:
     """
     from app.analysis.engine import ANSWERS
 
-    today = date.today()
+    today = on_date or datetime.now(timezone.utc).date()
     result = await db.execute(select(DailyWord).where(DailyWord.date == today))
     row = result.scalar_one_or_none()
     if row:
@@ -220,6 +243,7 @@ async def create_game(
     mode: str,
     word_pool: str = "standard",
     hard_mode: bool = False,
+    daily_date: date | None = None,
 ) -> Game:
     """Instantiate a new game and persist it.
 
@@ -267,16 +291,20 @@ async def create_game(
         await abandon_game(db, stale_game.id, user)
 
     if mode == "daily":
-        target_word, difficulty = await _get_or_create_daily_word(db)
+        target_word, difficulty = await _get_or_create_daily_word(db, daily_date)
         # Only one non-abandoned daily game per user per puzzle. Match on
-        # target_word so archive-replay games (which have created_at=today but
-        # represent a past puzzle) don't block creation of today's real daily.
+        # target_word (the word for the player's local date) plus a recent
+        # window, so an archive-replay of a word that happens to repeat from
+        # long ago doesn't block today's daily. A 36h window safely covers the
+        # current local day for any timezone without a brittle UTC-vs-local
+        # date comparison.
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(hours=36)
         existing = await db.execute(
             select(Game).where(
                 Game.user_id == user.id,
                 Game.mode == "daily",
                 Game.target_word == target_word,
-                func.date(Game.created_at) == date.today(),
+                Game.created_at >= recent_cutoff,
                 Game.status != "abandoned",
             )
         )
@@ -322,6 +350,7 @@ async def submit_guess(
     game_id: uuid.UUID,
     guess: str,
     user: User,
+    local_date: str | None = None,
 ) -> tuple[Game, Move]:
     """Validate a guess, compute its pattern, persist the move.
 
@@ -509,26 +538,29 @@ async def submit_guess(
             _log.warning("aggregate_completion_metrics failed for game %s: %s", game.id, exc)
             accuracy = 50.0
 
-        # Update daily streak BEFORE ELO update. Only TODAY's real daily
-        # counts toward the streak (won extends, lost resets), regardless of
-        # rated. Archive replays carry mode="daily" too but target a PAST
-        # puzzle word — counting them let a player inflate `current_streak`
-        # just by replaying old puzzles on consecutive real days, so they're
-        # explicitly excluded here.
+        # Update daily streak BEFORE ELO update. Only the player's CURRENT
+        # daily counts toward the streak (won extends, lost resets), regardless
+        # of rated. Archive replays carry mode="daily" too but target a PAST
+        # puzzle word — counting them would let a player inflate
+        # `current_streak` just by replaying old puzzles on consecutive real
+        # days, so they're excluded by requiring the game's word to match the
+        # daily word for the player's date. "Today" is the player's LOCAL date
+        # (Wordle-style), resolved from the client clock, so finishing past
+        # local midnight (but before UTC midnight) still credits the streak.
         if game.mode == "daily":
-            today = date.today()
+            player_today = resolve_daily_date(local_date)
             today_dw = (
-                await db.execute(select(DailyWord).where(DailyWord.date == today))
+                await db.execute(
+                    select(DailyWord).where(DailyWord.date == player_today)
+                )
             ).scalar_one_or_none()
             is_todays_daily = (
                 today_dw is not None
                 and game.target_word is not None
                 and game.target_word.upper() == today_dw.word.upper()
-                and game.created_at is not None
-                and game.created_at.date() == today
             )
             if is_todays_daily:
-                update_daily_streak(user, won=won)
+                update_daily_streak(user, won=won, on_date=player_today)
 
         if game.rated:
             await apply_elo_update(

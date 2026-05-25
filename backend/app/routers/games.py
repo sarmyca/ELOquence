@@ -55,7 +55,9 @@ async def make_guess(
     response is sent (and after this request's DB transaction commits),
     so it observes the persisted final state.
     """
-    game, _move = await submit_guess(db, game_id, payload.guess, current_user)
+    game, _move = await submit_guess(
+        db, game_id, payload.guess, current_user, local_date=payload.local_date
+    )
     response = _build_game_response(game)
     result = response.model_dump()
     result["newly_unlocked"] = getattr(game, "_newly_unlocked", [])

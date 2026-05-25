@@ -30,6 +30,18 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * Client's local calendar date (YYYY-MM-DD). The daily puzzle is keyed to the
+ * player's local date (Wordle-style), so the backend resolves "today" from
+ * this rather than its own UTC clock — otherwise a user past local midnight
+ * but before UTC midnight still gets yesterday's word.
+ */
+function localDate(): string {
+  const n = new Date();
+  const pad = (x: number) => String(x).padStart(2, '0');
+  return `${n.getFullYear()}-${pad(n.getMonth() + 1)}-${pad(n.getDate())}`;
+}
+
 // Auth
 export const authApi = {
   register: (data: { email: string; username: string; password: string }) =>
@@ -46,7 +58,7 @@ export const gamesApi = {
   create: (data: { mode: string; word_pool?: string }) =>
     api.post('/games', data),
   submitGuess: (gameId: string, guess: string) =>
-    api.post(`/games/${gameId}/guess`, { guess }),
+    api.post(`/games/${gameId}/guess`, { guess, local_date: localDate() }),
   get: (gameId: string) => api.get(`/games/${gameId}`),
   list: (params?: { page?: number; per_page?: number; mode?: string }) =>
     api.get('/games', { params }),
@@ -86,9 +98,9 @@ export const analysisApi = {
 
 // Daily
 export const dailyApi = {
-  get: () => api.get('/daily'),
-  play: () => api.post('/daily/play'),
-  guest: () => api.post('/daily/guest'),
+  get: () => api.get('/daily', { params: { local_date: localDate() } }),
+  play: () => api.post('/daily/play', null, { params: { local_date: localDate() } }),
+  guest: () => api.post('/daily/guest', null, { params: { local_date: localDate() } }),
   guestGame: (gameId: string) => api.get(`/daily/guest/${gameId}`),
   guestGuess: (gameId: string, guess: string) =>
     api.post(`/daily/guest/${gameId}/guess`, { guess }),

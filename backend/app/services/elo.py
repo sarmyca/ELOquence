@@ -17,7 +17,7 @@ PLACEMENT_GAMES = 5
 TIME_PAR = 60.0
 
 
-def update_daily_streak(user: User, won: bool) -> None:
+def update_daily_streak(user: User, won: bool, on_date: date | None = None) -> None:
     """Update a user's daily streak fields after a completed daily game.
 
     Called from the game-completion flow for any daily game (won OR lost),
@@ -25,7 +25,7 @@ def update_daily_streak(user: User, won: bool) -> None:
     to 0; a win extends or starts a streak. Multiple completions on the same
     day are idempotent.
     """
-    today = date.today()
+    today = on_date or datetime.now(timezone.utc).date()
     if user.last_played_date == today:
         return  # already counted today
     if not won:

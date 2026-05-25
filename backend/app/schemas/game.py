@@ -18,6 +18,9 @@ class GuessSubmit(BaseModel):
     """Payload for submitting a guess."""
 
     guess: str = Field(min_length=5, max_length=5)
+    # Client's local calendar date (YYYY-MM-DD), used to align the daily streak
+    # day with the player's timezone. Optional; ignored for non-daily games.
+    local_date: str | None = None
 
     @field_validator("guess")
     @classmethod

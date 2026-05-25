@@ -15,7 +15,7 @@ from app.models.game import Game
 from app.models.user import User
 from app.schemas.game import GameResponse, GuessSubmit
 from app.services.auth import get_current_user
-from app.services.game import create_game
+from app.services.game import create_game, resolve_daily_date
 from app.services.rate_limit import check_rate_limit
 
 
@@ -29,9 +29,10 @@ router = APIRouter(prefix="/daily", tags=["daily"])
 async def get_daily_info(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    local_date: Annotated[str | None, Query()] = None,
 ) -> dict:
     """Return today's daily word metadata and whether the user has already played."""
-    today = date.today()
+    today = resolve_daily_date(local_date)
 
     daily_result = await db.execute(select(DailyWord).where(DailyWord.date == today))
     daily = daily_result.scalar_one_or_none()
@@ -48,7 +49,7 @@ async def get_daily_info(
                 Game.user_id == current_user.id,
                 Game.mode == "daily",
                 Game.target_word == today_word,
-                func.date(Game.created_at) == today,
+                Game.created_at >= datetime.now(timezone.utc) - timedelta(hours=36),
                 Game.status != "abandoned",
             )
         )
@@ -69,6 +70,7 @@ async def get_daily_info(
 async def start_guest_daily_game(
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
+    local_date: Annotated[str | None, Query()] = None,
 ) -> GameResponse:
     """Create an untracked daily game for unauthenticated guests.
 
@@ -96,7 +98,7 @@ async def start_guest_daily_game(
             headers={"Retry-After": str(int(blocked_for) + 1)},
         )
 
-    target_word, difficulty = await _get_or_create_daily_word(db)
+    target_word, difficulty = await _get_or_create_daily_word(db, resolve_daily_date(local_date))
 
     game = Game(
         id=uuid.uuid4(),
@@ -420,6 +422,7 @@ async def replay_daily(
 async def start_daily_game(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    local_date: Annotated[str | None, Query()] = None,
 ) -> GameResponse:
     """Create (or return an existing) daily game for the authenticated user.
 
@@ -428,7 +431,7 @@ async def start_daily_game(
     from app.routers.games import _build_game_response
     from sqlalchemy.orm import selectinload
 
-    today = date.today()
+    today = resolve_daily_date(local_date)
 
     # Resolve today's puzzle word so we can match games by it (not just by date).
     # Archive-replay games have created_at=today but a different target_word —
@@ -449,7 +452,7 @@ async def start_daily_game(
                 Game.user_id == current_user.id,
                 Game.mode == "daily",
                 Game.target_word == today_word,
-                func.date(Game.created_at) == today,
+                Game.created_at >= datetime.now(timezone.utc) - timedelta(hours=36),
                 Game.status != "abandoned",
             )
         )
@@ -464,5 +467,5 @@ async def start_daily_game(
                 await db.flush()
             return _build_game_response(keep)
 
-    game = await create_game(db, current_user, mode="daily")
+    game = await create_game(db, current_user, mode="daily", daily_date=today)
     return _build_game_response(game)
