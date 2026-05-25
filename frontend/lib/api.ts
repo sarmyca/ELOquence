@@ -54,14 +54,20 @@ export const authApi = {
 };
 
 // Games
+//
+// Calls that hit a collection *root* keep a trailing slash — `/games/` (and
+// likewise `/daily/`, `/leaderboard/`). Without it FastAPI 307-redirects to the
+// slashed path, and iOS/WebKit drops the Authorization header across that
+// redirect → "Not authenticated" on iPhone only (desktop browsers preserve it).
+// Sub-path routes like `/games/${id}` are unaffected — do NOT add slashes there.
 export const gamesApi = {
   create: (data: { mode: string; word_pool?: string }) =>
-    api.post('/games', data),
+    api.post('/games/', data),
   submitGuess: (gameId: string, guess: string) =>
     api.post(`/games/${gameId}/guess`, { guess, local_date: localDate() }),
   get: (gameId: string) => api.get(`/games/${gameId}`),
   list: (params?: { page?: number; per_page?: number; mode?: string }) =>
-    api.get('/games', { params }),
+    api.get('/games/', { params }),
   delete: (gameId: string) => api.delete(`/games/${gameId}`),
   /**
    * Fire-and-forget abandon used from `pagehide` (tab close, refresh,
@@ -98,7 +104,7 @@ export const analysisApi = {
 
 // Daily
 export const dailyApi = {
-  get: () => api.get('/daily', { params: { local_date: localDate() } }),
+  get: () => api.get('/daily/', { params: { local_date: localDate() } }),
   play: () => api.post('/daily/play', null, { params: { local_date: localDate() } }),
   guest: () => api.post('/daily/guest', null, { params: { local_date: localDate() } }),
   guestGame: (gameId: string) => api.get(`/daily/guest/${gameId}`),
@@ -112,7 +118,7 @@ export const dailyApi = {
 // Leaderboard
 export const leaderboardApi = {
   get: (params?: { page?: number; per_page?: number }) =>
-    api.get('/leaderboard', { params }),
+    api.get('/leaderboard/', { params }),
   nearMe: () => api.get('/leaderboard/near-me'),
   openers: (limit?: number) =>
     api.get('/leaderboard/openers', { params: limit ? { limit } : undefined }),
