@@ -43,8 +43,18 @@ def classify_move(
             return "forced"
         return "blunder"
 
-    # In a 3-5 word endgame, not guessing a remaining answer is a miss
-    if remaining_count_before <= 5 and not is_answer_candidate:
+    # In a 3-5 word endgame, playing a non-answer word is a "miss" — but ONLY
+    # when it also failed to extract near-optimal information. A disambiguating
+    # probe that splits the remaining set about as well as the best available
+    # guess (bits_lost ~ 0) is smart play, not a miss: e.g. the multi-way
+    # "_ILES" trap, where a B/M/F probe uniquely identifies the answer while
+    # guessing a single candidate would not. Such a move keeps the
+    # efficiency-based tier it earns below (typically "best"/"good").
+    if (
+        remaining_count_before <= 5
+        and not is_answer_candidate
+        and bits_lost >= 0.5
+    ):
         return "miss"
 
     # Brilliant: counter-intuitive move that is better at 2 steps

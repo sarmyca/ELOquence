@@ -393,10 +393,24 @@ def find_optimal_guess(
         minimax_val = int(minimax_arr[k])
         is_answer = i in answer_set
 
-        if n_remaining <= 4 and is_answer:
-            sort_key: tuple = (-1000.0, -entropy)
-        elif n_remaining <= 20:
-            sort_key = (float(minimax_val), -entropy)
+        if n_remaining <= 20:
+            # Endgame: minimise worst-case remaining (minimax), then expected
+            # remaining, then take the most informative guess; prefer an actual
+            # answer candidate only to BREAK TIES (it can win outright).
+            #
+            # Previously, with <=4 answers left, every candidate was force-ranked
+            # above all non-answers via a (-1000, ...) key. That made the engine
+            # recommend a lone candidate even when a non-answer probe split the
+            # field strictly better — the multi-way "_ILES" trap, where BUMFS
+            # (tests B/M/F at once) leaves 1 vs BILES' 3. Minimax already selects
+            # the better splitter; the is_answer tiebreak preserves the "just
+            # guess it" instinct when a candidate ties a probe (e.g. 2 left).
+            sort_key: tuple = (
+                float(minimax_val),
+                exp_remaining,
+                -entropy,
+                0 if is_answer else 1,
+            )
         else:
             sort_key = (-entropy, float(-negnumbins))
 

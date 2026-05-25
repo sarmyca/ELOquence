@@ -233,8 +233,11 @@ async def explain_move(
     word + classification, so identical positions across different games share
     the same response.
     """
+    # "v2" namespaces the cache after the prompt rewrite (grounded comparison,
+    # no forced "optimal > player" framing) so stale v1 explanations aren't served.
     key = _cache_key(
         1,
+        "v2",
         str(move_data.get("remaining_words", 0)),
         move_data.get("guess_word", ""),
         move_data.get("optimal_word", ""),
@@ -245,22 +248,50 @@ async def explain_move(
         return cached
 
     level = _skill_level(player_elo)
+    guess = move_data.get("guess_word", "?")
+    best_pick = move_data.get("optimal_word", "?")
+    classification = move_data.get("classification", "?")
+    efficiency_pct = move_data.get("efficiency_ratio", 0) * 100
+    info_gained = move_data.get("info_gained", 0)
+    # Whether the player's guess essentially matched or beat the engine's pick.
+    # Steers the model away from criticising a strong move — and in particular
+    # from claiming "no information" on a move that demonstrably gained some
+    # (the old prompt forced an "optimal > player" framing that produced exactly
+    # that confabulation, plus invented "optimal" words).
+    strong_move = (
+        guess == best_pick
+        or efficiency_pct >= 95
+        or classification in ("best", "brilliant", "good")
+    )
+    comparison = (
+        "The player's guess was at least as good as the engine's pick, so affirm"
+        " it and explain what made it strong (letter coverage, partition"
+        " balance). Do NOT claim it gained no information when 'Information"
+        " gained' is above zero."
+        if strong_move
+        else "Explain why the engine's best pick would have been more effective"
+        " than the player's guess (letter coverage, position targeting,"
+        " partition balance)."
+    )
     prompt = (
         "[MOVE_DATA]\n"
-        f"Guess: {move_data.get('guess_word', '?')}\n"
-        f"Optimal guess: {move_data.get('optimal_word', '?')}\n"
-        f"Classification: {move_data.get('classification', '?')}\n"
-        f"Efficiency: {(move_data.get('efficiency_ratio', 0) * 100):.1f}%\n"
-        f"Bits lost: {move_data.get('bits_lost', 0):.2f}\n"
-        f"Remaining words before: {move_data.get('remaining_words', '?')}\n"
-        f"Remaining words after: {move_data.get('remaining_after', '?')}\n"
-        f"Info gained: {move_data.get('info_gained', 0):.2f} bits\n"
-        f"Constraint violation: {move_data.get('constraint_violation', 'none')}\n"
-        f"Trap detected: {move_data.get('trap_detected', False)}\n\n"
+        f"Player's guess: {guess}\n"
+        f"Engine's best pick: {best_pick}\n"
+        f"Classification: {classification}\n"
+        f"Efficiency vs best pick: {efficiency_pct:.1f}%\n"
+        f"Bits lost vs best pick: {move_data.get('bits_lost', 0):.2f}\n"
+        f"Possible answers before: {move_data.get('remaining_words', '?')}\n"
+        "Expected answers left after — player "
+        f"{move_data.get('expected_remaining', '?')} vs best pick "
+        f"{move_data.get('optimal_expected_remaining', '?')}\n"
+        f"Actual answers left after player's guess: {move_data.get('remaining_after', '?')}\n"
+        f"Information gained by player: {info_gained:.2f} bits\n"
+        f"Constraint violation: {move_data.get('constraint_violation', 'none')}\n\n"
         f"[PLAYER_LEVEL] {level} (ELO {player_elo:.0f})\n\n"
-        "[INSTRUCTION] Explain in 2-3 sentences why the optimal word was better"
-        " than the player's guess. Focus on strategic reasoning (letter coverage,"
-        f" position targeting, partition balance). {_skill_instruction(level)}"
+        "[INSTRUCTION] In 2-3 sentences, assess the player's guess using ONLY the"
+        " numbers above. Always refer to the engine's best pick by its exact"
+        f" spelling ({best_pick}) — never name a different word. {comparison}"
+        f" {_skill_instruction(level)}"
     )
 
     text = _call_gemini(
