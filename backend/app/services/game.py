@@ -509,10 +509,26 @@ async def submit_guess(
             _log.warning("aggregate_completion_metrics failed for game %s: %s", game.id, exc)
             accuracy = 50.0
 
-        # Update daily streak BEFORE ELO update — streak applies to every
-        # completed daily game (won extends, lost resets), regardless of rated.
+        # Update daily streak BEFORE ELO update. Only TODAY's real daily
+        # counts toward the streak (won extends, lost resets), regardless of
+        # rated. Archive replays carry mode="daily" too but target a PAST
+        # puzzle word — counting them let a player inflate `current_streak`
+        # just by replaying old puzzles on consecutive real days, so they're
+        # explicitly excluded here.
         if game.mode == "daily":
-            update_daily_streak(user, won=won)
+            today = date.today()
+            today_dw = (
+                await db.execute(select(DailyWord).where(DailyWord.date == today))
+            ).scalar_one_or_none()
+            is_todays_daily = (
+                today_dw is not None
+                and game.target_word is not None
+                and game.target_word.upper() == today_dw.word.upper()
+                and game.created_at is not None
+                and game.created_at.date() == today
+            )
+            if is_todays_daily:
+                update_daily_streak(user, won=won)
 
         if game.rated:
             await apply_elo_update(

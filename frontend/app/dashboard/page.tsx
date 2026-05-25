@@ -60,9 +60,22 @@ function formatDate(dateStr: string): string {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface ModeStat {
+  completed: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  avg_guesses: number | null;
+  distribution: Record<string, number>;
+}
 interface UserStats {
-  distribution?: Record<string, number>;
+  guess_distribution?: Record<string, number>;
   losses?: number;
+  /** Per-mode aggregates over the player's ENTIRE history, plus an `all`
+   *  aggregate. Keyed by 'daily' | 'competitive' | 'practice' | 'challenge'
+   *  | 'all'. Computed server-side, so — unlike the capped recent-games list
+   *  below — it is not limited to the 20 games the dashboard fetches. */
+  mode_stats?: Record<string, ModeStat>;
   [key: string]: unknown;
 }
 
@@ -143,18 +156,30 @@ export default function DashboardPage() {
     setRecentPage(1);
   }, [gameFilter]);
 
-  // Fetch recent games
+  // Fetch recent games for the active mode filter. Refetched when the filter
+  // changes so the Recent Games list actually reflects that mode (per-mode
+  // COUNTS and the stat cards come from the server aggregate in `userStats`,
+  // not from this capped 20-game list). The cancel guard drops stale
+  // responses if the user flips filters quickly.
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
+    setLoadingGames(true);
     gamesApi
-      .list({ per_page: 20 })
+      .list({ per_page: 20, mode: gameFilter === 'all' ? undefined : gameFilter })
       .then((res) => {
+        if (cancelled) return;
         const d = res.data;
         setGames(Array.isArray(d) ? d : d.games ?? d.items ?? []);
       })
       .catch(() => {})
-      .finally(() => setLoadingGames(false));
-  }, [user]);
+      .finally(() => {
+        if (!cancelled) setLoadingGames(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, gameFilter]);
 
   // Fetch user's challenges so we can route challenge games to their results
   useEffect(() => {
@@ -241,16 +266,14 @@ export default function DashboardPage() {
       ? 'var(--green)'
       : tier.color;
 
-  const allCompletedGames = games.filter(
+  // The Recent Games list is driven by the per-mode fetch above, so the
+  // fetched `games` are already scoped to the active filter.
+  const completedGames = games.filter(
     (g) =>
       g.status === 'won' ||
       g.status === 'lost' ||
       (g.status === 'abandoned' && g.rated),
   );
-  const completedGames =
-    gameFilter === 'all'
-      ? allCompletedGames
-      : allCompletedGames.filter((g) => g.mode === gameFilter);
 
   // Pagination derived from the filtered list. Reset to page 1 whenever
   // the filter changes (handled in an effect below).
@@ -261,37 +284,50 @@ export default function DashboardPage() {
     (recentClampedPage - 1) * RECENT_PER_PAGE,
     recentClampedPage * RECENT_PER_PAGE,
   );
-  // Per-mode stat aggregates derived from the same filtered list — keeps the
-  // stat cards (Games Played / Win Rate / Avg Guesses) consistent with the
-  // Recent Games rows below.
+
+  // ── Stat cards + tab counts come from the server-side aggregate
+  // (`userStats.mode_stats`), computed over the player's ENTIRE history —
+  // NOT from the 20-game window above. The client fallback is only used until
+  // the stats request resolves (or if it fails); being limited to the recent
+  // window, that fallback is exactly what produced the "Daily 0 / wrong Avg
+  // Guesses" bug, so the aggregate is always preferred when present.
+  const modeStats = userStats?.mode_stats;
+  const filterStat = modeStats?.[gameFilter];
+  const modeCount = (key: typeof gameFilter): number | undefined =>
+    modeStats?.[key]?.completed;
+
   const wonGamesFiltered = completedGames.filter((g) => g.status === 'won');
-  const gamesPlayedFiltered = completedGames.length;
-  const winRate =
-    completedGames.length > 0
-      ? Math.round((wonGamesFiltered.length / completedGames.length) * 100)
-      : 0;
+  const gamesPlayedFiltered = filterStat?.completed ?? completedGames.length;
+  const winRate = Math.round(
+    filterStat?.win_rate ??
+      (completedGames.length > 0
+        ? (wonGamesFiltered.length / completedGames.length) * 100
+        : 0),
+  );
   const avgGuesses =
-    wonGamesFiltered.length > 0
-      ? (
-          wonGamesFiltered.reduce((s, g) => s + g.num_guesses, 0) /
-          wonGamesFiltered.length
-        ).toFixed(1)
-      : '—';
-  // For the unfiltered "wins distribution" chart we still want all wins.
-  const wonGames = games.filter((g) => g.status === 'won');
+    filterStat != null
+      ? filterStat.avg_guesses != null
+        ? filterStat.avg_guesses.toFixed(1)
+        : '—'
+      : wonGamesFiltered.length > 0
+        ? (
+            wonGamesFiltered.reduce((s, g) => s + g.num_guesses, 0) /
+            wonGamesFiltered.length
+          ).toFixed(1)
+        : '—';
 
   const guessDistribution: Record<string, number> =
-    (userStats?.distribution as Record<string, number>) ??
-    wonGames.reduce<Record<string, number>>((acc, g) => {
-      const k = String(g.num_guesses);
-      acc[k] = (acc[k] ?? 0) + 1;
-      return acc;
-    }, {});
+    filterStat?.distribution ??
+    completedGames
+      .filter((g) => g.status === 'won')
+      .reduce<Record<string, number>>((acc, g) => {
+        const k = String(g.num_guesses);
+        acc[k] = (acc[k] ?? 0) + 1;
+        return acc;
+      }, {});
 
   const lossCount =
-    typeof userStats?.losses === 'number'
-      ? userStats.losses
-      : games.filter((g) => g.status === 'lost').length;
+    filterStat?.losses ?? completedGames.filter((g) => g.status === 'lost').length;
 
   // ── Animation variants ───────────────────────────────────────────────────
   const fadeUp = (delay = 0) => ({
@@ -432,11 +468,11 @@ export default function DashboardPage() {
       >
         {(
           [
-            { key: 'all',         label: 'All',         count: allCompletedGames.length },
-            { key: 'daily',       label: 'Daily',       count: allCompletedGames.filter((g) => g.mode === 'daily').length },
-            { key: 'practice',    label: 'Practice',    count: allCompletedGames.filter((g) => g.mode === 'practice').length },
-            { key: 'competitive', label: 'Competitive', count: allCompletedGames.filter((g) => g.mode === 'competitive').length },
-            { key: 'challenge',   label: 'Challenge',   count: allCompletedGames.filter((g) => g.mode === 'challenge').length },
+            { key: 'all',         label: 'All',         count: modeCount('all') },
+            { key: 'daily',       label: 'Daily',       count: modeCount('daily') },
+            { key: 'practice',    label: 'Practice',    count: modeCount('practice') },
+            { key: 'competitive', label: 'Competitive', count: modeCount('competitive') },
+            { key: 'challenge',   label: 'Challenge',   count: modeCount('challenge') },
           ] as const
         ).map((opt) => {
           const active = gameFilter === opt.key;

@@ -107,27 +107,78 @@ async def user_stats(
     Returns:
         Dict with guess_distribution, losses, avg_accuracy, mode_stats,
         best_accuracy, total_games, current_streak, and longest_streak.
-    """
-    # Guess distribution (wins by number of guesses 1–6)
-    guess_dist: dict[str, int] = {}
-    for i in range(1, 7):
-        count_result = await db.execute(
-            select(func.count()).select_from(Game).where(
-                Game.user_id == current_user.id,
-                Game.status == "won",
-                Game.num_guesses == i,
-            )
-        )
-        guess_dist[str(i)] = count_result.scalar_one()
 
-    # Loss count
-    loss_result = await db.execute(
-        select(func.count()).select_from(Game).where(
+        ``mode_stats`` is keyed by mode (``daily``/``competitive``/
+        ``practice``/``challenge``) plus an ``all`` aggregate; each value is
+        ``{completed, wins, losses, win_rate, avg_guesses, distribution}``
+        computed over the player's entire history.
+    """
+    # ------------------------------------------------------------------
+    # Single grouped pass over every completed (won/lost) game. All the
+    # per-mode aggregates the dashboard needs — completed counts, wins,
+    # losses, guess distribution and average guesses — are derived from
+    # this one result set, NOT from the most-recent-N games the client
+    # happens to have fetched. The old approach left two bugs:
+    #   * the dashboard counted modes over its 20-game window, so a daily
+    #     pushed out of that window showed up as 0 even with a live streak;
+    #   * the per-mode `won = gained ELO` definition only made sense for
+    #     rated competitive games and reported 0 wins for daily/practice.
+    # `challenge` is included here; it was previously omitted entirely.
+    # ------------------------------------------------------------------
+    MODES = ("daily", "competitive", "practice", "challenge")
+
+    grouped = await db.execute(
+        select(Game.mode, Game.status, Game.num_guesses, func.count())
+        .where(
             Game.user_id == current_user.id,
-            Game.status == "lost",
+            Game.status.in_(["won", "lost"]),
         )
+        .group_by(Game.mode, Game.status, Game.num_guesses)
     )
-    losses: int = loss_result.scalar_one()
+
+    def _blank() -> dict:
+        return {
+            "completed": 0,
+            "wins": 0,
+            "losses": 0,
+            "guess_sum": 0,
+            "distribution": {str(i): 0 for i in range(1, 7)},
+        }
+
+    per_mode: dict[str, dict] = {m: _blank() for m in MODES}
+    overall = _blank()
+
+    for mode, game_status, num_guesses, count in grouped.all():
+        buckets = [overall]
+        if mode in per_mode:
+            buckets.append(per_mode[mode])
+        for b in buckets:
+            b["completed"] += count
+            if game_status == "won":
+                b["wins"] += count
+                b["guess_sum"] += (num_guesses or 0) * count
+                if num_guesses and 1 <= num_guesses <= 6:
+                    b["distribution"][str(num_guesses)] += count
+            else:  # lost
+                b["losses"] += count
+
+    def _finalize(b: dict) -> dict:
+        wins, completed = b["wins"], b["completed"]
+        return {
+            "completed": completed,
+            "wins": wins,
+            "losses": b["losses"],
+            "win_rate": round(wins / completed * 100, 1) if completed else 0.0,
+            "avg_guesses": round(b["guess_sum"] / wins, 2) if wins else None,
+            "distribution": b["distribution"],
+        }
+
+    mode_stats: dict[str, dict] = {m: _finalize(per_mode[m]) for m in MODES}
+    mode_stats["all"] = _finalize(overall)
+
+    # Top-level overall fields, kept for backward compatibility.
+    guess_dist = overall["distribution"]
+    losses = overall["losses"]
 
     # Average accuracy across all completed games that have an accuracy score
     avg_acc_result = await db.execute(
@@ -137,36 +188,6 @@ async def user_stats(
         )
     )
     avg_accuracy: float = avg_acc_result.scalar_one() or 0.0
-
-    # Win rate broken down by game mode
-    # A "win" = gained ELO (positive elo_delta), not just status == "won"
-    mode_stats: dict[str, dict] = {}
-    for mode in ("daily", "competitive", "practice"):
-        total_result = await db.execute(
-            select(func.count()).select_from(Game).where(
-                Game.user_id == current_user.id,
-                Game.mode == mode,
-                Game.status.in_(["won", "lost"]),
-            )
-        )
-        total: int = total_result.scalar_one()
-
-        won_result = await db.execute(
-            select(func.count()).select_from(Game).where(
-                Game.user_id == current_user.id,
-                Game.mode == mode,
-                Game.rated == True,  # noqa: E712
-                Game.elo_delta.isnot(None),
-                Game.elo_delta > 0,
-            )
-        )
-        won: int = won_result.scalar_one()
-
-        mode_stats[mode] = {
-            "total": total,
-            "won": won,
-            "win_rate": round(won / total * 100, 1) if total > 0 else 0.0,
-        }
 
     # Best single-game accuracy
     best_result = await db.execute(
