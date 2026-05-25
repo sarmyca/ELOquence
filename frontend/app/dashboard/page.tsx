@@ -464,7 +464,7 @@ export default function DashboardPage() {
       <div
         role="tablist"
         aria-label="Filter by mode"
-        className="flex gap-1 p-1 rounded-card bg-bg-elevated border border-border-subtle w-fit max-w-full overflow-x-auto hide-native-scrollbar"
+        className="flex flex-wrap gap-1 p-1 rounded-card bg-bg-elevated border border-border-subtle w-full sm:w-fit"
       >
         {(
           [
