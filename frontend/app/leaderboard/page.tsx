@@ -86,6 +86,7 @@ function PodiumCard({ entry, isCurrentUser }: { entry: LeaderboardEntry; isCurre
         <div className="flex items-center gap-2 min-w-0">
           <TierDot elo={Math.round(entry.elo_rating)} />
           <span
+            title={entry.username}
             className={clsx(
               'font-display font-bold text-sm truncate',
               isCurrentUser ? 'text-tile-correct' : 'text-text-primary'
@@ -277,6 +278,7 @@ export default function LeaderboardPage() {
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <TierDot elo={Math.round(entry.elo_rating)} />
           <span
+            title={entry.username}
             className={clsx(
               'font-sans text-sm font-semibold truncate',
               isCurrentUser ? 'text-tile-correct' : 'text-text-primary'
@@ -360,13 +362,17 @@ export default function LeaderboardPage() {
 
       {tab === 'openers' && <OpenersPanel />}
 
-      {/* Top-3 podium — simple cards with accent borders */}
+      {/* Top-3 podium — accent-bordered cards. The grid uses exactly as many
+          columns as there are podium entries (1–3) so a lone #1 or top-2 gets a
+          full-width card; a fixed grid-cols-3 crushed a single long Google name
+          ("First Last") into a third of the row until it truncated to nothing. */}
       {tab === 'players' && !loading && topThree.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...springs.slide, delay: 0.1 }}
-          className="grid grid-cols-3 gap-2 mb-4"
+          className="grid gap-2 mb-4"
+          style={{ gridTemplateColumns: `repeat(${topThree.length}, minmax(0, 1fr))` }}
         >
           {topThree.map((entry) => (
             <PodiumCard

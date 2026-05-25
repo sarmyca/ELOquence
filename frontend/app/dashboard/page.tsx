@@ -464,7 +464,7 @@ export default function DashboardPage() {
       <div
         role="tablist"
         aria-label="Filter by mode"
-        className="flex gap-1 p-1 rounded-card bg-bg-elevated border border-border-subtle w-fit"
+        className="flex gap-1 p-1 rounded-card bg-bg-elevated border border-border-subtle w-fit max-w-full overflow-x-auto hide-native-scrollbar"
       >
         {(
           [
@@ -484,7 +484,7 @@ export default function DashboardPage() {
               aria-selected={active}
               onClick={() => setGameFilter(opt.key)}
               className={clsx(
-                'px-3 py-1.5 rounded-card text-xs font-sans font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2',
+                'shrink-0 whitespace-nowrap px-3 py-1.5 rounded-card text-xs font-sans font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2',
                 active
                   ? 'bg-bg-base text-text-primary shadow-sm'
                   : 'text-text-secondary hover:text-text-primary'

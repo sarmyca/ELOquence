@@ -227,26 +227,32 @@ function PodiumCell({
 
       {/* Content (bottom-anchored) */}
       <div className="relative z-10 flex flex-col gap-1.5">
-        <div className="flex items-center gap-1 min-w-0">
-          {entry.is_creator && (
-            <Crown
-              size={10}
-              role="img"
-              aria-label="Challenge creator"
-              style={{ color: 'var(--gold)', flexShrink: 0 }}
-            />
-          )}
-          <span
-            className={clsx(
-              'font-display font-bold truncate',
-              place === 1 ? 'text-xs' : 'text-[11px]',
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <div className="flex items-start gap-1 min-w-0">
+            {entry.is_creator && (
+              <Crown
+                size={10}
+                role="img"
+                aria-label="Challenge creator"
+                style={{ color: 'var(--gold)', flexShrink: 0, marginTop: 2 }}
+              />
             )}
-            style={{
-              color: lost ? 'var(--text-secondary)' : 'var(--text-primary)',
-            }}
-          >
-            {entry.username}
-          </span>
+            {/* Wrap to 2 lines (break-words) instead of a hard truncate so a
+                full Google name like "Marin Boskovic" shows in the narrow
+                podium cell rather than clipping to "Marin Bos…". */}
+            <span
+              title={entry.username}
+              className={clsx(
+                'font-display font-bold leading-tight break-words line-clamp-2',
+                place === 1 ? 'text-xs' : 'text-[11px]',
+              )}
+              style={{
+                color: lost ? 'var(--text-secondary)' : 'var(--text-primary)',
+              }}
+            >
+              {entry.username}
+            </span>
+          </div>
           {isMe && (
             <span className="text-[9px] font-sans" style={{ color: 'var(--text-tertiary)' }}>
               (you)
@@ -357,6 +363,7 @@ function LeaderboardRow({
           />
         )}
         <span
+          title={entry.username}
           className="text-sm truncate"
           style={{
             color: lost ? 'var(--text-secondary)' : 'var(--text-primary)',
