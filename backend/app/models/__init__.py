@@ -7,6 +7,7 @@ from app.models.challenge import Challenge
 from app.models.daily_word import DailyWord
 from app.models.elo_history import EloHistory
 from app.models.game import Game
+from app.models.learn_progress import LearnProgress
 from app.models.move import Move
 from app.models.notification_preferences import NotificationPreferences
 from app.models.player_profile import PlayerProfile
@@ -17,6 +18,7 @@ from app.models.word_stats import WordStats
 __all__ = [
     "User",
     "Game",
+    "LearnProgress",
     "Move",
     "EloHistory",
     "DailyWord",

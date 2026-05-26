@@ -127,6 +127,7 @@ def create_app() -> FastAPI:
     from app.routers.daily import router as daily_router
     from app.routers.games import router as games_router
     from app.routers.graph import router as graph_router
+    from app.routers.learn import router as learn_router
     from app.routers.leaderboard import router as leaderboard_router
     from app.routers.push import router as push_router
     from app.routers.users import router as users_router
@@ -140,6 +141,7 @@ def create_app() -> FastAPI:
     app.include_router(leaderboard_router, prefix="/api")
     app.include_router(users_router, prefix="/api")
     app.include_router(graph_router, prefix="/api")
+    app.include_router(learn_router, prefix="/api")
     app.include_router(admin_router, prefix="/api")
     app.include_router(achievements_router, prefix="/api")
     app.include_router(announcements_public_router, prefix="/api")

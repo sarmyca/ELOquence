@@ -145,6 +145,17 @@ export const aiApi = {
     api.post(`/ai/coach-chat/${gameId}`, { message, history }),
 };
 
+// Learn (trainer) progress — synced per-account so it follows the user across
+// devices. `/learn/progress` is a fixed sub-path (no trailing-slash redirect
+// concern). PATCH merges as a high-water mark server-side; PUT is intentionally
+// avoided because the API's CORS policy doesn't allow it.
+export const learnApi = {
+  getProgress: () =>
+    api.get<{ progress: Record<string, number> }>('/learn/progress'),
+  saveProgress: (progress: Record<string, number>) =>
+    api.patch<{ progress: Record<string, number> }>('/learn/progress', { progress }),
+};
+
 // Achievements
 export const achievementsApi = {
   mine: () => api.get('/achievements/me'),

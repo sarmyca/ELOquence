@@ -16,6 +16,7 @@ import { Check, Lock, Play } from 'lucide-react';
 import LessonRunner from './_components/challenges/LessonRunner';
 import ScrollArea from '@/components/ScrollArea';
 import { MODULES, TOTAL_LESSONS, findLesson, LESSON_ORDER } from './_lessons';
+import { learnApi } from '@/lib/api';
 
 const STORAGE_KEY = 'eloquence.trainer.progress';
 
@@ -50,12 +51,66 @@ function saveProgress(p: Progress) {
   }
 }
 
+/* Signed-in users get their progress synced to the backend so it follows the
+ * account across devices; guests keep using localStorage only. We gate purely
+ * on a stored token so a guest visit never triggers the 401→/login redirect
+ * baked into the axios interceptor. */
+function isSignedIn(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!localStorage.getItem('token');
+}
+
+/* Per-lesson high-water-mark merge: take the larger count from each side. */
+function mergeProgress(a: Progress, b: Progress): Progress {
+  const out: Progress = { ...a };
+  for (const [k, v] of Object.entries(b)) {
+    out[k] = Math.max(out[k] || 0, v);
+  }
+  return out;
+}
+
+/* True when `local` holds progress the server hasn't seen yet (something to
+ * push up — e.g. lessons completed on this device before sync existed). */
+function localExceedsRemote(local: Progress, remote: Progress): boolean {
+  for (const [k, v] of Object.entries(local)) {
+    if (v > (remote[k] || 0)) return true;
+  }
+  return false;
+}
+
 export default function LearnPage() {
   const [progress, setProgress] = useState<Progress>({});
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
 
   useEffect(() => {
-    setProgress(loadProgress());
+    // 1. Show the local cache immediately so there's no flash of empty state.
+    const local = loadProgress();
+    setProgress(local);
+
+    // 2. If signed in, reconcile with the server: pull remote progress, merge
+    //    it with local as a high-water mark, adopt the result, and push up any
+    //    progress the server is missing (one-time migration of localStorage
+    //    that predates sync). Failures are swallowed — we keep the local cache.
+    if (!isSignedIn()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await learnApi.getProgress();
+        if (cancelled) return;
+        const remote: Progress = data?.progress ?? {};
+        const merged = mergeProgress(local, remote);
+        setProgress(merged);
+        saveProgress(merged);
+        if (localExceedsRemote(local, remote)) {
+          await learnApi.saveProgress(merged);
+        }
+      } catch {
+        /* offline / token expired — keep using the local cache */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Lesson is fully complete when the stored count ≥ its challenges length.
@@ -83,6 +138,12 @@ export default function LearnPage() {
         if (count <= current) return prev;
         const next = { ...prev, [activeLessonId]: count };
         saveProgress(next);
+        // Fire-and-forget sync of just this lesson's new high-water mark; the
+        // server merges it (GREATEST), so a dropped request just retries on the
+        // next save and the local cache stays authoritative meanwhile.
+        if (isSignedIn()) {
+          learnApi.saveProgress({ [activeLessonId]: count }).catch(() => {});
+        }
         return next;
       });
     },
