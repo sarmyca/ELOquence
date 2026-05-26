@@ -42,7 +42,7 @@ function blobColors(
   patterns: number[], status: GameStatus, correct: RGB, present: RGB, isDark: boolean,
 ): [string, string, string] {
   const charcoal: RGB = isDark ? [60, 60, 65] : [165, 168, 175];
-  const lostAlpha = isDark ? 0.55 : 0.45;
+  const lostAlpha = isDark ? 0.50 : 0.45;
   if (status === 'lost') return [rgba(charcoal, lostAlpha), rgba(charcoal, lostAlpha), rgba(charcoal, lostAlpha)];
 
   let green = 0, yellow = 0;
@@ -55,12 +55,22 @@ function blobColors(
   const denom = Math.max(patterns.length * 5, 1);
   const g = green / denom, y = yellow / denom;
   const activity = Math.min(1, g * 2 + y);
-  const alpha = isDark ? 0.55 + activity * 0.30 : 0.42 + activity * 0.30;
 
-  if (status === 'won') return [rgba(correct, alpha), rgba(correct, alpha), rgba(correct, alpha)];
+  // A win is a deliberate celebration — keep it strong.
+  if (status === 'won') {
+    const wonAlpha = isDark ? 0.50 + activity * 0.30 : 0.42 + activity * 0.30;
+    return [rgba(correct, wonAlpha), rgba(correct, wonAlpha), rgba(correct, wonAlpha)];
+  }
 
-  // Idle baseline already carries a faint hint of the playing palette so the
-  // wave is visible from the first guess instead of fading into the page bg.
+  // While playing, the wave must be FULLY blended into the page background at
+  // the start of a game and only "develop" as guesses arrive — so `presence`
+  // ramps from 0 (fresh board → invisible) to 1 over the first two guesses.
+  // Dark mode composites with `mixBlendMode: screen` (which brightens), so its
+  // alpha ceiling is kept lower than light mode's `multiply` to stop the wave
+  // reading too hot.
+  const presence = Math.min(1, patterns.length / 2);
+  const alpha = presence * (isDark ? 0.16 + activity * 0.30 : 0.20 + activity * 0.32);
+
   const idleTop: RGB = isDark ? [55, 70, 60] : [205, 220, 208];
   const idleBl: RGB  = isDark ? [60, 58, 40] : [215, 210, 185];
   const idleBr: RGB  = isDark ? [50, 60, 55] : [208, 215, 205];
@@ -83,7 +93,13 @@ function accentColor(pattern: number, correct: RGB, present: RGB, isDark: boolea
 
 export default function GameWaveBackground({ patterns, status, triggerKey, lastPattern }: GameWaveBackgroundProps) {
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  // Read the active theme synchronously on first render so light-mode users
+  // never get a one-frame dark-palette flash (dark uses `screen` blend, which
+  // reads much brighter). Defaults to light when the DOM isn't available yet.
+  const [isDark, setIsDark] = useState(
+    () => typeof document !== 'undefined'
+      && document.documentElement.getAttribute('data-theme') === 'dark',
+  );
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
