@@ -46,6 +46,10 @@ export default function GamePage() {
   const [patterns, setPatterns] = useState<number[]>([]);
   const [gameStatus, setGameStatus] = useState<GameStatus>('in_progress');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // True only while a submitted guess is in flight to the server (before the
+  // reveal animation begins) — drives the active-row pulse so the guess
+  // registers visually the instant Enter is pressed.
+  const [awaitingResponse, setAwaitingResponse] = useState(false);
   const [shakeRow, setShakeRow] = useState(-1);
   const [revealRow, setRevealRow] = useState(-1);
   const [toastMsg, setToastMsg] = useState('');
@@ -224,12 +228,14 @@ export default function GamePage() {
     }
 
     setIsSubmitting(true);
+    setAwaitingResponse(true);
 
     try {
       const res = user
         ? await gamesApi.submitGuess(id, currentGuess)
         : await dailyApi.guestGuess(id, currentGuess);
       const updatedGame: Game = res.data;
+      setAwaitingResponse(false);
 
       const sortedMoves = [...(updatedGame.moves || [])].sort(
         (a, b) => a.move_number - b.move_number
@@ -302,6 +308,7 @@ export default function GamePage() {
       } else {
         showToast(msg);
       }
+      setAwaitingResponse(false);
       setIsSubmitting(false);
     }
   }, [
@@ -392,6 +399,7 @@ export default function GamePage() {
           currentGuess={currentGuess}
           shakeRow={shakeRow}
           revealRow={revealRow}
+          isAwaiting={awaitingResponse}
         />
       </div>
 

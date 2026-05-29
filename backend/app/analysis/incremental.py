@@ -52,6 +52,16 @@ class MoveAnalysisFields(TypedDict, total=False):
     is_book_move: bool
 
 
+# Move 1 always starts from the full answer pool, so the optimal-opener ranking
+# is identical for every game of a given mode (standard vs competitive). That
+# ranking — find_optimal_guess over the whole pool — is the single most
+# expensive computation in a game. Cache it per pool so only the very first
+# guess each process ever pays for it; every later game reuses the result.
+# Keyed by the `competitive` flag (which selects the pool). The to_thread race
+# between two concurrent first-guesses is benign — both compute the same value.
+_OPENER_TOP_PICKS: dict[bool, list[dict]] = {}
+
+
 def analyze_single_move(
     prior_moves: list[dict],
     guess: str,
@@ -130,7 +140,17 @@ def analyze_single_move(
     violation_type = violation_info["type"]
 
     # Optimal pick at this position (the dominant cost — bigger pool = slower).
-    top_picks = find_optimal_guess(possible, n_remaining, top_n=15)
+    # The opening move spans the entire pool and is identical across games, so
+    # serve it from the per-pool cache (computed once) instead of re-ranking
+    # ~thousands of candidates on every first guess. Later moves have smaller,
+    # game-specific pools and always recompute.
+    if not prior_moves:
+        top_picks = _OPENER_TOP_PICKS.get(competitive)
+        if top_picks is None:
+            top_picks = find_optimal_guess(possible, n_remaining, top_n=15)
+            _OPENER_TOP_PICKS[competitive] = top_picks
+    else:
+        top_picks = find_optimal_guess(possible, n_remaining, top_n=15)
     optimal = top_picks[0] if top_picks else None
     optimal_info = float(optimal["entropy"]) if optimal else 0.0
     optimal_word = str(optimal["word"]) if optimal else ""

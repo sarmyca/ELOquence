@@ -10,6 +10,12 @@ interface GameBoardProps {
   shakeRow: number;
   /** Index of the row currently performing its flip reveal (-1 means none) */
   revealRow: number;
+  /**
+   * True while a submitted guess is in flight to the server (before the reveal
+   * starts). Pulses the active row so the guess visibly "registers" instantly
+   * instead of sitting frozen until the response lands.
+   */
+  isAwaiting?: boolean;
   maxGuesses?: number;
 }
 
@@ -19,6 +25,7 @@ export default function GameBoard({
   currentGuess,
   shakeRow,
   revealRow,
+  isAwaiting = false,
   maxGuesses = 6,
 }: GameBoardProps) {
   type RowData = {
@@ -74,16 +81,29 @@ export default function GameBoard({
       className="flex flex-col items-center"
       style={{ gap: 'var(--tile-gap)' }}
     >
-      {rows.map((row, rowIndex) => (
+      {rows.map((row, rowIndex) => {
+        // The active (just-submitted, not-yet-revealed) row pulses while the
+        // guess is in flight. Shake and pulse never overlap, so a single
+        // animate/transition pair covers both.
+        const isAwaitingRow = isAwaiting && rowIndex === guesses.length;
+        return (
         <motion.div
           key={rowIndex}
           role="row"
           className="flex"
           style={{ gap: 'var(--tile-gap)' }}
-          animate={shakeRow === rowIndex ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
+          animate={
+            shakeRow === rowIndex
+              ? { x: [0, -8, 8, -6, 6, -3, 3, 0] }
+              : isAwaitingRow
+              ? { opacity: [1, 0.4, 1] }
+              : { x: 0, opacity: 1 }
+          }
           transition={
             shakeRow === rowIndex
               ? { duration: 0.45, ease: 'easeInOut' }
+              : isAwaitingRow
+              ? { duration: 0.9, repeat: Infinity, ease: 'easeInOut' }
               : { duration: 0 }
           }
         >
@@ -114,7 +134,8 @@ export default function GameBoard({
             );
           })}
         </motion.div>
-      ))}
+        );
+      })}
     </div>
   );
 }
