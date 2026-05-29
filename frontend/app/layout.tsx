@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   applicationName: 'ELOquence',
   openGraph: {
     title: 'ELOquence',
-    description: 'The Chess.com of Wordle',
+    description: 'Competitive Wordle',
     type: 'website',
   },
   manifest: '/manifest.json',

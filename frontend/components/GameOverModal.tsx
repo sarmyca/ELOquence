@@ -160,11 +160,12 @@ export default function GameOverModal({
   const celebrationTier = won ? getCelebrationTier(game.num_guesses) : null;
 
   const buildShareText = () => {
-    const header = `ELOquence ${won ? game.num_guesses : 'X'}/6${
+    const modeLabel = game.mode.charAt(0).toUpperCase() + game.mode.slice(1);
+    const header = `ELOquence ${modeLabel} ${won ? game.num_guesses : 'X'}/6${
       won && game.num_guesses <= 3 ? ' ⭐' : ''
     }`;
     const wordElo = game.word_difficulty
-      ? `Word ELO: ${game.word_difficulty.toLocaleString()}`
+      ? `Word ELO: ${Math.round(game.word_difficulty).toLocaleString()}`
       : '';
     const grid = game.moves
       .map((move) => {
@@ -172,7 +173,7 @@ export default function GameOverModal({
         return tiles.map((t) => TILE_EMOJI[t] ?? '⬛').join('');
       })
       .join('\n');
-    return [header, wordElo, '', grid, '', 'eloquence.app']
+    return [header, wordElo, '', grid, '', 'https://el-oquence.vercel.app']
       .filter((l) => l !== undefined)
       .join('\n')
       .trim();
