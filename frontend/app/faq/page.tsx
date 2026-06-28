@@ -144,25 +144,6 @@ function InnerCard({ children, className }: { children: React.ReactNode; classNa
 }
 
 /* ------------------------------------------------------------------ */
-/*  Golden checkmark badge                                              */
-/* ------------------------------------------------------------------ */
-
-function GoldenCheck() {
-  return (
-    <span
-      className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold shrink-0"
-      style={{
-        backgroundColor: 'color-mix(in srgb, #c9a227 20%, transparent)',
-        color: '#c9a227',
-        border: '1px solid color-mix(in srgb, #c9a227 35%, transparent)',
-      }}
-    >
-      ✓
-    </span>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Types                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -964,22 +945,19 @@ const SECTIONS: SectionDef[] = [
       {
         q: "What's on the review page?",
         plain:
-          'The review page is your main post-game tool. It shows your overall scores at the top, then breaks down every move across six tabs: Analysis, Top Picks, Timeline, Patterns, Letters, and Graph. Click any row in the guess board on the left to jump to that move.',
+          'The review page is your main post-game tool. It walks you through the game one step at a time: an overview of all your moves, then a card for each guess comparing it to the bot’s optimal pick, then a final summary with community stats and your ELO change. Move between steps with the arrow keys or the on-screen arrows.',
         a: (
           <div className="space-y-3">
             <p className="font-sans text-sm text-text-secondary leading-relaxed">
-              The review page is your main post-game tool. Your overall skill, luck, and opener
-              stats appear at the top. Below that, clicking any row in the guess board loads that
-              move&apos;s analysis across six tabs.
+              The review is a step-by-step walkthrough rather than a dashboard. Your overall skill,
+              luck, and opener stats sit at the top of the overview; from there you page through one
+              step at a time.
             </p>
             <div className="grid gap-2">
               {[
-                { n: '1', name: 'Analysis', desc: 'Classification badge, info gained, efficiency bar, and constraint notes for the selected move.' },
-                { n: '2', name: 'Top Picks', desc: "The best guesses available at that point, ranked by expected info gain. Some carry a golden checkmark." },
-                { n: '3', name: 'Timeline', desc: 'How much uncertainty remained after each guess — a steeper drop means a more effective move.' },
-                { n: '4', name: 'Patterns', desc: 'A histogram of every feedback pattern your guess could have produced, showing their probabilities.' },
-                { n: '5', name: 'Letters', desc: 'A heatmap of how often each letter appears in each position among the remaining possible words.' },
-                { n: '6', name: 'Graph', desc: 'An interactive decision-tree visualization of the game state — every branch the bot explored.' },
+                { n: '1', name: 'Overview', desc: 'Your full guess grid plus a stats table summarising every move — skill, luck, words left and info gained, row by row. Click any row to jump straight to that move.' },
+                { n: '2', name: 'Per-move cards', desc: 'One card per guess: its classification, a “Comparing our guesses” table (your guess vs. the bot’s optimal pick), the bits of information gained, and how each guess split the remaining solutions into groups. Expand the optimal pick to see runner-up alternatives.' },
+                { n: '3', name: 'Summary', desc: 'How unique your game was versus the community, your projected ELO change (rated games), and links back to play or share.' },
               ].map((tab) => (
                 <InnerCard key={tab.n} className="flex gap-2.5">
                   <span className="font-mono text-[10px] text-text-ghost bg-bg-muted w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5">
@@ -996,99 +974,72 @@ const SECTIONS: SectionDef[] = [
         ),
       },
       {
-        q: 'What is the game-state graph?',
+        q: 'How do I see the bot’s recommended guesses?',
         plain:
-          'The graph tab shows the decision tree the bot explored to analyze your game. Each node is a game state (the set of words still possible at that point). Each branch is a guess and its resulting feedback pattern. Your actual path through the tree is highlighted. It is mostly a visual curiosity, but it makes the branching nature of Wordle tangible.',
-        a: (
-          <p className="font-sans text-sm text-text-secondary leading-relaxed">
-            The graph tab shows the decision tree the bot explored to analyze your game. Each node
-            is a game state — the set of words still possible at that point. Each branch is a guess
-            and the feedback pattern it produced. Your actual path through the tree is highlighted.
-            It is mostly a visual curiosity, but it makes the branching nature of Wordle
-            tangible: one guess can open dozens of branches, each with a different number of
-            remaining words.
-          </p>
-        ),
-      },
-      {
-        q: 'What are top picks? Why do some have a golden checkmark?',
-        plain:
-          'Top picks are the highest-ranked guesses the bot would have made at that point in the game. The golden checkmark marks picks the bot itself would have chosen — its seal of approval. If your actual guess appears in the top picks list with a checkmark, you matched or closely followed the optimal line.',
+          'On each per-move card the bot’s single best pick is shown with a green check and a score of 99. Expand it to reveal up to five runner-up alternatives, each with the average number of solutions it would leave behind. These are the highest-ranked guesses by expected information gain at that point in the game.',
         a: (
           <div className="space-y-3">
             <p className="font-sans text-sm text-text-secondary leading-relaxed">
-              Top picks are the highest-ranked guesses the bot would have made at that point in the
-              game, ordered by expected information gain. The list shows the word, its efficiency
-              relative to the best possible, and the expected number of remaining words.
+              Every per-move card names the bot&apos;s single best guess for that position, marked
+              with a{' '}
+              <span className="font-bold" style={{ color: 'var(--tile-correct)' }}>✓</span>{' '}
+              green check and a perfect score of 99 — the guess with the highest expected
+              information gain.
             </p>
-            <div className="flex items-center gap-3">
-              <GoldenCheck />
-              <p className="font-sans text-sm text-text-secondary leading-relaxed">
-                The golden checkmark marks picks the bot itself would have chosen — its seal of
-                approval. If your actual guess appears in the top picks list with a checkmark, you
-                matched or closely followed the optimal line.
-              </p>
-            </div>
+            <p className="font-sans text-sm text-text-secondary leading-relaxed">
+              Tap the chevron next to it to expand up to five runner-up alternatives. Each shows the
+              word and the average number of solutions it would be expected to leave behind (lower
+              is better). If your own guess was the optimal one, it simply appears as the best pick
+              — you matched the bot.
+            </p>
           </div>
         ),
       },
       {
-        q: 'What is the pattern histogram?',
+        q: 'What are the pattern groups on each card?',
         plain:
-          'For your selected guess, the pattern histogram shows every possible feedback pattern it could have produced against the remaining words, and how many words each pattern would leave. Tall bars mean a pattern is probable but leaves many words behind. Short, evenly distributed bars mean the guess splits the field well.',
+          'Each per-move card shows how your guess split the remaining solutions into groups — one group per feedback pattern it could produce — side by side with how the bot’s optimal pick would have split them. More, smaller groups mean faster solving; one big group means the guess barely narrowed things down. The card also reports the number of groups, the largest group, and the bits of information gained.',
         a: (
           <p className="font-sans text-sm text-text-secondary leading-relaxed">
-            For your selected guess, the pattern histogram shows every possible feedback pattern it
-            could have produced against the remaining words, along with how many words each pattern
-            would leave behind. A well-distributed histogram — lots of short, roughly equal bars —
-            means the guess splits the field evenly. A histogram dominated by one tall bar means
-            most outcomes collapse into a single large group, which is a sign of an inefficient
-            guess.
+            Each per-move card visualises how your guess divided the solutions that remained before
+            you played it: every distinct feedback pattern becomes one group, shown as a row of
+            mini-tiles sized by how many words fall into it. Your split is placed next to the
+            bot&apos;s optimal split for direct comparison. The accompanying table reports the
+            number of groups, the largest group, and the bits of information gained — more and
+            smaller groups (more bits) means the guess narrowed the field more evenly, and
+            you&apos;ll usually solve faster.
           </p>
         ),
       },
       {
-        q: 'What is the letter heatmap?',
+        q: 'What’s on the final summary (community stats)?',
         plain:
-          'The heatmap shows positional letter frequencies among the words still possible when you made your selected guess. Darker cells mean that letter appears in that position more often. It is the bot\'s view of the landscape at that moment — and a useful guide for which letters would be most valuable to test next.',
+          'The last step of the review pulls back from individual moves and compares your whole game to everyone else who solved the same word: how many players got it, how your guess count stacks up, and how unique your exact sequence of guesses was. Rated games also show your projected ELO change here.',
         a: (
           <p className="font-sans text-sm text-text-secondary leading-relaxed">
-            The heatmap shows positional letter frequencies among the words still possible when you
-            made your selected guess. Darker cells mean that letter appears in that position more
-            often among the candidates. It is the bot&apos;s view of the landscape at that moment
-            — and a useful guide for which letters would be most valuable to test next. A letter
-            that appears in 70% of remaining words is worth including in your next guess.
-          </p>
-        ),
-      },
-      {
-        q: 'What is the candidate list (Show Details)?',
-        plain:
-          'The candidate list is the full set of words still possible at a given point in the game. Clicking "Show Details" on any move expands it. You can see exactly how many words remained and which ones they were. It is useful for understanding just how narrow (or wide) the field was when you made a particular choice.',
-        a: (
-          <p className="font-sans text-sm text-text-secondary leading-relaxed">
-            The candidate list is the full set of words still possible at a given point in the game.
-            Clicking &quot;Show Details&quot; on any move expands it. You can see exactly how many
-            words remained and which ones they were. It is useful for understanding just how narrow
-            — or wide — the field was when you made a particular choice. Seeing 400 words still
-            possible on move 3 might explain why the bot ranked your guess as an Inaccuracy.
+            The final step looks at the whole game in context. It shows community stats for the
+            same answer — how many people solved it and how your number of guesses compares — plus
+            how unique your particular path was, since identical games share a fingerprint. For
+            rated games, your projected ELO change is shown here too. From this step you can jump
+            back to play or share the game.
           </p>
         ),
       },
       {
         q: 'Are there keyboard shortcuts on the review page?',
         plain:
-          'Yes. Arrow keys navigate between moves. Number keys 1 through 6 switch between tabs.',
+          'Yes. Use the left and right arrow keys to step backward and forward through the review. Home jumps to the overview, and End jumps to the final summary.',
         a: (
           <div className="space-y-3">
             <p className="font-sans text-sm text-text-secondary leading-relaxed">
-              Yes. The review page supports full keyboard navigation for quick browsing.
+              Yes. The review is a stepper, so navigation is quick from the keyboard.
             </p>
             <div className="grid gap-1.5">
               {[
-                { keys: '← / ↑', action: 'Previous move' },
-                { keys: '→ / ↓', action: 'Next move' },
-                { keys: '1 – 6', action: 'Switch to tab by number' },
+                { keys: '←', action: 'Previous step' },
+                { keys: '→', action: 'Next step' },
+                { keys: 'Home', action: 'Jump to the overview' },
+                { keys: 'End', action: 'Jump to the final summary' },
               ].map((s) => (
                 <InnerCard key={s.keys} className="flex items-center justify-between py-2">
                   <span className="font-mono text-xs text-text-primary bg-bg-muted px-2 py-0.5 rounded-key">
